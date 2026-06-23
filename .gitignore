@@ -1,0 +1,31 @@
+# 대용량·재생성 가능한 원시 수집 데이터 (스크립트로 다시 생성 가능)
+data_collectors/output/
+
+# 로그·중간 산출물
+*.log
+_raw_page.html
+_page_text.txt
+
+# 비밀/자격증명 (혹시라도 — 절대 커밋 금지)
+.cdsapirc
+.edl_token
+.env
+.env.*
+*.key
+secrets*.txt
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Node / Vercel
+node_modules/
+.vercel
+
+# OS / 에디터
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
