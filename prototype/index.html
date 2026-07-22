@@ -4,26 +4,26 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#081c2d" />
-  <title>Weather24 | 계절 신호 수사</title>
-  <meta name="description" content="실제 기상 관측 데이터를 조작하며 24절기와 체감 계절의 관계를 수사하는 게임형 기후 학습" />
+  <title>Weather24 | 계절 탐험 레슨</title>
+  <meta name="description" content="24절기와 실제 기상 데이터를 짧은 상호작용으로 발견하는 게임형 기후 레슨" />
   <link rel="icon" type="image/png" href="thumbnail.png" />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://weather-24solar-terms.vercel.app/" />
-  <meta property="og:title" content="Weather24 | 계절 신호 수사" />
-  <meta property="og:description" content="예측·비교·반증으로 계절의 약속을 수사하는 기후 탐험" />
+  <meta property="og:title" content="Weather24 | 계절 탐험 레슨" />
+  <meta property="og:description" content="짧게 해 보고, 바로 발견하는 24절기 기후 레슨" />
   <meta property="og:image" content="https://weather-24solar-terms.vercel.app/thumbnail.png" />
-  <link rel="stylesheet" href="./style.css?v=11" />
+  <link rel="stylesheet" href="./style.css?v=13" />
 </head>
 <body class="mission-mode">
   <div class="sky-noise" aria-hidden="true"></div>
 
   <main class="mission-game" id="missionGame" aria-live="polite">
     <header class="mission-topbar">
-      <a class="brand" href="#missionGame" aria-label="Weather24 계절 신호 수사">
+      <a class="brand" href="#missionGame" aria-label="Weather24 계절 탐험 레슨">
         <span class="brand-mark" aria-hidden="true">W</span>
-        <span><strong>WEATHER24</strong><small>계절 신호 수사국</small></span>
+        <span><strong>WEATHER24</strong><small>계절 탐험 레슨</small></span>
       </a>
-      <div class="mission-hud" aria-label="현재 수사 진행도">
+      <div class="mission-hud" aria-label="현재 레슨 진행도">
         <span id="missionCode">CASE 01</span>
         <span class="signal-meter"><i id="signalOne"></i><i id="signalTwo"></i><i id="signalThree"></i></span>
         <button class="mission-text-btn" id="openLearningGuide">학습 가이드</button>
@@ -31,13 +31,13 @@
       </div>
     </header>
     <section class="mission-stage" id="missionStage"></section>
-    <footer class="mission-footer"><span id="missionFoot">정답을 맞히는 게임이 아닙니다. 더 좋은 비교를 찾는 수사입니다.</span><button class="mission-text-btn" id="openArchive">데이터 보관실</button></footer>
+    <footer class="mission-footer"><span id="missionFoot">실제 기상 관측으로 배우는 8분 레슨</span><button class="mission-text-btn" id="openArchive" hidden>실제 데이터</button></footer>
   </main>
 
   <dialog class="mission-modal" id="missionBoardDialog">
     <div class="modal-head"><p class="eyebrow">MISSION BOARD</p><button class="close-btn" data-mission-close="missionBoardDialog" aria-label="닫기">×</button></div>
-    <h2>다음 수사 경로</h2>
-    <p>한 사건을 끝내면 다음 사건의 난이도와 질문이 열립니다. 빠른 완주보다, 근거를 바꿔 보는 행동이 해금 조건입니다.</p>
+    <h2>레슨 경로</h2>
+    <p>하나씩 해 보고, 다음 발견을 열어 보세요.</p>
     <div class="mission-board" id="missionBoard"></div>
   </dialog>
 
@@ -76,6 +76,6 @@
   <script src="./korea_geo.js?v=5"></script>
   <script src="./solar_terms_data.js?v=5"></script>
   <script src="./app.js?v=10"></script>
-  <script src="./mission.js?v=4"></script>
+  <script src="./mission.js?v=5"></script>
 </body>
 </html>

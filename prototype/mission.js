@@ -3,251 +3,165 @@
   var D = window.SOLAR_DATA;
   if (!D) return;
 
-  var MISSIONS = [
-    {
-      id:'season', caseId:'A-05', code:'01', duration:'8분', chapter:'절기의 약속',
-      title:'처서 뒤, 더위는 끝났나?',
-      learningItem:'절기·날씨·기후 구분',
-      rumor:'"처서가 지났는데도 밤이 덥다"는 제보가 들어왔어요.',
-      briefing:'처서는 태양 위치로 정해지는 천문 기준입니다. 오늘의 수사는 그 무렵에 만나는 실제 계절 조건을 관측 자료로 확인하는 일입니다.',
-      term:15, city:'서울', compareCity:'부산', metric:'temp',
-      tool:{ title:'더위 기준선', min:23, max:30, step:1, initial:25, unit:'°C', scope:'window', description:'처서 뒤 15일 중, 설정한 기온 이상인 날의 수' }
-    },
-    {
-      id:'rain', caseId:'C-01', code:'02', duration:'8분', chapter:'비와 바람',
-      title:'비가 줄었다는 말, 맞을까?',
-      learningItem:'강수 지표와 비교 범위',
-      rumor:'"요즘 비가 예전보다 적어진 것 같아"라는 동네 방송 제보예요.',
-      briefing:'비가 적다는 말은 총량, 비가 온 날 수, 강하게 내린 날을 섞어 말하기 쉽습니다. 무엇을 비교하는지부터 정해야 합니다.',
-      term:12, city:'서울', compareCity:'광주', metric:'precip',
-      tool:{ title:'비의 기준선', min:1, max:10, step:1, initial:3, unit:'mm', scope:'window', description:'소서 전후 15일 중, 설정한 강수량 이상인 날의 수' }
-    },
-    {
-      id:'summer', caseId:'B-03', code:'03', duration:'8분', chapter:'시간 지도',
-      title:'여름은 며칠이 되었을까?',
-      learningItem:'기준선과 열적 계절',
-      rumor:'"여름이 더 길어진 것 같다"는 체감 제보가 도착했어요.',
-      briefing:'계절의 길이는 하나의 정답이 아닙니다. 먼저 여름을 판별할 기준을 정하고, 기준을 바꿨을 때 결론이 어떻게 달라지는지 살펴봅니다.',
-      term:11, city:'서울', compareCity:'부산', metric:'temp',
-      tool:{ title:'여름 기준선', min:20, max:30, step:1, initial:25, unit:'°C', scope:'year', description:'1년 중, 설정한 평균기온 이상인 날의 수' }
-    }
+  /*
+   * Weather24 is deliberately a short interactive lesson, not a dashboard.
+   * One screen = one decision. Explanations follow an action, never precede it.
+   */
+  var LESSONS = [
+    { id:'season', caseId:'A-05', no:1, term:15, city:'서울', compareCity:'부산', metric:'temp', icon:'☀', label:'절기와 날씨', title:'처서인데,\n더울 수 있을까?', lead:'날짜의 계절과 오늘의 공기를 구분해 보자.', rule:'덥다', min:23, max:30, initial:25, unit:'°C', scope:'window', claim:'서울의 처서 무렵은 과거보다 더웠다.' },
+    { id:'rain', caseId:'C-01', no:2, term:12, city:'서울', compareCity:'광주', metric:'precip', icon:'☂', label:'비의 언어', title:'비가 줄었다는 말,\n무슨 뜻일까?', lead:'비의 양과 비가 온 날은 같은 말이 아니에요.', rule:'비가 많이 왔다', min:1, max:10, initial:3, unit:'mm', scope:'window', claim:'서울의 소서 무렵 강수량은 선택한 기준에서 다르게 나타났다.' },
+    { id:'summer', caseId:'B-03', no:3, term:10, city:'서울', compareCity:'부산', metric:'temp', icon:'⌁', label:'여름의 길이', title:'여름은\n며칠일까?', lead:'먼저 “여름”의 온도 기준을 만들어 보자.', rule:'여름이다', min:20, max:30, initial:25, unit:'°C', scope:'year', claim:'서울에서 내가 정한 여름 기준을 만족한 날 수는 두 기간에 다르다.' }
   ];
-  var state = loadCampaign();
-  var METRIC = {};
-  D.metrics.forEach(function (item) { METRIC[item.key] = item; });
-  var LEARNING_TARGETS = [
-    { id:'concept', code:'목표 1', title:'24절기·날씨·기후를 구분한다', text:'24절기는 태양의 위치를 기준으로 한 천문·달력 표지이고, 날씨는 짧은 시간의 지역 상태, 기후는 여러 해의 통계적 경향이다.' },
-    { id:'scope', code:'목표 2', title:'자료가 말하는 범위를 읽는다', text:'지역·기간·지표가 적힌 비교만 해석하고, 한 지역의 관측을 전국이나 원인으로 넓히지 않는다.' },
-    { id:'definition', code:'목표 3', title:'측정 기준을 정의하고 비교한다', text:'“덥다”, “비가 많다”, “여름”의 기준을 먼저 정한 뒤, 기준을 바꿨을 때 결과가 어떻게 달라지는지 설명한다.' },
-    { id:'argument', code:'목표 4', title:'근거의 크기만큼 결론을 쓴다', text:'두 개 이상의 근거와 한계를 연결해, 조건부 결론을 만든다.' }
-  ];
-  var STEP_GUIDES = {
-    intro:{ code:'학습 목표', title:'오늘 무엇을 할 수 있게 될까?', text:'생활 속 절기 제보를 실제 기상 관측으로 검증하며, “자료가 어디까지 말하는가”를 연습합니다.' },
-    hypothesis:{ code:'목표 1 준비', title:'내 생각을 가설로 남기기', text:'예측은 맞혀야 하는 답이 아닙니다. 나중에 자료를 보고 생각을 수정할 출발점입니다.' },
-    concept:{ code:'목표 1', title:'천문 기준과 기상 조건을 구분하기', text:'24절기 자체와 그 무렵의 기온은 서로 다른 종류의 정보입니다.' },
-    scope:{ code:'목표 2', title:'자료가 말하는 범위를 읽기', text:'한 숫자를 볼 때는 먼저 지역·기간·지표를 확인합니다.' },
-    definition:{ code:'목표 3', title:'측정 기준을 정의하고 비교하기', text:'기준선을 바꾸면 결과가 달라질 수 있습니다. 중요한 것은 내가 쓴 기준을 밝히는 일입니다.' },
-    counter:{ code:'목표 4 준비', title:'반증으로 결론의 범위 정하기', text:'다른 지역이나 기간을 비교해, 내가 말할 수 있는 범위를 조절합니다.' },
-    argument:{ code:'목표 4', title:'근거와 한계를 연결해 주장하기', text:'좋은 결론은 근거보다 더 크게 말하지 않습니다.' },
-    review:{ code:'학습 점검', title:'오늘 할 수 있게 된 것 확인하기', text:'수사 기술이 실제로 개념과 자료 해석에 연결되었는지 짧게 확인합니다.' }
-  };
+  var metricMap = {};
+  D.metrics.forEach(function (metric) { metricMap[metric.key] = metric; });
+  var saved = loadProgress();
+  var state = { lesson:saved.last || 'season', step:'start', threshold:25, touched:false, completed:saved.completed, prediction:'' };
 
   function $(id) { return document.getElementById(id); }
-  function loadCampaign() {
-    try {
-      var stored = JSON.parse(localStorage.getItem('weather24_mission_campaign_v1'));
-      if (stored && Array.isArray(stored.completed)) return { mission:'season', phase:'intro', prediction:'', threshold:25, signals:[], completed:stored.completed.filter(function (id) { return ['season','rain','summer'].indexOf(id) !== -1; }), toolTouched:false, compared:false, verdict:'' };
-    } catch (error) {}
-    return { mission:'season', phase:'intro', prediction:'', threshold:25, signals:[], completed:[], toolTouched:false, compared:false, verdict:'' };
-  }
-  function saveCampaign() { try { localStorage.setItem('weather24_mission_campaign_v1', JSON.stringify({ completed:state.completed })); } catch (error) {} }
-  function mission() { return MISSIONS.filter(function (item) { return item.id === state.mission; })[0] || MISSIONS[0]; }
+  function lesson() { return LESSONS.filter(function (item) { return item.id === state.lesson; })[0] || LESSONS[0]; }
   function term(m) { return D.terms[m.term]; }
-  function label(metric) { return (METRIC[metric] || {}).label || metric; }
-  function r1(value) { return Math.round(value * 10) / 10; }
-  function format(metric, value) { return metric === 'temp' ? r1(value) + '°C' : r1(value) + 'mm'; }
-  function delta(metric, value) { return (value >= 0 ? '+' : '') + format(metric, value); }
   function day(index) { return ((index % 365) + 365) % 365; }
-  function at(m, city, period) { return D.cities[city][m.metric][period][day(term(m).doy - 1)]; }
-  function windowValues(m, city, period) {
-    var values = D.cities[city][m.metric][period];
-    if (m.tool.scope === 'year') return values.slice();
-    return Array.from({ length:15 }, function (_, index) { return values[day(term(m).doy - 1 + index)]; });
+  function value(m, city, period) { return D.cities[city][m.metric][period][day(term(m).doy - 1)]; }
+  function values(m, city, period) {
+    var list = D.cities[city][m.metric][period];
+    if (m.scope === 'year') return list.slice();
+    return Array.from({ length:15 }, function (_, index) { return list[day(term(m).doy - 1 + index)]; });
   }
-  function countAtThreshold(m, city, period, threshold) { return windowValues(m, city, period).filter(function (value) { return value >= threshold; }).length; }
-  function fact(m, city) {
-    var past = at(m, city, 'past'), present = at(m, city, 'present');
-    return { past:past, present:present, difference:present - past, statement:city + '의 ' + term(m).name + ' 무렵 평균 ' + label(m.metric) + '은 과거 ' + format(m.metric, past) + ', 현재 ' + format(m.metric, present) + '로 비교된다.' };
+  function round(value) { return Math.round(value * 10) / 10; }
+  function format(m, value) { return round(value) + (m.metric === 'temp' ? '°' : 'mm'); }
+  function count(m, period, threshold) { return values(m, m.city, period).filter(function (item) { return item >= threshold; }).length; }
+  function progressKey() { return 'weather24_learning_path_v2'; }
+  function loadProgress() {
+    try {
+      var item = JSON.parse(localStorage.getItem(progressKey()));
+      if (item && Array.isArray(item.completed)) return { completed:item.completed.filter(function (id) { return LESSONS.some(function (lesson) { return lesson.id === id; }); }), last:item.last || 'season' };
+    } catch (error) {}
+    return { completed:[], last:'season' };
   }
-  function addSignal(id) { if (state.signals.indexOf(id) === -1) state.signals.push(id); updateHud(); }
-  function updateHud() {
-    var m = mission();
-    $('missionCode').textContent = 'CASE ' + m.code + ' · ' + state.signals.length + ' / 3 신호';
-    ['signalOne','signalTwo','signalThree'].forEach(function (id, index) { $(id).classList.toggle('is-on', index < state.signals.length); });
+  function saveProgress() { try { localStorage.setItem(progressKey(), JSON.stringify({ completed:state.completed, last:state.lesson })); } catch (error) {} }
+  function isUnlocked(index) { return index === 0 || LESSONS.slice(0, index).some(function (item) { return state.completed.indexOf(item.id) !== -1; }); }
+  function updateChrome() {
+    var m = lesson();
+    $('missionCode').textContent = 'LESSON ' + m.no + ' / 3';
+    ['signalOne','signalTwo','signalThree'].forEach(function (id, index) { $(id).classList.toggle('is-on', index < m.no); });
+    $('missionFoot').textContent = m.label + ' · 실제 기상 관측으로 배우는 8분 레슨';
   }
-  function learningLens(key) {
-    var guide = STEP_GUIDES[key] || STEP_GUIDES.intro;
-    var overview = key === 'intro' ? '<div class="learning-target-mini">' + LEARNING_TARGETS.map(function (target) { return '<span><b>' + target.code + '</b>' + target.title + '</span>'; }).join('') + '</div>' : '';
-    return '<aside class="learning-lens"><div><span>' + guide.code + '</span><b>' + guide.title + '</b><p>' + guide.text + '</p></div><button class="mission-text-btn" data-open-learning-guide>전체 목표 보기</button>' + overview + '</aside>';
+  function screen(html) {
+    $('missionStage').innerHTML = html;
+    updateChrome();
   }
-  function stage(html, guideKey) {
-    var phaseGuide = { intro:'intro', prediction:'hypothesis', concept:'concept', observation:'scope', tool:'definition', counter:'counter', verdict:'argument', complete:'review', check:'review' };
-    $('missionStage').innerHTML = learningLens(guideKey || phaseGuide[state.phase] || 'intro') + html;
-    var guideButton = document.querySelector('[data-open-learning-guide]'); if (guideButton) guideButton.addEventListener('click', openLearningGuide);
-    updateHud();
+  function stepTop(m, number, skill) {
+    return '<div class="learn-step"><span>' + m.icon + ' ' + skill + '</span><div class="learn-dots" aria-label="레슨 진행 ' + number + ' / 4"><i class="is-done"></i><i class="' + (number > 1 ? 'is-done' : '') + '"></i><i class="' + (number > 2 ? 'is-done' : '') + '"></i><i class="' + (number > 3 ? 'is-done' : '') + '"></i></div></div>';
   }
-  function choiceButtons(items, attr) { return '<div class="mission-choices">' + items.map(function (item) { return '<button class="mission-choice" ' + attr + '="' + item.value + '"><b>' + item.label + '</b><small>' + item.hint + '</small></button>'; }).join('') + '</div>'; }
-  function metricScene(m, city) {
-    var f = fact(m, city);
-    return '<div class="signal-visual"><div class="signal-sun" aria-hidden="true"></div><div class="signal-reading"><span>' + D.periods.past + '</span><b>' + format(m.metric, f.past) + '</b></div><div class="signal-arrow" aria-hidden="true">→</div><div class="signal-reading is-now"><span>' + D.periods.present + '</span><b>' + format(m.metric, f.present) + '</b></div><p>' + city + ' · ' + term(m).name + ' · 변화 ' + delta(m.metric, f.difference) + '</p></div>';
+  function primary(label, id) { return '<button class="learn-primary" id="' + id + '">' + label + '<span aria-hidden="true">→</span></button>'; }
+  function choice(value, icon, title, sub, attr) { return '<button class="learn-choice" ' + attr + '="' + value + '"><span class="choice-icon" aria-hidden="true">' + icon + '</span><span><b>' + title + '</b><small>' + sub + '</small></span><i aria-hidden="true">›</i></button>'; }
+  function feedback(id, good, title, copy, action, label) {
+    return '<div class="learn-feedback ' + (good ? 'is-good' : 'is-try') + '" id="' + id + '"><span aria-hidden="true">' + (good ? '✓' : '↻') + '</span><div><b>' + title + '</b><p>' + copy + '</p>' + (action ? '<button class="learn-mini-primary" id="' + action + '">' + label + ' →</button>' : '') + '</div></div>';
   }
-  function renderIntro() {
-    var m = mission();
-    state.phase = 'intro'; state.signals = []; state.prediction = ''; state.threshold = m.tool.initial; state.toolTouched = false; state.compared = false; state.verdict = '';
-    stage('<section class="mission-card mission-intro"><div class="mission-stamp">현장 제보 접수</div><p class="eyebrow">' + m.chapter.toUpperCase() + ' · ' + m.duration + ' 수사</p><h1>' + m.title + '</h1><div class="radio-message"><span aria-hidden="true">⌁</span><p>' + m.rumor + '</p></div><p class="mission-lead">' + m.briefing + '</p><button class="mission-primary" id="beginMission">제보 확인하기 <span aria-hidden="true">→</span></button><p class="mission-note">오늘의 보상은 점수가 아닙니다. 예측·비교·반증이라는 세 가지 수사 기술입니다.</p></section>');
-    $('beginMission').addEventListener('click', renderPrediction);
+  function temperatureStrip(m, period) {
+    var source = values(m, m.city, period).slice(0, 15);
+    var min = Math.min.apply(null, source), max = Math.max.apply(null, source), span = max - min || 1;
+    return '<div class="weather-strip" aria-label="' + D.periods[period] + '의 15일 관측 분포">' + source.map(function (item) { var level = Math.round(((item - min) / span) * 4) + 1; return '<i class="heat-' + level + '"></i>'; }).join('') + '</div>';
   }
-  function renderPrediction() {
-    var m = mission(); state.phase = 'prediction';
-    stage('<section class="mission-card"><div class="mission-progress"><span>수사 목표</span><b>1. 예측 · 2. 비교 · 3. 반증</b></div><p class="eyebrow">STEP 01 · 내 가설</p><h1>기록을 열기 전에<br />어떤 쪽일까요?</h1><p class="mission-lead">목표: <strong>' + term(m).name + ' 날짜</strong>와 <strong>실제 ' + label(m.metric) + ' 조건</strong>이 서로 다를 수 있는지, 두 개 이상의 근거로 판단합니다.</p>' + choiceButtons([
-      { value:'support', label:'제보가 맞을 것 같아', hint:'내 경험을 먼저 가설로 남긴다' },
-      { value:'refute', label:'제보가 과장 같아', hint:'다른 모습이 있을 거라 예상한다' },
-      { value:'unknown', label:'아직 모르겠어', hint:'자료를 비교한 뒤 판단한다' }
-    ], 'data-predict') + '<p class="mission-note">예측은 맞혀야 하는 답이 아니라, 나중에 바꿀 수 있는 생각의 출발점입니다.</p></section>');
-    document.querySelectorAll('[data-predict]').forEach(function (button) { button.addEventListener('click', function () { state.prediction = button.dataset.predict; renderConceptCheck(); }); });
+  function renderStart() {
+    var m = lesson(); state.step = 'start'; state.threshold = m.initial; state.touched = false;
+    $('openArchive').hidden = true;
+    screen('<section class="learn-card learn-start"><div class="lesson-orbit" aria-hidden="true"><i></i><i></i><b>' + m.icon + '</b><span>' + term(m).name + '</span></div><p class="learn-overline">8분 마이크로 레슨 · ' + m.label + '</p><h1>' + m.title.replace('\n','<br />') + '</h1><p class="learn-lead">' + m.lead + '</p><div class="goal-chip"><span aria-hidden="true">✦</span> 오늘의 발견: <b>절기 ≠ 날씨</b></div>' + primary('시작하기', 'startLesson') + '<button class="learn-link" id="skipToMap">다른 레슨 보기</button></section>');
+    $('startLesson').addEventListener('click', renderSort);
+    $('skipToMap').addEventListener('click', openBoard);
   }
-  function renderConceptCheck() {
-    state.phase = 'concept';
-    stage('<section class="mission-card concept-card"><div class="mission-progress"><span>개념 확인</span><b>절기 · 날씨 · 기후</b></div><p class="eyebrow">STEP 01.5 · 개념 렌즈</p><h1>처서는 무엇이고,<br /><em>27.1°C</em>는 무엇일까?</h1><p class="mission-lead">같은 화면에 놓여도 두 정보의 역할은 다릅니다. 먼저 구분해야 자료를 과장하지 않고 읽을 수 있습니다.</p><div class="concept-pair"><div><span>처서</span><b>태양 위치를 기준으로 한<br />24절기</b><small>천문·달력 기준</small></div><div><span>27.1°C</span><b>서울에서 관측한<br />기온 조건</b><small>특정 지역·기간의 기상 자료</small></div></div><div class="mission-question"><strong>가장 정확한 설명은 무엇일까요?</strong>' + choiceButtons([
-      { value:'distinguish', label:'처서는 천문 기준이고, 27.1°C는 지역의 관측 조건이다.', hint:'기후 판단에는 더 긴 기간의 자료도 필요하다' },
-      { value:'same', label:'처서가 더워졌다는 뜻이므로 절기 자체가 바뀌었다.', hint:'절기와 관측 조건을 같은 것으로 본다' },
-      { value:'climate', label:'한 번의 기온 비교만으로 기후변화를 확정할 수 있다.', hint:'짧은 비교의 한계를 넘는다' }
-    ], 'data-concept') + '</div><div class="mission-feedback" id="conceptFeedback" hidden></div></section>', 'concept');
-    document.querySelectorAll('[data-concept]').forEach(function (button) {
-      button.addEventListener('click', function () {
-        var box = $('conceptFeedback'); box.hidden = false;
-        if (button.dataset.concept === 'distinguish') {
-          box.className = 'mission-feedback is-good';
-          box.innerHTML = '<strong>개념 렌즈 장착</strong><p>맞아요. 24절기는 태양의 황경을 15°씩 나눈 천문 기준입니다. 양력 날짜는 해마다 하루 안팎 달라질 수 있지만, 실제 기온으로 정해지지는 않습니다. 지금의 5년 평균 비교는 관측 신호이고, 장기 기후 판단에는 더 긴 시계열이 필요합니다.</p><button class="mission-primary" id="toObservation">관측 봉투 열기</button>';
-          $('toObservation').addEventListener('click', renderObservation);
-        } else {
-          box.className = 'mission-feedback is-try';
-          box.innerHTML = '<strong>두 정보를 분리해 볼까요?</strong><p>절기는 태양 위치로 정하고, 기온은 장소와 시기에 따라 관측됩니다. 한 번의 비교와 장기 기후 판단도 구분해 보세요.</p>';
-        }
-      });
-    });
+  function renderSort() {
+    var m = lesson(); state.step = 'sort';
+    screen('<section class="learn-card"><div class="learn-visual-pair"><div class="visual-token token-calendar"><span>📅</span><b>' + term(m).name + '</b><small>' + term(m).date + '</small></div><div class="visual-equals" aria-hidden="true">?</div><div class="visual-token token-weather"><span>' + (m.metric === 'temp' ? '🌡' : '💧') + '</span><b>' + format(m, value(m, m.city, 'present')) + '</b><small>' + m.city + ' 관측</small></div></div>' + stepTop(m, 1, '구분하기') + '<h2>날짜표는<br /><em>어느 쪽</em>일까?</h2><p class="learn-prompt">하나를 눌러 보세요.</p><div class="learn-choice-stack">' + choice('term','☀',term(m).name,'태양 위치로 정한 절기','data-sort') + choice('weather',m.metric === 'temp' ? '🌡' : '💧',format(m, value(m, m.city, 'present')),m.city + '의 관측값','data-sort') + '</div><div id="sortFeedback"></div></section>');
+    document.querySelectorAll('[data-sort]').forEach(function (button) { button.addEventListener('click', function () {
+      var box = $('sortFeedback');
+      if (button.dataset.sort === 'term') {
+        box.innerHTML = feedback('sortGood', true, '맞았어요!', term(m).name + '는 태양 위치로 정하는 날짜표예요.', 'toCompare', '온도 단서 보기');
+        $('toCompare').addEventListener('click', renderCompare);
+      } else box.innerHTML = feedback('sortTry', false, '다시 한 번', '관측값은 장소와 시기에 따라 달라져요. 날짜표를 찾아보세요.');
+    }); });
   }
-  function comparisonLimitNote() {
-    return '<p class="data-limit"><strong>해석의 경계</strong> 이 화면의 과거·현재 5년 평균은 비교를 시작하는 관측 신호입니다. 기후 평년이나 장기 변화 판단에는 여러 해의 시계열(국제 표준 평년은 통상 30년)을 함께 살펴야 합니다.</p>';
+  function renderCompare() {
+    var m = lesson(), oldValue = value(m, m.city, 'past'), newValue = value(m, m.city, 'present'), diff = round(newValue - oldValue);
+    state.step = 'compare';
+    screen('<section class="learn-card"><div class="compare-sky" aria-hidden="true"><span>☀</span><i></i><i></i><i></i></div>' + stepTop(m, 2, '비교하기') + '<h2>같은 ' + term(m).name + ',<br /><em>온도는 달랐을까?</em></h2><div class="compare-pods"><article><span>' + D.periods.past + '</span><b>' + format(m, oldValue) + '</b>' + temperatureStrip(m, 'past') + '</article><div class="compare-arrow" aria-label="변화 ' + (diff >= 0 ? '+' : '') + diff + '">→<small>' + (diff >= 0 ? '+' : '') + diff + '</small></div><article class="is-now"><span>' + D.periods.present + '</span><b>' + format(m, newValue) + '</b>' + temperatureStrip(m, 'present') + '</article></div><p class="micro-note">' + m.city + ' · ' + term(m).name + ' 무렵 · 5년 평균</p><p class="learn-prompt">이 숫자가 바로 말해 주는 것은?</p><div class="learn-choice-stack compact">' + choice('scope','◎',m.city + '의 ' + term(m).name + ' 무렵 ' + (metricMap[m.metric] || {}).label + '이 달랐다.','관측한 범위 안의 말','data-compare') + choice('all','⌁','전국의 계절이 모두 바뀌었다.','지금 자료보다 넓은 말','data-compare') + '</div><div id="compareFeedback"></div></section>');
+    document.querySelectorAll('[data-compare]').forEach(function (button) { button.addEventListener('click', function () {
+      var box = $('compareFeedback');
+      if (button.dataset.compare === 'scope') {
+        box.innerHTML = feedback('compareGood', true, '좋은 관찰!', '5년 비교는 첫 단서예요. 더 긴 기후 판단은 더 많은 해의 자료가 필요해요.', 'toRule', '나만의 기준 만들기');
+        $('toRule').addEventListener('click', renderRule);
+      } else box.innerHTML = feedback('compareTry', false, '범위를 줄여 볼까요?', '지금 보이는 것은 ' + m.city + '의 두 기간이에요. 그 안에서만 말해 보세요.');
+    }); });
   }
-  function renderObservation() {
-    var m = mission(), f = fact(m, m.city);
-    state.phase = 'observation';
-    stage('<section class="mission-card"><div class="mission-progress"><span>신호 1 / 3</span><b>관측값의 범위를 읽기</b></div><p class="eyebrow">STEP 02 · 첫 관측 신호</p><h1>봉투 속 숫자는<br />무엇까지 말해 줄까?</h1>' + metricScene(m, m.city) + '<div class="mission-question"><strong>지금 증거의 범위와 가장 잘 맞는 문장은?</strong>' + choiceButtons([
-      { value:'scope', label:m.city + '의 ' + term(m).name + ' 무렵 ' + label(m.metric) + '은 과거와 현재가 다르다.', hint:'관측한 지역·시점 안에서만 말한다' },
-      { value:'all', label:'우리나라 전체의 ' + label(m.metric) + '이 같은 방식으로 변했다.', hint:'한 지역의 관측을 전국으로 넓힌다' },
-      { value:'date', label:term(m).name + ' 날짜 자체가 이동했다.', hint:'절기 날짜와 계절 조건을 섞는다' }
-    ], 'data-scope') + '</div><div class="mission-feedback" id="scopeFeedback" hidden></div></section>');
-    var scopeQuestion = document.querySelector('.mission-question'); if (scopeQuestion) scopeQuestion.insertAdjacentHTML('afterbegin', comparisonLimitNote());
-    document.querySelectorAll('[data-scope]').forEach(function (button) {
-      button.addEventListener('click', function () {
-        var feedback = $('scopeFeedback'); feedback.hidden = false;
-        if (button.dataset.scope === 'scope') { addSignal('scope'); feedback.className = 'mission-feedback is-good'; feedback.innerHTML = '<strong>범위 감지 완료</strong><p>맞아요. 이 숫자는 ' + m.city + '의 특정 절기 무렵을 보여 줍니다. 이제 “더위”나 “비”의 기준을 직접 정해 보세요.</p><button class="mission-primary" id="toTool">기준선 실험 시작</button>'; $('toTool').addEventListener('click', renderTool); }
-        else { feedback.className = 'mission-feedback is-try'; feedback.innerHTML = '<strong>한 번 더 생각해 볼까요?</strong><p>지금 자료에는 ' + m.city + '과 ' + term(m).name + '이라는 범위가 있습니다. 자료가 말한 범위를 넘지 않는 문장을 골라 보세요.</p>'; }
-      });
-    });
+  function updateRule() {
+    var m = lesson(), threshold = Number($('ruleRange').value), past = count(m, 'past', threshold), present = count(m, 'present', threshold);
+    state.threshold = threshold;
+    $('ruleNumber').textContent = threshold + m.unit;
+    $('pastDays').textContent = past + '일'; $('presentDays').textContent = present + '일';
+    $('ruleButton').disabled = !state.touched;
   }
-  function toolCopy(m, threshold) {
-    var past = countAtThreshold(m, m.city, 'past', threshold), present = countAtThreshold(m, m.city, 'present', threshold);
-    return { past:past, present:present, difference:present - past, period:m.tool.scope === 'year' ? '1년' : term(m).name + ' 뒤 15일' };
+  function renderRule() {
+    var m = lesson(); state.step = 'rule';
+    screen('<section class="learn-card"><div class="rule-visual" aria-hidden="true"><div class="thermo-fill"></div><span>🌡</span></div>' + stepTop(m, 3, '기준 만들기') + '<h2>몇 ' + m.unit + '부터<br /><em>“' + m.rule + '”</em>일까?</h2><p class="learn-prompt">슬라이더를 움직여 나만의 기준을 정하세요.</p><div class="rule-lab"><output id="ruleNumber">' + m.initial + m.unit + '</output><input id="ruleRange" type="range" min="' + m.min + '" max="' + m.max + '" step="1" value="' + m.initial + '" aria-label="' + m.rule + ' 기준"><div class="rule-counts"><div><span>' + D.periods.past + '</span><b id="pastDays">—</b></div><div><span>' + D.periods.present + '</span><b id="presentDays">—</b></div></div></div><p class="micro-note">기준을 바꾸면 결과도 달라져요. 그래서 기준을 말해야 해요.</p>' + primary('이 기준으로 말하기', 'ruleButton') + '</section>');
+    $('ruleRange').addEventListener('input', function () { state.touched = true; updateRule(); });
+    updateRule();
+    $('ruleButton').addEventListener('click', function () { if (state.touched) renderClaim(); });
   }
-  function updateToolReadout() {
-    var m = mission(), threshold = state.threshold, result = toolCopy(m, threshold);
-    $('thresholdValue').textContent = threshold + m.tool.unit;
-    $('toolPast').textContent = result.past + '일'; $('toolPresent').textContent = result.present + '일';
-    $('toolDelta').textContent = result.period + ' 기준 ' + (result.difference >= 0 ? '+' : '') + result.difference + '일';
-    var button = $('takeToolEvidence'); button.disabled = !state.toolTouched; button.textContent = state.toolTouched ? '이 비교를 두 번째 근거로 채택' : '기준선을 한 번 움직여 보세요';
+  function renderClaim() {
+    var m = lesson(); state.step = 'claim';
+    screen('<section class="learn-card"><div class="claim-stamp" aria-hidden="true">✎</div>' + stepTop(m, 4, '정확하게 말하기') + '<h2>데이터를<br /><em>한 줄로</em> 말해 볼까?</h2><p class="learn-prompt">지금 가진 단서와 가장 잘 맞는 문장을 고르세요.</p><div class="claim-options">' + choice('good','✓',m.claim,'지역·절기·관측 범위가 있다','data-claim') + choice('term','×',term(m).name + ' 자체가 더워졌다.','날짜표와 관측값을 섞었다','data-claim') + choice('all','×','전국의 계절이 모두 똑같이 바뀌었다.','자료의 범위를 넘었다','data-claim') + '</div><div id="claimFeedback"></div></section>');
+    document.querySelectorAll('[data-claim]').forEach(function (button) { button.addEventListener('click', function () {
+      var box = $('claimFeedback');
+      if (button.dataset.claim === 'good') {
+        box.innerHTML = feedback('claimGood', true, '정확한 문장이에요!', '무엇을, 어디에서, 언제 비교했는지가 보입니다.', 'finishLesson', '레슨 완료');
+        $('finishLesson').addEventListener('click', renderFinish);
+      } else box.innerHTML = feedback('claimTry', false, '단서를 다시 보세요', '절기 자체나 전국 전체까지 말하려면 지금보다 더 많은 자료가 필요해요.');
+    }); });
   }
-  function renderTool() {
-    var m = mission(); state.phase = 'tool';
-    stage('<section class="mission-card"><div class="mission-progress"><span>신호 2 / 3</span><b>내 기준으로 비교하기</b></div><p class="eyebrow">STEP 03 · 기준선 실험</p><h1>“' + (m.metric === 'temp' ? '덥다' : '많이 왔다') + '”의 기준을<br />직접 정해 보세요.</h1><p class="mission-lead">기준이 바뀌면 같은 자료에서도 비교 결과가 달라질 수 있습니다. 이것이 수사를 더 공정하게 만듭니다.</p><div class="threshold-lab"><div><p class="eyebrow">' + m.tool.title.toUpperCase() + '</p><strong id="thresholdValue"></strong><input id="thresholdRange" type="range" min="' + m.tool.min + '" max="' + m.tool.max + '" step="' + m.tool.step + '" value="' + state.threshold + '" aria-label="' + m.tool.title + '"><p>' + m.tool.description + '</p></div><div class="threshold-result"><div><span>' + D.periods.past + '</span><b id="toolPast">—</b></div><div><span>' + D.periods.present + '</span><b id="toolPresent">—</b></div><p id="toolDelta"></p></div></div><button class="mission-primary" id="takeToolEvidence" disabled></button><p class="mission-note">숫자를 바꾸는 것은 답을 조작하는 일이 아닙니다. 내가 쓴 기준을 드러내는 일입니다.</p></section>');
-    var lab = document.querySelector('.threshold-lab'); if (lab) lab.insertAdjacentHTML('afterend', comparisonLimitNote());
-    var range = $('thresholdRange'); range.addEventListener('input', function () { state.threshold = Number(range.value); state.toolTouched = true; updateToolReadout(); });
-    updateToolReadout();
-    $('takeToolEvidence').addEventListener('click', function () { if (!state.toolTouched) return; addSignal('tool'); renderCounter(); });
+  function renderFinish() {
+    var m = lesson(); state.step = 'finish';
+    if (state.completed.indexOf(m.id) === -1) state.completed.push(m.id);
+    saveProgress(); $('openArchive').hidden = false;
+    var next = LESSONS[m.no] || null;
+    screen('<section class="learn-card learn-finish"><div class="finish-burst" aria-hidden="true">✦</div><p class="learn-overline">LESSON COMPLETE</p><h1><em>발견</em>을<br />저장했어요.</h1><p class="learn-lead">당신은 숫자를 보고, 범위를 지키고, 기준을 만들었어요.</p><div class="skill-row"><span>☀ 절기</span><span>↔ 비교</span><span>✎ 기준</span></div><section class="coach-card"><span aria-hidden="true">✦</span><div><b>AI 루프에게 묻기</b><p>“이 결론으로 전국을 말해도 될까?”</p></div><button id="askLessonAi">질문</button></section><div id="lessonAiResult"></div>' + primary(next ? '다음 레슨 열기' : '레슨 경로 보기', 'nextLesson') + '<button class="learn-link" id="openDataAfter">실제 데이터 더 보기</button></section>');
+    $('nextLesson').addEventListener('click', function () { if (next) { state.lesson = next.id; saveProgress(); renderStart(); } else openBoard(); });
+    $('openDataAfter').addEventListener('click', openArchive);
+    $('askLessonAi').addEventListener('click', askLessonAi);
   }
-  function compareFact(m) {
-    var home = fact(m, m.city), other = fact(m, m.compareCity);
-    return { home:home, other:other, statement:m.compareCity + '의 같은 ' + term(m).name + ' 무렵 변화는 ' + delta(m.metric, other.difference) + '이다.' };
-  }
-  function renderCounter() {
-    var m = mission(); state.phase = 'counter';
-    stage('<section class="mission-card"><div class="mission-progress"><span>마지막 신호</span><b>반증으로 결론 지키기</b></div><p class="eyebrow">STEP 04 · 다른 지역 구조 요청</p><h1>' + m.city + '만 보고<br />결론을 내려도 될까?</h1><div class="ai-brief"><span aria-hidden="true">✦</span><div><strong>AI 안내관 루프</strong><p>한 지역의 변화는 중요한 신호지만, 그 신호의 범위는 비교해 봐야 알 수 있어요.</p></div><button id="askMissionAi">AI에게 반증 힌트 받기</button></div><div id="missionAiResult" class="mission-ai-result" hidden></div><button class="compare-card" id="compareCity"><span>비교 관측소</span><b>' + m.compareCity + '</b><small>같은 절기 · 같은 지표로 확인</small><i>열기 →</i></button><div class="mission-feedback" id="counterFeedback" hidden></div></section>');
-    $('compareCity').addEventListener('click', function () {
-      state.compared = true; var info = compareFact(m), box = $('counterFeedback'); box.hidden = false; box.className = 'mission-feedback is-good';
-      box.innerHTML = '<strong>비교 관측 확보</strong><p>' + info.statement + ' 서울의 변화와 같은지·다른지를 살펴볼 수 있지만, 두 도시만으로 전국 전체를 말할 수는 없습니다.</p><div class="mission-question"><strong>이제 가장 책임 있는 결론은?</strong>' + choiceButtons([
-        { value:'careful', label:'두 지역의 신호는 비교할 수 있지만, 더 넓은 일반화에는 추가 자료가 필요하다.', hint:'비교가 늘수록 결론의 범위를 조절한다' },
-        { value:'global', label:'두 도시를 봤으니 전국의 계절도 모두 똑같이 변했다.', hint:'표본의 범위를 넘는다' }
-      ], 'data-counter') + '</div>';
-      document.querySelectorAll('[data-counter]').forEach(function (button) { button.addEventListener('click', function () { if (button.dataset.counter === 'careful') { addSignal('counter'); renderVerdict(); } else { box.className = 'mission-feedback is-try'; box.querySelector('.mission-question').insertAdjacentHTML('beforeend', '<p class="inline-hint">두 도시의 비교는 좋은 시작이지만, “전국 전체”라는 결론에는 더 많은 지역·기간이 필요합니다.</p>'); } }); });
-    });
-    $('askMissionAi').addEventListener('click', askMissionAi);
-  }
-  function renderVerdict() {
-    var m = mission(), f = fact(m, m.city), direction = f.difference >= 0 ? '높아졌다' : '낮아졌다';
-    state.phase = 'verdict';
-    stage('<section class="mission-card mission-verdict"><div class="mission-progress"><span>기록 완성</span><b>주장 · 근거 · 한계</b></div><p class="eyebrow">STEP 05 · 조건부 판정</p><h1>이제 결론을<br />너무 넓지 않게 쓰세요.</h1><div class="verdict-builder"><span>주장</span><p>' + m.city + '의 ' + term(m).name + ' 무렵 ' + label(m.metric) + ' 조건은 과거보다 <strong>' + direction + '</strong>.</p><span>근거</span><p>관측값, 내가 정한 기준선, ' + m.compareCity + ' 비교를 확인했다.</p><span>한계</span><p>이 비교는 선택한 지역·기간의 신호다. 24절기는 온도로 정하지 않으며, 장기 기후 평년 판단에는 더 긴 시계열이 필요하다.</p></div><div class="mission-question"><strong>어떤 판정이 가장 근거에 맞을까요?</strong>' + choiceButtons([
-      { value:'conditional', label:'조건부 뒷받침', hint:'선택한 지역·기간·기준 안에서만 주장한다' },
-      { value:'overclaim', label:'전국적 확정', hint:'모든 지역·원인까지 단정한다' },
-      { value:'discard', label:'자료 폐기', hint:'기준을 정했어도 비교 자체를 포기한다' }
-    ], 'data-verdict') + '</div><div class="mission-feedback" id="verdictFeedback" hidden></div></section>');
-    document.querySelectorAll('[data-verdict]').forEach(function (button) { button.addEventListener('click', function () { var box = $('verdictFeedback'); box.hidden = false; if (button.dataset.verdict === 'conditional') { state.verdict = 'conditional'; addSignal('verdict'); box.className = 'mission-feedback is-good'; box.innerHTML = '<strong>수사 기록 완성</strong><p>좋은 결론은 자신이 가진 근거의 크기만큼만 말합니다.</p><button class="mission-primary" id="finishMission">사건 기록 보관</button>'; $('finishMission').addEventListener('click', renderComplete); } else { box.className = 'mission-feedback is-try'; box.innerHTML = '<strong>판정 범위를 조절해 보세요.</strong><p>자료를 포기할 필요는 없지만, 자료가 말하지 않은 전국·원인까지 넓혀서도 안 됩니다.</p>'; } }); });
-  }
-  function renderComplete() {
-    var m = mission(); state.phase = 'complete'; if (state.completed.indexOf(m.id) === -1) state.completed.push(m.id); saveCampaign();
-    stage('<section class="mission-card mission-complete"><div class="case-seal" aria-hidden="true">✓</div><p class="eyebrow">CASE ARCHIVED</p><h1>' + m.title + '<br /><em>수사 완료</em></h1><p class="mission-lead">당신은 수치를 읽는 데서 멈추지 않고, 기준을 정하고 다른 지역으로 반증했습니다.</p><div class="skill-badges"><span>◉ 예측 기록</span><span>↔ 기준 비교</span><span>◌ 범위 감지</span></div><section class="can-do-list" aria-label="이번 수사로 할 수 있게 된 것"><p>이번 수사 뒤, 나는 …</p><ul><li>24절기와 실제 기상 조건을 구분할 수 있다.</li><li>지역·기간·지표가 붙은 범위 안에서 자료를 설명할 수 있다.</li><li>내 기준과 한계를 밝힌 조건부 결론을 쓸 수 있다.</li></ul></section><button class="mission-primary" id="showNextMissions">다음 8분 수사 선택</button><button class="mission-secondary" id="goArchive">이 사건의 데이터 보관실 열기</button></section>');
-    $('showNextMissions').addEventListener('click', openBoard); $('goArchive').addEventListener('click', openArchive);
-  }
-  async function askMissionAi() {
-    var m = mission(), button = $('askMissionAi'), result = $('missionAiResult'), mainFact = fact(m, m.city), compare = compareFact(m);
-    button.disabled = true; button.textContent = 'AI가 근거를 점검 중…';
+  async function askLessonAi() {
+    var m = lesson(), button = $('askLessonAi'), result = $('lessonAiResult');
+    button.disabled = true; button.textContent = '…';
     try {
       var response = await fetch('/api/ai-turn', { method:'POST', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify({
-        mode:'coach', case:{ id:m.caseId, title:m.title, question:'한 지역의 절기 관측으로 어디까지 말할 수 있을까?' }, phase:'counter_test', prediction:state.prediction || 'unknown', learnerMessage:'이 결론을 더 책임 있게 만들려면 무엇을 비교해야 할까요?',
-        facts:[{ statement:mainFact.statement, source:'기상청 ASOS 16지점 일자료', period:D.periods.past + ' vs ' + D.periods.present, kind:'절기 관측' }, { statement:compare.statement, source:'기상청 ASOS 16지점 일자료', period:D.periods.past + ' vs ' + D.periods.present, kind:'지역 비교' }],
-        evidence:[], availableActions:['compare_region','check_period','state_limitation']
+        mode:'coach', case:{ id:m.caseId, title:m.title, question:'선택한 지역과 기간의 관측 자료로 어디까지 말할 수 있을까?' }, phase:'lesson_reflection', prediction:'unknown', learnerMessage:'내 결론이 자료의 범위를 넘지 않았는지 한 문장으로 점검해 줘.',
+        facts:[{ statement:m.city + '의 ' + term(m).name + ' 무렵 ' + (metricMap[m.metric] || {}).label + '을 ' + D.periods.past + '와 ' + D.periods.present + '로 비교했다.', source:'기상청 ASOS 16지점 일자료', period:D.periods.past + ' vs ' + D.periods.present, kind:'관측 비교' }], evidence:[], availableActions:['state_limitation','compare_region']
       }) });
-      var data = await response.json(); if (!response.ok || !data.feedback) throw new Error(data.error || 'coach error');
-      result.hidden = false; result.replaceChildren();
-      var message = document.createElement('p'); message.textContent = data.feedback.message;
-      var question = document.createElement('strong'); question.textContent = data.feedback.socratic_question;
-      var action = document.createElement('button'); action.textContent = data.feedback.action_label + ' →'; action.addEventListener('click', function () {
-        if (data.feedback.next_action === 'compare_region') { $('compareCity').focus(); $('compareCity').scrollIntoView({ behavior:'smooth', block:'center' }); }
-        else if (data.feedback.next_action === 'check_period') { question.textContent = '현재 비교 기간은 ' + D.periods.past + '와 ' + D.periods.present + '입니다. 같은 절기와 같은 지표를 비교한 뒤 결론의 범위를 정해 보세요.'; }
-        else { question.textContent = '한계 문장 힌트: 지금 자료는 선택한 지역과 기간의 신호를 보여 줍니다. 더 넓은 결론에는 추가 지역과 기간이 필요합니다.'; }
-      });
-      result.append(message, question, action);
-    } catch (error) { result.hidden = false; result.textContent = '지금 가진 두 지역의 비교만으로 어디까지 말할 수 있는지 먼저 생각해 보세요.'; }
-    finally { button.disabled = false; button.textContent = 'AI에게 반증 힌트 받기'; }
+      var data = await response.json(); if (!response.ok || !data.feedback) throw new Error('coach unavailable');
+      result.innerHTML = '<p class="ai-answer"><b>AI 루프</b>' + data.feedback.message + '<small>' + data.feedback.socratic_question + '</small></p>';
+    } catch (error) {
+      result.innerHTML = '<p class="ai-answer"><b>AI 루프</b>지금 자료는 선택한 지역과 기간의 단서예요. 더 넓게 말하려면 다른 지역과 더 긴 기간을 비교해 보세요.</p>';
+    } finally { button.disabled = false; button.textContent = '다시 질문'; }
   }
   function renderBoard() {
-    $('missionBoard').innerHTML = MISSIONS.map(function (item, index) {
-      var unlocked = index === 0 || state.completed.indexOf('season') !== -1, done = state.completed.indexOf(item.id) !== -1;
-      return '<button class="mission-board-card' + (unlocked ? '' : ' is-locked') + '" data-mission="' + item.id + '" ' + (unlocked ? '' : 'disabled') + '><span>' + (done ? '✓ 완료' : unlocked ? item.duration + ' 수사' : '잠김') + '</span><strong>CASE ' + item.code + '</strong><b>' + item.title + '</b><small>' + item.learningItem + '</small></button>';
-    }).join('');
-    document.querySelectorAll('[data-mission]').forEach(function (button) { button.addEventListener('click', function () { $('missionBoardDialog').close(); state.mission = button.dataset.mission; renderIntro(); window.scrollTo({ top:0, behavior:'smooth' }); }); });
+    $('missionBoard').innerHTML = '<div class="path-map">' + LESSONS.map(function (item, index) {
+      var unlocked = isUnlocked(index), done = state.completed.indexOf(item.id) !== -1;
+      return '<button class="path-node ' + (unlocked ? '' : 'is-locked') + '" data-lesson="' + item.id + '" ' + (unlocked ? '' : 'disabled') + '><span>' + (done ? '✓' : item.no) + '</span><div><b>' + item.label + '</b><small>' + (done ? '완료' : unlocked ? '8분 레슨' : '앞 레슨을 마치면 열려요') + '</small></div><i>' + item.icon + '</i></button>';
+    }).join('') + '</div>';
+    document.querySelectorAll('[data-lesson]').forEach(function (button) { button.addEventListener('click', function () { state.lesson = button.dataset.lesson; saveProgress(); $('missionBoardDialog').close(); renderStart(); }); });
   }
   function openBoard() { renderBoard(); $('missionBoardDialog').showModal(); }
-  function openLearningGuide() {
-    $('learningGuide').innerHTML = '<h2>이 자료로<br />정확히 배우는 것</h2><p class="guide-intro">Weather24는 절기 상식을 맞히는 퀴즈가 아닙니다. 실제 관측 자료로 생활 속 말을 검증하고, 자료의 범위 안에서 결론을 쓰는 기상·기후 탐구입니다.</p><div class="guide-goals">' + LEARNING_TARGETS.map(function (target) { return '<article><span>' + target.code + '</span><h3>' + target.title + '</h3><p>' + target.text + '</p></article>'; }).join('') + '</div><section class="guide-concepts"><h3>먼저 기억할 세 가지</h3><dl><div><dt>24절기</dt><dd>태양의 황경을 15° 간격으로 나눈 천문·달력 기준. 실제 기온이 아니라 태양 위치로 정한다.</dd></div><div><dt>날씨</dt><dd>특정 시간·장소에서 관측되는 기온·비·바람 같은 상태.</dd></div><div><dt>기후</dt><dd>긴 기간에 걸쳐 나타나는 날씨의 통계적 특성. 이 활동의 5년 비교는 탐구를 시작하는 신호이며, 장기 평년 판단에는 더 긴 시계열이 필요하다.</dd></div></dl></section><section class="guide-path"><h3>수업에서 쓰는 방법</h3><p><b>8분</b> 한 사건 완주: 개념 구분→관측 범위→기준선→조건부 결론.</p><p><b>25분</b> 세 사건 비교: 기온·강수·열적 계절의 지표가 왜 달라지는지 설명.</p><p><b>45분</b> 데이터 보관실 확장: 근거 2개와 반증 1개로 CERL(주장·근거·추론·한계) 브리핑.</p></section>';
+  function openGuide() {
+    $('learningGuide').innerHTML = '<h2>한 레슨은<br /><em>네 번의 행동</em></h2><div class="guide-path-lite"><article><span>1</span><b>구분</b><p>날짜표와 관측값</p></article><article><span>2</span><b>비교</b><p>같은 절기, 다른 기간</p></article><article><span>3</span><b>기준</b><p>내가 정한 “덥다”</p></article><article><span>4</span><b>한 줄</b><p>범위가 보이는 결론</p></article></div><p class="guide-foot-lite">짧게 해 보고, 바로 피드백 받고, 다음 데이터로 갑니다.</p>';
     $('learningGuideDialog').showModal();
   }
   function openArchive() {
-    var m = mission(); $('missionGame').hidden = true; document.body.classList.remove('mission-mode');
-    window.dispatchEvent(new CustomEvent('weather24:open-investigation', { detail:{ caseId:m.caseId, prediction:state.prediction || 'unknown', city:m.city, metric:m.metric, term:m.term } }));
-    window.setTimeout(function () { $('top').scrollIntoView({ behavior:'smooth', block:'start' }); }, 50);
+    $('missionGame').hidden = true; document.body.classList.remove('mission-mode');
+    window.dispatchEvent(new CustomEvent('weather24:open-investigation', { detail:{ caseId:lesson().caseId, city:lesson().city, metric:lesson().metric, term:lesson().term } }));
+    window.setTimeout(function () { $('top').scrollIntoView({ behavior:'smooth', block:'start' }); }, 40);
   }
-  $('openMissionBoard').addEventListener('click', openBoard); $('openLearningGuide').addEventListener('click', openLearningGuide); $('openArchive').addEventListener('click', openArchive);
+  $('openMissionBoard').addEventListener('click', openBoard);
+  $('openLearningGuide').addEventListener('click', openGuide);
+  $('openArchive').addEventListener('click', openArchive);
   document.querySelectorAll('[data-mission-close]').forEach(function (button) { button.addEventListener('click', function () { $(button.dataset.missionClose).close(); }); });
-  renderIntro();
+  renderStart();
 })();
