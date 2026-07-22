@@ -29,11 +29,19 @@
       tool:{ title:'여름 기준선', min:20, max:30, step:1, initial:25, unit:'°C', scope:'year', description:'1년 중, 설정한 평균기온 이상인 날의 수' }
     }
   ];
-  var state = { mission:'season', phase:'intro', prediction:'', threshold:25, signals:[], completed:[], toolTouched:false, compared:false, verdict:'' };
+  var state = loadCampaign();
   var METRIC = {};
   D.metrics.forEach(function (item) { METRIC[item.key] = item; });
 
   function $(id) { return document.getElementById(id); }
+  function loadCampaign() {
+    try {
+      var stored = JSON.parse(localStorage.getItem('weather24_mission_campaign_v1'));
+      if (stored && Array.isArray(stored.completed)) return { mission:'season', phase:'intro', prediction:'', threshold:25, signals:[], completed:stored.completed.filter(function (id) { return ['season','rain','summer'].indexOf(id) !== -1; }), toolTouched:false, compared:false, verdict:'' };
+    } catch (error) {}
+    return { mission:'season', phase:'intro', prediction:'', threshold:25, signals:[], completed:[], toolTouched:false, compared:false, verdict:'' };
+  }
+  function saveCampaign() { try { localStorage.setItem('weather24_mission_campaign_v1', JSON.stringify({ completed:state.completed })); } catch (error) {} }
   function mission() { return MISSIONS.filter(function (item) { return item.id === state.mission; })[0] || MISSIONS[0]; }
   function term(m) { return D.terms[m.term]; }
   function label(metric) { return (METRIC[metric] || {}).label || metric; }
@@ -141,7 +149,7 @@
     document.querySelectorAll('[data-verdict]').forEach(function (button) { button.addEventListener('click', function () { var box = $('verdictFeedback'); box.hidden = false; if (button.dataset.verdict === 'conditional') { state.verdict = 'conditional'; addSignal('verdict'); box.className = 'mission-feedback is-good'; box.innerHTML = '<strong>수사 기록 완성</strong><p>좋은 결론은 자신이 가진 근거의 크기만큼만 말합니다.</p><button class="mission-primary" id="finishMission">사건 기록 보관</button>'; $('finishMission').addEventListener('click', renderComplete); } else { box.className = 'mission-feedback is-try'; box.innerHTML = '<strong>판정 범위를 조절해 보세요.</strong><p>자료를 포기할 필요는 없지만, 자료가 말하지 않은 전국·원인까지 넓혀서도 안 됩니다.</p>'; } }); });
   }
   function renderComplete() {
-    var m = mission(); state.phase = 'complete'; if (state.completed.indexOf(m.id) === -1) state.completed.push(m.id);
+    var m = mission(); state.phase = 'complete'; if (state.completed.indexOf(m.id) === -1) state.completed.push(m.id); saveCampaign();
     stage('<section class="mission-card mission-complete"><div class="case-seal" aria-hidden="true">✓</div><p class="eyebrow">CASE ARCHIVED</p><h1>' + m.title + '<br /><em>수사 완료</em></h1><p class="mission-lead">당신은 수치를 읽는 데서 멈추지 않고, 기준을 정하고 다른 지역으로 반증했습니다.</p><div class="skill-badges"><span>◉ 예측 기록</span><span>↔ 기준 비교</span><span>◌ 범위 감지</span></div><button class="mission-primary" id="showNextMissions">다음 8분 수사 선택</button><button class="mission-secondary" id="goArchive">이 사건의 데이터 보관실 열기</button></section>');
     $('showNextMissions').addEventListener('click', openBoard); $('goArchive').addEventListener('click', openArchive);
   }
