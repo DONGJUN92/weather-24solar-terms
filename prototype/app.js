@@ -392,7 +392,7 @@
     }
   }
   function openInvestigation(detail) {
-    var first = CASES[4];
+    var first = CASES.filter(function (item) { return item.id === (detail && detail.caseId); })[0] || CASES[4];
     state.caseId = first.id;
     state.city = (detail && detail.city) || first.city;
     state.metric = (detail && detail.metric) || first.metric;
