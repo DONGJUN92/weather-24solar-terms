@@ -360,6 +360,50 @@
     } finally { button.disabled = false; button.innerHTML = '<span aria-hidden="true">✦</span> AI 증거 감사 요청'; }
   }
   function actionLabel(action) { return ({ compare_region:'다른 지역과 비교하기', change_metric:'다른 지표 보기', check_period:'비교 기간 확인하기', add_counter_evidence:'반증 자료 추가하기', state_limitation:'한계 문장 쓰기', submit_verdict:'판정 보관하기' })[action] || '근거 다시 확인하기'; }
+  function coachContext() {
+    var item = currentCase(), current = record(), facts = latestFacts ? [{ statement:latestFacts.statement, source:latestFacts.source, period:latestFacts.period, kind:latestFacts.kind }] : [];
+    return {
+      case:{ id:item.id, title:item.title, question:item.question },
+      prediction:current.prediction || 'unknown',
+      facts:facts,
+      evidence:current.evidence.map(function (evidence) { return { statement:evidence.statement, source:evidence.source, period:evidence.period, kind:evidence.kind }; }),
+      availableActions:['compare_region','change_metric','check_period','add_counter_evidence','state_limitation','save_evidence']
+    };
+  }
+  function applyCoachAction(action) {
+    if (action === 'compare_region') {
+      var index = CITY_KEYS.indexOf(state.city);
+      state.city = CITY_KEYS[(index + 1) % CITY_KEYS.length];
+      persist(); renderLab(); setStatus(state.city + ' 자료로 바꿔 비교해 보세요. 같은 절기라도 지역마다 신호가 다를 수 있습니다.');
+    } else if (action === 'change_metric') {
+      var metricIndex = D.metrics.map(function (metric) { return metric.key; }).indexOf(state.metric);
+      state.metric = D.metrics[(metricIndex + 1) % D.metrics.length].key;
+      persist(); renderLab(); setStatus(metricLabel(state.metric) + ' 지표로 바꿨습니다. 같은 결론이 유지되는지 확인해 보세요.');
+    } else if (action === 'check_period') {
+      document.querySelector('#controls').scrollIntoView({ behavior:'smooth', block:'center' });
+      setStatus('과거와 현재의 비교 기간, 그리고 선택한 절기를 먼저 확인해 보세요.');
+    } else if (action === 'add_counter_evidence') {
+      saveEvidence(true);
+    } else if (action === 'state_limitation') {
+      if (!(record().draft || '').trim()) record().draft = '이 자료는 선택한 지역과 기간의 관측 결과를 보여 준다. 따라서 다른 지역과 원인을 일반화하기 전에 추가 비교가 필요하다.';
+      persist(); renderVerdict(); document.querySelector('.verdict-panel').scrollIntoView({ behavior:'smooth', block:'center' });
+    } else if (action === 'save_evidence') {
+      saveEvidence(false);
+    }
+  }
+  function openInvestigation(detail) {
+    var first = CASES[4];
+    state.caseId = first.id;
+    state.city = (detail && detail.city) || first.city;
+    state.metric = (detail && detail.metric) || first.metric;
+    state.term = detail && detail.term != null ? detail.term : first.term;
+    if (detail && detail.prediction) record().prediction = detail.prediction;
+    activeChapter = first.ch;
+    persist(); renderAll();
+    setStatus('첫 예측을 수사 노트에 옮겼습니다. 지도를 조작해 다음 근거를 찾아보세요.');
+  }
+  window.weather24Investigation = { getContext:coachContext, applyCoachAction:applyCoachAction, openInvestigation:openInvestigation };
+  window.addEventListener('weather24:open-investigation', function (event) { openInvestigation(event.detail || {}); });
   function finishCase() {
     var item = currentCase();
     if (state.completed.indexOf(item.id) === -1) state.completed.push(item.id);
