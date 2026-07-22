@@ -1,440 +1,136 @@
 <!doctype html>
 <html lang="ko">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Weather24: 24절기로 읽는 현대 오늘 날씨와 계절 트렌드</title>
-<meta name="description" content="조상이 정한 24절기와 1969~2026 실제 기상청 데이터를 비교해 한국의 계절 변화와 온난화를 탐험하는 인터랙티브 웹앱." />
-<link rel="icon" type="image/png" href="thumbnail.png" />
-<link rel="apple-touch-icon" href="thumbnail.png" />
-<meta property="og:type" content="website" />
-<meta property="og:url" content="https://weather-24solar-terms.vercel.app/" />
-<meta property="og:site_name" content="Weather24" />
-<meta property="og:title" content="Weather24: 24절기로 읽는 현대 오늘 날씨와 계절 트렌드" />
-<meta property="og:description" content="조상이 정한 24절기와 1969~2026 실제 기상 데이터로 한국의 계절 변화·온난화를 직접 탐험하세요." />
-<meta property="og:image" content="https://weather-24solar-terms.vercel.app/thumbnail.png" />
-<meta property="og:image:secure_url" content="https://weather-24solar-terms.vercel.app/thumbnail.png" />
-<meta property="og:image:type" content="image/png" />
-<meta property="og:image:width" content="1024" />
-<meta property="og:image:height" content="1024" />
-<meta property="og:image:alt" content="Weather24 24절기 기후 탐험 썸네일" />
-<meta name="twitter:card" content="summary_large_image" />
-<meta name="twitter:title" content="Weather24: 24절기로 읽는 현대 오늘 날씨와 계절 트렌드" />
-<meta name="twitter:description" content="조상이 정한 24절기와 실제 기상 데이터로 보는 한국의 계절 변화·온난화." />
-<meta name="twitter:image" content="https://weather-24solar-terms.vercel.app/thumbnail.png" />
-<style>
-  :root{
-    --bg:#ffffff; --surface:#f7f8fa; --surface2:#eef1f5; --line:#e6e8ee; --line2:#d5dae3;
-    --text:#0f172a; --muted:#64748b; --accent:#0284c7; --accent-weak:#e0f2fe;
-    --past:#94a3b8; --ref0:#60a5fa; --ref25:#f87171;
-    --spring:#4d7c0f; --summer:#c2410c; --autumn:#a16207; --winter:#1d4ed8;
-    --m-temp:#dc2626; --m-humidity:#2563eb; --m-precip:#0d9488; --ok:#15803d; --no:#b91c1c;
-    --r-sm:8px; --r-md:12px; --r-lg:16px;
-    --sh-sm:0 1px 2px rgba(15,23,42,.06),0 1px 3px rgba(15,23,42,.05);
-    --sh-md:0 4px 14px rgba(15,23,42,.09),0 2px 4px rgba(15,23,42,.04);
-    --sh-lg:0 18px 50px rgba(15,23,42,.22);
-  }
-  @media (prefers-color-scheme: dark){
-    :root{ --bg:#0d1117; --surface:#161b22; --surface2:#1c232c; --line:#262d38; --line2:#333c49;
-           --text:#e6edf3; --muted:#8b98a9; --accent:#38bdf8; --accent-weak:#0c3a52;
-           --past:#64748b; --ref0:#3b82f6; --ref25:#ef4444; --m-temp:#f87171; --m-humidity:#60a5fa; --m-precip:#2dd4bf; --ok:#4ade80; --no:#f87171;
-           --sh-sm:0 1px 2px rgba(0,0,0,.4); --sh-md:0 4px 14px rgba(0,0,0,.5); --sh-lg:0 20px 60px rgba(0,0,0,.6); }
-  }
-  *{ box-sizing:border-box; }
-  html,body{ margin:0; }
-  body{ background:var(--bg); color:var(--text); font-family:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',system-ui,-apple-system,sans-serif; line-height:1.5; -webkit-font-smoothing:antialiased; }
-  .app{ max-width:1000px; margin:0 auto; padding:14px 16px 18px; display:flex; flex-direction:column; gap:12px; min-height:100svh; }
-  header{ display:flex; align-items:center; justify-content:space-between; gap:8px; }
-  h1{ font-size:20px; font-weight:800; margin:0; letter-spacing:-.03em; display:flex; align-items:center; gap:9px; }
-  h1::before{ content:""; width:22px; height:22px; border-radius:7px; background:linear-gradient(135deg,var(--m-humidity),var(--m-temp)); flex:none; }
-  h1 .badge{ font-size:11px; font-weight:600; color:var(--accent); background:var(--accent-weak); border-radius:999px; padding:3px 9px; }
-  .muted{ color:var(--muted); }
-  select,input,button{ font-family:inherit; color:var(--text); }
-  select{ font-size:14px; padding:8px 10px; border:1px solid var(--line2); border-radius:var(--r-sm); background:var(--bg); cursor:pointer; transition:border-color .15s; }
-  select:hover{ border-color:var(--accent); }
-  .seg{ display:inline-flex; border:1px solid var(--line2); border-radius:var(--r-sm); overflow:hidden; background:var(--surface); }
-  .seg button{ border:0; background:transparent; color:var(--muted); padding:8px 13px; font-size:14px; font-weight:600; cursor:pointer; transition:.15s; }
-  .seg button:hover{ color:var(--text); }
-  .seg button.on{ background:var(--accent); color:#fff; }
-  .controls{ display:flex; flex-wrap:wrap; gap:8px 10px; align-items:center; background:var(--surface); border:1px solid var(--line); border-radius:var(--r-md); padding:10px 12px; }
-  .controls .lab{ font-size:12px; font-weight:600; color:var(--muted); }
-  .headline{ font-size:15px; margin:0; padding:0 2px; }
-  .headline b{ color:var(--m-temp); font-weight:700; }
-  .hero{ background:var(--surface); border:1px solid var(--line); border-radius:var(--r-lg); padding:12px; box-shadow:var(--sh-sm); }
-  .hero h4{ margin:0 0 8px; font-size:13.5px; color:var(--text); font-weight:700; text-align:center; letter-spacing:-.01em; }
-  .maps-row{ display:flex; gap:12px; }
-  .mapbox{ flex:1; min-width:0; background:var(--bg); border:1px solid var(--line); border-radius:var(--r-md); padding:8px 6px 6px; }
-  .mapbox .cap{ font-size:12px; font-weight:700; text-align:center; margin-bottom:3px; color:var(--muted); }
-  .map-legend{ display:flex; align-items:center; gap:10px; margin-top:10px; font-size:11px; color:var(--muted); }
-  .map-legend span{ white-space:nowrap; font-variant-numeric:tabular-nums; font-weight:600; }
-  svg{ width:100%; height:auto; display:block; }
-  @media(min-width:601px){ .hero .mapbox svg{ width:auto; height:min(320px,44svh); max-width:100%; margin:0 auto; } }
-  .stats{ display:flex; gap:10px; flex-wrap:wrap; }
-  .stat{ flex:1; min-width:130px; background:var(--surface); border:1px solid var(--line); border-radius:var(--r-md); padding:10px 13px; box-shadow:var(--sh-sm); }
-  .stat .k{ font-size:11.5px; color:var(--muted); font-weight:600; } .stat .v{ font-size:19px; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:-.02em; margin-top:1px; }
-  .stat .d{ font-size:11.5px; font-weight:700; margin-top:1px; } .up{ color:var(--m-temp); } .down{ color:var(--m-humidity); }
-  .toolbar{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:auto; }
-  @media(max-width:600px){ .toolbar{ grid-template-columns:repeat(2,1fr); } }
-  .tbtn{ display:flex; flex-direction:column; align-items:center; gap:5px; padding:13px 8px; border:1px solid var(--line2); border-radius:var(--r-md); background:var(--bg); color:var(--text); font-size:13.5px; font-weight:700; cursor:pointer; transition:transform .12s,box-shadow .12s,border-color .12s; box-shadow:var(--sh-sm); }
-  .tbtn:hover{ border-color:var(--accent); box-shadow:var(--sh-md); transform:translateY(-2px); }
-  .tbtn:active{ transform:translateY(0); }
-  .tbtn .ic{ font-size:22px; line-height:1; }
-  .iconbtn{ border:1px solid var(--line2); background:var(--bg); color:var(--muted); border-radius:999px; width:34px; height:34px; cursor:pointer; font-size:16px; font-weight:700; transition:.15s; }
-  .iconbtn:hover{ color:var(--accent); border-color:var(--accent); }
-  :focus-visible{ outline:2px solid var(--accent); outline-offset:2px; border-radius:6px; }
-  .modal{ position:fixed; inset:0; background:rgba(15,23,42,.5); backdrop-filter:blur(3px); -webkit-backdrop-filter:blur(3px); display:none; align-items:center; justify-content:center; z-index:40; padding:18px; }
-  .modal.open{ display:flex; animation:mfade .18s ease; }
-  .mcard{ background:var(--bg); border:1px solid var(--line); border-radius:var(--r-lg); max-width:800px; width:100%; max-height:92svh; overflow:auto; padding:20px 20px 24px; position:relative; box-shadow:var(--sh-lg); animation:mpop .2s cubic-bezier(.2,.8,.2,1); }
-  .mcard h3{ margin:0 0 6px; font-size:18px; font-weight:800; padding-right:38px; letter-spacing:-.02em; }
-  .mclose{ position:absolute; top:14px; right:14px; width:34px; height:34px; border-radius:999px; border:1px solid var(--line2); background:var(--surface); color:var(--text); font-size:15px; cursor:pointer; transition:.15s; }
-  .mclose:hover{ background:var(--no); color:#fff; border-color:var(--no); }
-  @keyframes mfade{ from{opacity:0} to{opacity:1} }
-  @keyframes mpop{ from{opacity:0;transform:translateY(8px) scale(.98)} to{opacity:1;transform:none} }
-  @media(max-width:600px){ .modal{ padding:0; } .mcard{ max-height:100svh; height:100svh; border-radius:0; padding:18px 16px 28px; } .maps-row{ gap:8px; } }
-  .row{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
-  .label{ font-size:13px; color:var(--muted); font-weight:600; }
-  .chip{ border:1px solid var(--line2); background:var(--bg); color:var(--text); border-radius:999px; padding:7px 14px; font-size:14px; font-weight:600; cursor:pointer; transition:.15s; }
-  .chip:hover{ border-color:var(--accent); } .chip.on{ background:var(--accent); color:#fff; border-color:var(--accent); }
-  .legend{ display:flex; gap:14px; flex-wrap:wrap; font-size:12px; color:var(--muted); margin-bottom:6px; }
-  .legend i{ display:inline-block; width:16px; height:0; border-top-width:3px; border-top-style:solid; vertical-align:4px; margin-right:5px; }
-  .terms{ display:grid; grid-template-columns:repeat(8,1fr); gap:7px; }
-  @media(max-width:680px){ .terms{ grid-template-columns:repeat(4,1fr); } }
-  .term{ text-align:center; border:1px solid var(--line); border-radius:var(--r-sm); padding:7px 2px; cursor:pointer; background:var(--bg); transition:.12s; }
-  .term:hover{ border-color:var(--accent); background:var(--surface); } .term.on{ outline:2px solid var(--accent); outline-offset:-2px; background:var(--accent-weak); }
-  .term .tn{ font-size:14px; font-weight:700; } .term .td{ font-size:11px; color:var(--muted); }
-  .dot{ width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:3px;vertical-align:1px; }
-  .detail{ background:var(--surface); border:1px solid var(--line); border-radius:var(--r-md); padding:14px; }
-  .detail .big{ font-size:27px; font-weight:800; letter-spacing:-.02em; } .detail .ha{ color:var(--muted); font-size:15px; font-weight:500; }
-  .detail .meta2{ color:var(--muted); font-size:13px; margin:2px 0 10px; } .detail .desc{ font-size:14px; margin-bottom:10px; line-height:1.6; }
-  .detail .change{ font-size:14.5px; } .detail .change b{ color:var(--m-temp); }
-  .qopt{ display:block; width:100%; text-align:left; margin:7px 0; padding:12px 14px; border:1px solid var(--line2); border-radius:var(--r-md); background:var(--bg); cursor:pointer; font-size:14px; font-weight:500; transition:.12s; }
-  .qopt:hover{ border-color:var(--accent); background:var(--surface); } .qopt.ok{ border-color:var(--ok); background:color-mix(in srgb,var(--ok) 14%,transparent); font-weight:700; } .qopt.no{ border-color:var(--no); background:color-mix(in srgb,var(--no) 14%,transparent); }
-  .qexp{ font-size:14px; margin-top:10px; padding:12px 14px; border-left:3px solid var(--accent); background:var(--surface); border-radius:0 var(--r-sm) var(--r-sm) 0; line-height:1.6; }
-  .pinput{ font-size:15px; padding:8px 11px; border:1px solid var(--line2); border-radius:var(--r-sm); background:var(--bg); color:var(--text); width:104px; }
-  #cardCanvas{ width:100%; max-width:340px; height:auto; border-radius:var(--r-md); box-shadow:var(--sh-md); display:block; margin:14px auto 0; }
-  .tip{ font-size:12px; color:var(--muted); line-height:1.5; }
-  .ob-step{ display:flex; gap:11px; margin:11px 0; font-size:14px; line-height:1.5; } .ob-num{ flex:none; width:25px;height:25px;border-radius:50%;background:var(--accent);color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center; }
-  .sr-only{ position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0); }
-  @media (prefers-reduced-motion: reduce){ *{ animation:none !important; transition:none !important; } .tbtn:hover{ transform:none; } }
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#081c2d" />
+  <title>Weather24 — 24절기 기후 수사대</title>
+  <meta name="description" content="24절기와 실제 기상청 관측 데이터로 우리 지역의 계절 변화를 조사하는 게임형 기후 탐구 플랫폼" />
+  <link rel="icon" type="image/png" href="thumbnail.png" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://weather-24solar-terms.vercel.app/" />
+  <meta property="og:title" content="Weather24 — 24절기 기후 수사대" />
+  <meta property="og:description" content="실제 기상 데이터를 조작해 계절의 약속을 직접 수사하세요." />
+  <meta property="og:image" content="https://weather-24solar-terms.vercel.app/thumbnail.png" />
+  <link rel="stylesheet" href="./style.css?v=8" />
 </head>
 <body>
-<div class="app">
-  <header>
-    <h1>24절기 기후 탐험<span class="badge">실측 1969~2026</span></h1>
-    <button class="iconbtn" id="helpBtn" aria-label="사용법" title="사용법 보기">?</button>
-  </header>
+  <div class="sky-noise" aria-hidden="true"></div>
+  <main class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="#top" aria-label="Weather24 홈">
+        <span class="brand-mark" aria-hidden="true">W</span>
+        <span><strong>WEATHER24</strong><small>한반도 계절 조사국</small></span>
+      </a>
+      <div class="topbar-actions">
+        <span class="status-dot"><i></i> 실측 데이터 수사 중</span>
+        <button class="text-btn" id="openGuide">수사 규칙</button>
+      </div>
+    </header>
 
-  <div class="controls">
-    <span class="lab">지점</span>
-    <select id="citySel" aria-label="지점 선택"></select>
-    <span class="lab">지표</span>
-    <span class="seg" id="metricSeg" role="group" aria-label="지표 선택"></span>
-    <span class="lab">절기</span>
-    <select id="termSel" aria-label="절기 선택"></select>
-  </div>
+    <section class="mission-strip" aria-label="사건 구역">
+      <div class="mission-strip-copy">
+        <p class="eyebrow">SEASON CASE FILES</p>
+        <h1>24절기의 <em>약속</em>은<br />아직 유효할까?</h1>
+        <p>예측하고, 실제 관측값을 조작하고, 근거로 판정하세요.</p>
+      </div>
+      <div class="chapter-track" id="chapterTrack" role="tablist" aria-label="사건 구역"></div>
+    </section>
 
-  <p class="headline" id="headline" aria-live="polite"></p>
+    <section class="investigation-shell" id="top">
+      <aside class="case-rail" aria-label="사건 파일 목록">
+        <div class="rail-heading"><span>사건 파일</span><b id="caseCount">20</b></div>
+        <div class="case-list" id="caseList"></div>
+      </aside>
 
-  <div class="hero">
-    <h4 id="heroTitle"></h4>
-    <div class="maps-row">
-      <div class="mapbox"><div class="cap" id="capPast"></div><div id="map_past"></div></div>
-      <div class="mapbox"><div class="cap" id="capPres"></div><div id="map_present"></div></div>
-    </div>
-    <div class="map-legend" id="mapLegend"></div>
-  </div>
+      <section class="workbench" aria-live="polite">
+        <div class="case-header">
+          <div>
+            <p class="eyebrow" id="caseKicker"></p>
+            <h2 id="caseTitle"></h2>
+            <p class="case-question" id="caseQuestion"></p>
+          </div>
+          <div class="case-progress"><span id="caseIndex">01</span><small> / 20</small></div>
+        </div>
 
-  <div class="stats">
-    <div class="stat"><div class="k" id="kA"></div><div class="v" id="vA"></div><div class="d" id="dA"></div></div>
-    <div class="stat"><div class="k" id="kB"></div><div class="v" id="vB"></div><div class="d" id="dB"></div></div>
-    <div class="stat"><div class="k" id="kC"></div><div class="v" id="vC"></div><div class="d" id="dC"></div></div>
-  </div>
+        <section class="prediction-panel" aria-labelledby="predictionTitle">
+          <div class="panel-label">
+            <span class="step-no">01</span>
+            <div><strong id="predictionTitle">데이터를 보기 전, 예측을 봉인하세요</strong><small>예측은 틀려도 됩니다. 근거를 찾는 출발점입니다.</small></div>
+          </div>
+          <div class="choice-row" id="predictionChoices"></div>
+        </section>
 
-  <nav class="toolbar" aria-label="기능">
-    <button class="tbtn" data-modal="mTl" title="1969년부터 매년 변화 재생"><span class="ic">⏱</span>타임랩스</button>
-    <button class="tbtn" data-modal="mTerm" title="절기별 한자·특징·추세곡선"><span class="ic">📜</span>절기 상세</button>
-    <button class="tbtn" data-modal="mQuiz" title="온난화 퀴즈"><span class="ic">🧠</span>퀴즈</button>
-    <button class="tbtn" data-modal="mCard" title="내 기후 카드 만들기"><span class="ic">🎂</span>내 기후카드</button>
-  </nav>
-</div>
+        <section class="lab-panel" aria-labelledby="labTitle">
+          <div class="lab-head">
+            <div><p class="eyebrow">LIVE DATA LAB</p><h3 id="labTitle">관측 지도 실험실</h3></div>
+            <span class="source-chip" id="sourceChip">기상청 ASOS</span>
+          </div>
+          <div class="control-row" id="controls"></div>
+          <div class="data-stage" id="dataStage"></div>
+          <div class="lab-summary" id="labSummary"></div>
+          <div class="lab-actions">
+            <button class="primary-btn" id="saveEvidence">+ 현재 결과를 증거로 저장</button>
+            <button class="ghost-btn" id="addCounter">↔ 다른 해석 찾기</button>
+          </div>
+        </section>
 
-<!-- 타임랩스 모달 -->
-<div class="modal" id="mTl"><div class="mcard" role="dialog" aria-modal="true" aria-label="타임랩스">
-  <button class="mclose" data-close aria-label="닫기">✕</button>
-  <h3>⏱ 타임랩스 — 1969년부터 매년 변화 (<span id="tlMetricLab"></span>)</h3>
-  <div class="row" style="margin:10px 0;">
-    <button class="chip" id="tlPlay" aria-label="재생/일시정지">▶ 재생</button>
-    <input type="range" id="tlYear" min="0" max="1" value="0" style="flex:1;min-width:130px;" aria-label="연도 슬라이더" />
-    <span id="tlYearOut" style="font-weight:700;min-width:46px;text-align:right;font-variant-numeric:tabular-nums;"></span>
-    <span class="seg" id="tlSpeed" role="group" aria-label="속도"></span>
-  </div>
-  <div class="maps-row">
-    <div class="mapbox"><div class="cap" id="tlMapT"></div><div id="tlMap"></div></div>
-    <div class="mapbox"><div class="cap" id="tlTrendT"></div><div id="tlTrend"></div></div>
-  </div>
-  <div class="map-legend" id="tlLegend"></div>
-</div></div>
+        <section class="verdict-panel" aria-labelledby="verdictTitle">
+          <div class="panel-label">
+            <span class="step-no">03</span>
+            <div><strong id="verdictTitle">수사 노트에 판정 초안을 남기세요</strong><small>주장·근거·추론·한계를 짧게 연결합니다.</small></div>
+          </div>
+          <div class="verdict-grid">
+            <div class="verdict-options" id="verdictOptions" role="group" aria-label="판정 선택"></div>
+            <label class="draft-label">내 판정문
+              <textarea id="draft" maxlength="900" placeholder="예: 서울의 처서 무렵 기온은 과거보다 높다. 다만 이 자료만으로 모든 지역의 계절이 동일하게 늦어졌다고 말할 수는 없다."></textarea>
+            </label>
+          </div>
+          <div class="ai-row">
+            <button class="ai-btn" id="askCoach"><span aria-hidden="true">✦</span> AI 증거 감사 요청</button>
+            <p id="coachStatus">증거 카드 2장을 모으면 AI 감사관이 한 가지 질문으로 도와줍니다.</p>
+          </div>
+          <div class="coach-result" id="coachResult" hidden></div>
+        </section>
+      </section>
 
-<!-- 절기 상세 모달 -->
-<div class="modal" id="mTerm"><div class="mcard" role="dialog" aria-modal="true" aria-label="절기 상세">
-  <button class="mclose" data-close aria-label="닫기">✕</button>
-  <h3>📜 절기 상세 — 한자 풀이·특징·추세</h3>
-  <div class="terms" id="terms" style="margin:10px 0;"></div>
-  <div class="detail" id="detail" style="margin-bottom:10px;"></div>
-  <div class="legend" id="legend"></div>
-  <div id="chart"></div>
-</div></div>
+      <aside class="evidence-rail" aria-label="증거 보드">
+        <div class="rail-heading"><span>증거 보드</span><b id="evidenceCount">0 / 3</b></div>
+        <p class="evidence-intro">숫자만 저장하지 마세요. 지역·기간·지표가 함께 있어야 근거가 됩니다.</p>
+        <div class="evidence-stack" id="evidenceStack"></div>
+        <div class="counter-slot" id="counterSlot"><span>↔</span><div><strong>반증 슬롯</strong><small>내 결론과 다른 가능성 하나를 확인하세요.</small></div></div>
+        <button class="finish-btn" id="finishCase" disabled>판정 기록 보관</button>
+      </aside>
+    </section>
 
-<!-- 퀴즈 모달 -->
-<div class="modal" id="mQuiz"><div class="mcard" role="dialog" aria-modal="true" aria-label="퀴즈">
-  <button class="mclose" data-close aria-label="닫기">✕</button>
-  <h3>🧠 온난화 퀴즈 <span id="qScore" class="muted" style="font-size:13px;font-weight:400;"></span></h3>
-  <div id="quiz" style="margin-top:10px;"></div>
-</div></div>
+    <section class="field-notes" aria-label="조사국 안내">
+      <div><span class="note-icon">◎</span><p><strong>기후와 날씨를 구분하기</strong><br />한 해의 기록은 날씨일 수 있습니다. 여러 해의 비교가 기후에 대한 근거가 됩니다.</p></div>
+      <div><span class="note-icon">⌁</span><p><strong>절기는 이동하지 않습니다</strong><br />이 앱은 절기 날짜에 대응하는 열적 계절 조건이 얼마나 달라졌는지 보여 줍니다.</p></div>
+      <div><span class="note-icon">↗</span><p><strong>AI는 결론을 대신 쓰지 않습니다</strong><br />선택한 증거 안에서만 과장·누락·다음 질문을 점검합니다.</p></div>
+    </section>
+  </main>
 
-<!-- 내 기후카드 모달 -->
-<div class="modal" id="mCard"><div class="mcard" role="dialog" aria-modal="true" aria-label="내 기후카드">
-  <button class="mclose" data-close aria-label="닫기">✕</button>
-  <h3>🎂 내 기후 카드 — 1컷 카드뉴스</h3>
-  <p class="tip" style="margin:4px 0 10px;">출생지·출생연도를 고르면 아이콘과 문구가 자동으로 들어간 카드가 만들어집니다. 이미지로 저장해 공유하세요.</p>
-  <div class="row">
-    <span class="label">출생지</span><select id="cPlace" aria-label="출생지"></select>
-    <span class="label">출생연도</span><input type="number" id="cBirth" class="pinput" min="1969" max="2025" step="1" placeholder="1995" aria-label="출생연도" />
-    <button class="chip" id="cMake">카드 만들기</button>
-    <button class="chip" id="cSave" style="background:var(--accent);color:#fff;border-color:var(--accent);">⬇ 이미지 저장</button>
-  </div>
-  <canvas id="cardCanvas" width="1080" height="1350" role="img" aria-label="나의 기후 변화 카드 미리보기"></canvas>
-</div></div>
+  <dialog class="modal" id="guideDialog">
+    <div class="modal-head"><p class="eyebrow">INVESTIGATION RULES</p><button class="close-btn" data-close="guideDialog" aria-label="닫기">×</button></div>
+    <h2>좋은 수사는<br />좋은 비교에서 시작합니다.</h2>
+    <ol class="guide-steps">
+      <li><span>1</span><div><strong>예측을 먼저 남깁니다.</strong><p>데이터를 본 뒤 정답을 고르는 것이 아니라, 생각을 검증합니다.</p></div></li>
+      <li><span>2</span><div><strong>지역·기간·지표를 직접 바꿉니다.</strong><p>같은 질문도 무엇을 비교하느냐에 따라 다른 답을 냅니다.</p></div></li>
+      <li><span>3</span><div><strong>근거와 한계를 함께 기록합니다.</strong><p>뒷받침·반박·판단 보류는 모두 유효한 판정입니다.</p></div></li>
+    </ol>
+    <button class="primary-btn" data-close="guideDialog">수사 시작하기</button>
+  </dialog>
 
-<!-- 온보딩 -->
-<div class="modal" id="mOb"><div class="mcard" role="dialog" aria-modal="true" aria-label="사용법" style="max-width:440px;">
-  <h3>24절기 기후 탐험 — 사용법</h3>
-  <p class="muted" style="margin:0 0 6px;font-size:14px;">조상이 정한 24절기가 지금도 맞는지, 실제 기상청 데이터로 확인해 보세요.</p>
-  <div class="ob-step"><span class="ob-num">1</span><span><b>지점·지표·절기</b>를 위에서 고르면 한반도 기상도가 과거 vs 현재로 바뀝니다.</span></div>
-  <div class="ob-step"><span class="ob-num">2</span><span>아래 <b>버튼</b>으로 타임랩스·절기상세·퀴즈·내 기후카드를 팝업으로 엽니다.</span></div>
-  <div class="ob-step"><span class="ob-num">3</span><span>지도의 점에 <b>마우스를 올리면</b> 지점값이 보이고, 클릭하면 그 지점이 선택됩니다.</span></div>
-  <button class="chip" id="obStart" style="margin-top:6px;background:var(--accent);color:#fff;border-color:var(--accent);">시작하기</button>
-</div></div>
+  <dialog class="modal" id="completeDialog">
+    <div class="modal-head"><p class="eyebrow">CASE ARCHIVED</p><button class="close-btn" data-close="completeDialog" aria-label="닫기">×</button></div>
+    <div class="seal" aria-hidden="true">✓</div>
+    <h2>사건 기록을<br />보관했습니다.</h2>
+    <p id="completeText"></p>
+    <button class="primary-btn" data-close="completeDialog">다음 사건 열기</button>
+  </dialog>
 
-<script src="./korea_geo.js?v=5"></script>
-<script src="./solar_terms_data.js?v=5"></script>
-<script>
-(function(){
-  var D=window.SOLAR_DATA;
-  if(!D){ document.body.insertAdjacentHTML('beforeend','<p style="padding:20px">데이터 로드 실패</p>'); return; }
-  var CITY='서울', METRIC='temp', SEL=15;
-  var MONTH_DOY=[1,32,60,91,121,152,182,213,244,274,305,335];
-  var METMAP={}; D.metrics.forEach(function(m){ METMAP[m.key]=m; });
-  var CITYKEYS=Object.keys(D.cities);
-
-  function PAL(){ var c=getComputedStyle(document.documentElement); function v(n,f){ var x=(c.getPropertyValue(n)||'').trim(); return x||f; }
-    return { past:v('--past','#9ca3af'),ref0:v('--ref0','#60a5fa'),ref25:v('--ref25','#f87171'),muted:v('--muted','#6b7280'),text:v('--text','#111827'),line:v('--line','#e5e7eb'),bg:v('--bg','#fff'),
-      spring:v('--spring','#4d7c0f'),summer:v('--summer','#c2410c'),autumn:v('--autumn','#a16207'),winter:v('--winter','#1d4ed8'),temp:v('--m-temp','#dc2626'),humidity:v('--m-humidity','#2563eb'),precip:v('--m-precip','#0d9488') }; }
-  var RAMPS={ temp:['#2c7bb6','#abd9e9','#ffffbf','#fdae61','#d7191c'], humidity:['#cdaa6d','#f0ead6','#2c7fb8'], precip:['#edf8fb','#7bccc4','#2b8cbe','#08589e'] };
-  function hx2(h){ h=h.replace('#',''); return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)]; }
-  function rgb2(a){ return '#'+a.map(function(v){ v=Math.max(0,Math.min(255,Math.round(v))); return ('0'+v.toString(16)).slice(-2); }).join(''); }
-  function ramp(t,st){ if(!(t>0))return st[0]; if(t>=1)return st[st.length-1]; var n=st.length-1,i=Math.floor(t*n),f=t*n-i,a=hx2(st[i]),b=hx2(st[i+1]); return rgb2([a[0]+(b[0]-a[0])*f,a[1]+(b[1]-a[1])*f,a[2]+(b[2]-a[2])*f]); }
-  function textOn(h){ var c=hx2(h),L=0.299*c[0]+0.587*c[1]+0.114*c[2]; return L>150?'#111':'#fff'; }
-  function r1(x){ return Math.round(x*10)/10; }
-  function di(doy){ return ((Math.round(doy)-1)%365+365)%365; }
-  function clim(place,metric,period,doy){ return D.cities[place][metric][period][di(doy)]; }
-  function arr(p){ return D.cities[CITY][METRIC][p]; }
-  function C(p,doy){ return arr(p)[di(doy)]; }
-  var isPrecip=function(){ return METRIC==='precip'; }, isTemp=function(){ return METRIC==='temp'; };
-  function mean(a){ var s=0,n=0; for(var i=0;i<a.length;i++){ if(a[i]!=null){s+=a[i];n++;} } return n?s/n:0; }
-  function sum(a){ var s=0; for(var i=0;i<a.length;i++){ if(a[i]!=null)s+=a[i]; } return s; }
-  function annual(p){ return isPrecip()?sum(arr(p)):mean(arr(p)); }
-  function summer(p){ var a=arr(p).slice(151,243); return isPrecip()?sum(a):mean(a); }
-  function fmt(x){ return isPrecip()?Math.round(x)+'mm':(isTemp()?r1(x)+'℃':Math.round(x)+'%'); }
-  function fmtA(x){ return fmt(x); }
-  function deltaTxt(d){ var u=isPrecip()?'mm':(isTemp()?'℃':'%p'); return (d>=0?'+':'')+((isTemp())?r1(d):Math.round(d))+u; }
-  function linreg(xs,ys){ var n=0,sx=0,sy=0,sxx=0,sxy=0; for(var i=0;i<xs.length;i++){ if(ys[i]==null)continue; n++; sx+=xs[i];sy+=ys[i];sxx+=xs[i]*xs[i];sxy+=xs[i]*ys[i]; } var sl=(n*sxy-sx*sy)/(n*sxx-sx*sx||1); return {slope:sl,intc:(sy-sl*sx)/(n||1)}; }
-  function termDrift(place,doy){ var diff=clim(place,'temp','present',doy)-clim(place,'temp','past',doy), s=(clim(place,'temp','present',doy+7)-clim(place,'temp','present',doy-7))/14; if(Math.abs(s)<0.03)return{peak:true,diff:diff}; return{peak:false,diff:diff,days:diff/s}; }
-
-  // ── 지도 ──
-  function geoP(W,H,pad){ var G=window.KOREA_GEO,b=G.bbox,kx=Math.cos((b[1]+b[3])/2*Math.PI/180),wd=(b[2]-b[0])*kx,hd=(b[3]-b[1]),sc=Math.min((W-2*pad)/wd,(H-2*pad)/hd),ox=(W-wd*sc)/2,oy=(H-hd*sc)/2;
-    return { X:function(lo){return ox+(lo-b[0])*kx*sc;}, Y:function(la){return oy+(b[3]-la)*sc;} }; }
-  function mapSVG(valOf,mn,mx,stops,P,label){
-    if(!window.KOREA_GEO) return '<div class="tip" style="padding:16px;text-align:center;">지도 없음</div>';
-    var W=300,H=330,pj=geoP(W,H,10), s='<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+label+'">';
-    window.KOREA_GEO.provinces.forEach(function(pr){ pr.rings.forEach(function(rg){ var d=''; for(var i=0;i<rg.length;i++){ d+=(i?'L':'M')+r1(pj.X(rg[i][0]))+' '+r1(pj.Y(rg[i][1])); } s+='<path d="'+d+'Z" fill="'+P.bg+'" stroke="'+P.line+'" stroke-width="0.7"/>'; }); });
-    var sCx,sCy,sCol,sVal,sName=null;
-    // 점: 색으로 값 표현(숫자 미표기 → 군집 겹침 방지), 호버 시 툴팁
-    CITYKEYS.forEach(function(n){ var st=D.cities[n],val=valOf(n),cx=r1(pj.X(st.lon)),cy=r1(pj.Y(st.lat)),sel=(n===CITY);
-      if(val==null){ s+='<circle cx="'+cx+'" cy="'+cy+'" r="4" fill="none" stroke="'+P.muted+'" stroke-width="1"/>'; return; }
-      var col=ramp((val-mn)/(mx-mn||1),stops);
-      if(sel){ sCx=cx;sCy=cy;sCol=col;sVal=val;sName=n; }
-      s+='<circle class="stn" data-city="'+n+'" cx="'+cx+'" cy="'+cy+'" r="6.5" fill="'+col+'" stroke="'+P.bg+'" stroke-width="1.6" style="cursor:pointer"><title>'+n+' '+fmtA(val)+'</title></circle>'; });
-    // 선택 지점: 맨 위에 링 강조 + 좌상단(서해 빈 공간) 콜아웃 — 라벨 겹침 완전 제거
-    if(sName!=null){
-      s+='<circle cx="'+sCx+'" cy="'+sCy+'" r="8.5" fill="'+sCol+'" stroke="'+P.text+'" stroke-width="2.5" pointer-events="none"/>';
-      var t=sName+'  '+fmtA(sVal), w=Math.max(94, t.length*9+34);
-      s+='<g pointer-events="none"><rect x="7" y="7" rx="8" width="'+w+'" height="28" fill="'+P.bg+'" stroke="'+P.line+'" stroke-width="1"/>'
-        +'<circle cx="23" cy="21" r="5.5" fill="'+sCol+'" stroke="'+P.bg+'" stroke-width="1"/>'
-        +'<text x="35" y="25.5" font-size="13.5" font-weight="700" fill="'+P.text+'">'+t+'</text></g>';
-    }
-    return s+'</svg>';
-  }
-  function bindStn(id){ var el=document.getElementById(id); if(!el)return; el.querySelectorAll('.stn').forEach(function(c){ c.addEventListener('click',function(){ CITY=this.getAttribute('data-city'); renderAll(); }); }); }
-
-  function drawHero(P){
-    var doy=D.terms[SEL].doy, idx=di(doy), vals=[];
-    CITYKEYS.forEach(function(n){ ['past','present'].forEach(function(pp){ vals.push(D.cities[n][METRIC][pp][idx]); }); });
-    var mn=Math.min.apply(null,vals),mx=Math.max.apply(null,vals); if(mx-mn<1e-6)mx=mn+1; var stops=RAMPS[METRIC];
-    document.getElementById('heroTitle').textContent=D.terms[SEL].name+' ('+D.terms[SEL].date+') 무렵 '+METMAP[METRIC].label+' 분포 — 과거 vs 현재';
-    document.getElementById('capPast').textContent='과거 '+D.periods.past;
-    document.getElementById('capPres').textContent='현재 '+D.periods.present;
-    document.getElementById('map_past').innerHTML=mapSVG(function(n){return D.cities[n][METRIC]['past'][idx];},mn,mx,stops,P,'과거 분포 지도');
-    document.getElementById('map_present').innerHTML=mapSVG(function(n){return D.cities[n][METRIC]['present'][idx];},mn,mx,stops,P,'현재 분포 지도');
-    document.getElementById('mapLegend').innerHTML='<span>'+fmtA(mn)+'</span><div style="flex:1;height:9px;border-radius:5px;background:linear-gradient(90deg,'+stops.join(',')+')"></div><span>'+fmtA(mx)+'</span>';
-    bindStn('map_past'); bindStn('map_present');
-  }
-
-  // ── 타임랩스 ──
-  var TL={ years:D.nationwide.years, idx:0, playing:false, speed:1, timer:null, inited:false };
-  function tlDomain(){ var v=[]; CITYKEYS.forEach(function(n){ D.cities[n].timeline[METRIC].forEach(function(x){ if(x!=null)v.push(x); }); }); return [Math.min.apply(null,v),Math.max.apply(null,v)]; }
-  function tlVal(n){ var tl=D.cities[n].timeline,i=tl.years.indexOf(TL.years[TL.idx]); return i>=0?tl[METRIC][i]:null; }
-  function trendSVG(P){ var W=320,H=210,mL=30,mR=10,mT=10,mB=20,tl=D.cities[CITY].timeline,ys=tl.years,vs=tl[METRIC],pv=vs.filter(function(x){return x!=null;});
-    var lo=Math.min.apply(null,pv),hi=Math.max.apply(null,pv),pad=(hi-lo)*0.12+0.3; lo-=pad; hi+=pad;
-    var X=function(i){return mL+i/(ys.length-1)*(W-mL-mR);},Y=function(v){return mT+(hi-v)/(hi-lo)*(H-mT-mB);};
-    var d=''; for(var i=0;i<vs.length;i++){ if(vs[i]==null)continue; d+=(d?'L':'M')+r1(X(i))+' '+r1(Y(vs[i])); }
-    var col=P[METRIC],s='<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+CITY+' 연별 추세">';
-    [ys[0],ys[ys.length-1]].forEach(function(yy){ var xx=r1(X(ys.indexOf(yy))); s+='<text x="'+xx+'" y="'+(H-6)+'" font-size="9.5" fill="'+P.muted+'" text-anchor="middle">'+yy+'</text>'; });
-    s+='<path d="'+d+'" fill="none" stroke="'+col+'" stroke-width="2"/>';
-    var cx=r1(X(TL.idx)),cv=vs[TL.idx]; s+='<line x1="'+cx+'" y1="'+mT+'" x2="'+cx+'" y2="'+(H-mB)+'" stroke="'+P.muted+'" stroke-dasharray="3 3"/>';
-    if(cv!=null){ s+='<circle cx="'+cx+'" cy="'+r1(Y(cv))+'" r="4.5" fill="'+col+'" stroke="'+P.bg+'" stroke-width="1.5"/><text x="'+Math.min(cx,W-26)+'" y="'+(r1(Y(cv))-8)+'" font-size="11" font-weight="700" fill="'+P.text+'" text-anchor="middle">'+fmtA(cv)+'</text>'; }
-    return s+'</svg>'; }
-  function tlDraw(){ var P=PAL(),dm=tlDomain(),y=TL.years[TL.idx];
-    document.getElementById('tlYear').value=TL.idx; document.getElementById('tlYearOut').textContent=y+'년'; document.getElementById('tlMetricLab').textContent=METMAP[METRIC].label;
-    document.getElementById('tlMapT').textContent=y+'년 '+METMAP[METRIC].label+'(연'+(isPrecip()?'합계':'평균')+')';
-    document.getElementById('tlTrendT').textContent=CITY+' 추세 '+TL.years[0]+'~'+TL.years[TL.years.length-1];
-    document.getElementById('tlMap').innerHTML=mapSVG(tlVal,dm[0],dm[1],RAMPS[METRIC],P,y+'년 분포'); document.getElementById('tlTrend').innerHTML=trendSVG(P);
-    document.getElementById('tlLegend').innerHTML='<span>'+fmtA(dm[0])+'</span><div style="flex:1;height:9px;border-radius:5px;background:linear-gradient(90deg,'+RAMPS[METRIC].join(',')+')"></div><span>'+fmtA(dm[1])+'</span>';
-    bindStn('tlMap'); }
-  function tlStop(){ TL.playing=false; if(TL.timer){clearInterval(TL.timer);TL.timer=null;} document.getElementById('tlPlay').textContent='▶ 재생'; }
-  function tlPlayToggle(){ if(TL.playing){ tlStop(); return; } TL.playing=true; document.getElementById('tlPlay').textContent='⏸ 정지'; if(TL.idx>=TL.years.length-1)TL.idx=0;
-    TL.timer=setInterval(function(){ TL.idx++; if(TL.idx>=TL.years.length){ TL.idx=TL.years.length-1; tlDraw(); tlStop(); return; } tlDraw(); }, 700/TL.speed); }
-  function tlInit(){ if(TL.inited)return; TL.inited=true; var sl=document.getElementById('tlYear'); sl.max=TL.years.length-1; TL.idx=TL.years.length-1;
-    sl.addEventListener('input',function(){ tlStop(); TL.idx=+this.value; tlDraw(); });
-    document.getElementById('tlPlay').addEventListener('click',tlPlayToggle);
-    var sp=document.getElementById('tlSpeed'); [1,2,5,10].forEach(function(x){ var b=document.createElement('button'); b.textContent=x+'배'; if(x===1)b.className='on';
-      b.onclick=function(){ TL.speed=x; sp.querySelectorAll('button').forEach(function(c){c.classList.remove('on');}); b.classList.add('on'); if(TL.playing){tlStop();tlPlayToggle();} }; sp.appendChild(b); }); }
-
-  // ── 라인차트 + 절기상세 ──
-  function buildChart(){ var P=PAL(),col=P[METRIC],W=720,H=280,mL=34,mR=12,mT=10,mB=20,ap=arr('past'),cp=arr('present');
-    var lo=Math.min.apply(null,ap.concat(cp)),hi=Math.max.apply(null,ap.concat(cp)); if(isPrecip())lo=0; var pad=(hi-lo)*0.12+0.5; lo-=pad; hi+=pad;
-    var x=function(d){return mL+(d-1)/364*(W-mL-mR);},y=function(t){return mT+(hi-t)/(hi-lo)*(H-mT-mB);};
-    function path(a){ var s=''; for(var i=0;i<365;i++){ s+=(i?'L':'M')+r1(x(i+1))+' '+r1(y(a[i])); } return s; }
-    var s='<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+CITY+' '+METMAP[METRIC].label+' 과거 대 현재">';
-    if(isTemp()){ [[0,P.ref0,'0℃'],[25,P.ref25,'25℃']].forEach(function(rf){ if(rf[0]>lo&&rf[0]<hi){ var yy=r1(y(rf[0])); s+='<line x1="'+mL+'" y1="'+yy+'" x2="'+(W-mR)+'" y2="'+yy+'" stroke="'+rf[1]+'" stroke-dasharray="3 4" opacity="0.7"/><text x="'+(W-mR)+'" y="'+(yy-3)+'" font-size="10" fill="'+rf[1]+'" text-anchor="end">'+rf[2]+'</text>'; } }); }
-    for(var m=0;m<12;m++){ var xx=r1(x(MONTH_DOY[m])); s+='<line x1="'+xx+'" y1="'+mT+'" x2="'+xx+'" y2="'+(H-mB)+'" stroke="'+P.line+'"/><text x="'+xx+'" y="'+(H-6)+'" font-size="10" fill="'+P.muted+'" text-anchor="middle">'+(m+1)+'</text>'; }
-    s+='<path d="'+path(ap)+'" fill="none" stroke="'+P.past+'" stroke-width="2" stroke-dasharray="5 4"/><path d="'+path(cp)+'" fill="none" stroke="'+col+'" stroke-width="2.6"/>';
-    var t=D.terms[SEL],dy=t.doy,yp=r1(y(C('past',dy))),yc=r1(y(C('present',dy))),xc=r1(x(dy));
-    s+='<line x1="'+xc+'" y1="'+yp+'" x2="'+xc+'" y2="'+yc+'" stroke="'+col+'" stroke-width="1.5" stroke-dasharray="2 2"/>';
-    D.terms.forEach(function(tt,i){ var cX=r1(x(tt.doy)),cY=r1(y(C('present',tt.doy))),on=(i===SEL); s+='<circle class="td" data-i="'+i+'" cx="'+cX+'" cy="'+cY+'" r="'+(on?6:3.2)+'" fill="'+(on?col:P[tt.season])+'" stroke="'+P.bg+'" stroke-width="1.4" style="cursor:pointer"><title>'+tt.name+'</title></circle>'; });
-    s+='<circle cx="'+xc+'" cy="'+yp+'" r="4" fill="'+P.bg+'" stroke="'+P.past+'" stroke-width="2"/><text x="'+xc+'" y="'+(Math.min(yp,yc)-9)+'" font-size="11" font-weight="700" fill="'+P.text+'" text-anchor="middle">'+t.name+'</text>';
-    var box=document.getElementById('chart'); box.innerHTML=s+'</svg>'; box.querySelectorAll('.td').forEach(function(c){ c.addEventListener('click',function(){ SEL=+this.getAttribute('data-i'); renderAll(); }); }); }
-  function renderTermModal(){ var P=PAL(),col=P[METRIC],M=METMAP[METRIC],t=D.terms[SEL],tP=C('past',t.doy),tC=C('present',t.doy);
-    var tg=document.getElementById('terms'); tg.innerHTML=''; D.terms.forEach(function(tt,i){ var el=document.createElement('div'); el.className='term'+(i===SEL?' on':''); el.tabIndex=0; el.setAttribute('role','button');
-      el.innerHTML='<div class="tn"><span class="dot" style="background:'+P[tt.season]+'"></span>'+tt.name+'</div><div class="td">'+tt.date+'</div>';
-      el.onclick=function(){ SEL=i; renderAll(); }; el.onkeydown=function(e){ if(e.key==='Enter'||e.key===' '){e.preventDefault();SEL=i;renderAll();} }; tg.appendChild(el); });
-    var chg='과거 <b style="color:'+col+'">'+fmt(tP)+'</b> → 현재 <b style="color:'+col+'">'+fmt(tC)+'</b> ('+deltaTxt(tC-tP)+')',extra='';
-    if(isTemp()){ var dr=termDrift(CITY,t.doy); extra=dr.peak?'한여름·한겨울 정점이라 시점보다 세기가 변했습니다.':'조상이 기록한 이 무렵 기온이 지금은 약 <b>'+Math.min(60,Math.round(Math.abs(dr.days)))+'일 '+(dr.days>0?'일찍':'늦게')+'</b> 나타납니다'+(dr.days>0?' (봄·여름 앞당겨짐).':' (더위·온기 길어짐).'); }
-    document.getElementById('detail').innerHTML='<div class="big">'+t.name+' <span class="ha">'+t.hanja+' · '+t.hanja_gloss+'</span></div><div class="meta2">'+t.date+' · '+t.meaning+'</div><div class="desc">'+t.desc+'</div><div class="change">'+CITY+' '+M.label+' 변화: '+chg+(extra?('<br>'+extra):'')+'</div>';
-    document.getElementById('legend').innerHTML='<span><i style="border-color:'+P.past+';border-top-style:dashed"></i>과거</span><span><i style="border-color:'+col+'"></i>현재</span><span><span class="dot" style="background:'+col+'"></span>절기(클릭)</span>';
-    buildChart(); }
-
-  // ── 퀴즈 ──
-  var QUIZ=[
-    {q:"온난화로 봄꽃은 점점 일찍 핀다. 그런데 꽃가루받이를 돕는 벌은 그 속도를 못 따라간다. 생물 간 시기가 어긋나는 이 현상을?",o:["계절 엇박자(생물계절 불일치)","엘니뇨","도시 열섬"],a:0,e:"‘생물계절 불일치’. 절기가 어긋나듯 생태계 리듬도 깨져 수분·농작물·철새 이동까지 연쇄 영향을 받는다."},
-    {q:"‘처서가 지나면 모기 입이 비뚤어진다’는데, 요즘은 처서가 지나도 모기가 극성이다. 왜?",o:["가을 더위가 길어져 모기 활동기간이 늘어서","모기가 추위에 강해져서","살충제 때문에"],a:0,e:"온난화로 가을 더위가 길어져 해충 활동기간이 늘었다. 모기 매개 질환 위험 지역도 북상 중이다."},
-    {q:"봄이 빨라져 벚꽃이 일찍 핀다. 날짜를 미리 정해둔 ‘벚꽃 축제’엔?",o:["축제 때 이미 꽃이 져 헛걸음이 늘어남","꽃이 더 오래 핌","아무 영향 없음"],a:0,e:"축제 기간과 만개 시기가 어긋나는 사례가 는다. 기후변화는 생태뿐 아니라 문화·관광·경제까지 흔든다."},
-    {q:"24절기는 본래 중국 황허 유역 기준이라 한반도와도 차이가 있었다. 온난화까지 더해지면?",o:["전통 지식과 현실의 괴리가 더 커진다","점점 더 정확해진다","변화 없다"],a:0,e:"농경 달력으로서 절기의 유효성이 약해진다. ‘대서에 가장 덥다’ 같은 약속이 깨지면 농사 시기 판단도 어려워진다."},
-    {q:"겨울이 짧아지면 마냥 좋기만 할까?",o:["해충·병원균 월동이 늘어 농업·생태가 교란된다","난방비만 줄어 좋다","건강에 무조건 이롭다"],a:0,e:"겨울 추위는 해충·병원균을 줄이는 자연의 ‘리셋’. 짧아지면 병해충이 늘고 김장·겨울스포츠 문화도 흔들린다."},
-    {q:"‘절기 드리프트’를 늦추기 위해 개인이 할 수 있는 가장 근본적인 일은?",o:["에너지·교통에서 탄소배출 줄이기","에어컨을 더 켜기","할 수 있는 일이 없다"],a:0,e:"근본 원인은 온실가스다. 개개인의 감축이 모이면 절기의 약속도, 우리 계절도 지킬 수 있다."}
-  ];
-  var QZ={i:0,score:0,answered:false};
-  function quizRender(){ var q=QUIZ[QZ.i],el=document.getElementById('quiz'); document.getElementById('qScore').textContent='('+(QZ.i+1)+'/'+QUIZ.length+' · 점수 '+QZ.score+')';
-    var h='<div style="font-size:15px;font-weight:600;margin-bottom:8px;">Q'+(QZ.i+1)+'. '+q.q+'</div>'; q.o.forEach(function(o,k){ h+='<button class="qopt" data-k="'+k+'">'+o+'</button>'; }); h+='<div id="qexp"></div>';
-    el.innerHTML=h; QZ.answered=false; el.querySelectorAll('.qopt').forEach(function(b){ b.addEventListener('click',function(){ quizAnswer(+this.getAttribute('data-k')); }); }); }
-  function quizAnswer(k){ if(QZ.answered)return; QZ.answered=true; var q=QUIZ[QZ.i],opts=document.querySelectorAll('#quiz .qopt'); opts[q.a].classList.add('ok'); if(k!==q.a)opts[k].classList.add('no'); if(k===q.a)QZ.score++;
-    document.getElementById('qScore').textContent='('+(QZ.i+1)+'/'+QUIZ.length+' · 점수 '+QZ.score+')'; var last=(QZ.i>=QUIZ.length-1);
-    document.getElementById('qexp').innerHTML='<div class="qexp">'+(k===q.a?'✅ 정답! ':'💡 ')+q.e+'</div><button class="chip" id="qnext" style="margin-top:8px;">'+(last?'처음부터':'다음 문제 →')+'</button>';
-    document.getElementById('qnext').addEventListener('click',function(){ if(last){ alert('퀴즈 완료! '+QUIZ.length+'문제 중 '+QZ.score+'개 정답.\\n작은 실천이 절기를 지킵니다.'); QZ.i=0; QZ.score=0; } else QZ.i++; quizRender(); }); }
-
-  // ── 내 기후 카드(캔버스) ──
-  function wrapText(x,t,ox,oy,maxw,lh){ var words=t.split(' '),line='',yy=oy; for(var i=0;i<words.length;i++){ var test=line+words[i]+' '; if(x.measureText(test).width>maxw&&line){ x.fillText(line.trim(),ox,yy); line=words[i]+' '; yy+=lh; } else line=test; } x.fillText(line.trim(),ox,yy); return yy; }
-  function drawCard(){ var place=document.getElementById('cPlace').value, by=Math.max(1969,Math.min(2025,+document.getElementById('cBirth').value||1995)); document.getElementById('cBirth').value=by;
-    var tl=D.cities[place].timeline,ys=tl.years,temps=tl.temp,reg=linreg(ys,temps),hi=ys[ys.length-1],n=hi-by,dT=reg.slope*n;
-    var dr=termDrift(place,235); // 처서
-    var cv=document.getElementById('cardCanvas'),x=cv.getContext('2d'),W=1080,H=1350; cv.width=W; cv.height=H;
-    var g=x.createLinearGradient(0,0,0,H); g.addColorStop(0,'#0b3a5b'); g.addColorStop(1,'#0a1f33'); x.fillStyle=g; x.fillRect(0,0,W,H);
-    x.fillStyle='#ef4444'; x.fillRect(0,0,W,18);
-    var F='Pretendard,"Malgun Gothic","Apple SD Gothic Neo",sans-serif'; x.textAlign='left';
-    x.fillStyle='#9fc7e6'; x.font='500 42px '+F; x.fillText('🌏 나의 기후 변화 카드',80,140);
-    x.fillStyle='#ffffff'; x.font='600 58px '+F; x.fillText('📍 '+place+'      🎂 '+by+'년생',80,250);
-    x.fillStyle='#fca5a5'; x.font='800 230px '+F; x.fillText((dT>=0?'+':'')+dT.toFixed(1)+'℃',64,500);
-    x.fillStyle='#e2e8f0'; x.font='400 46px '+F; wrapText(x,'내가 태어난 '+by+'년 이후, '+place+'의 연평균 기온이 이만큼 올랐어요.',80,600,940,62);
-    // sparkline
-    var ox=80,oy=700,bw=920,bh=250,pv=temps.filter(function(v){return v!=null;}),lo=Math.min.apply(null,pv),mhi=Math.max.apply(null,pv);
-    x.strokeStyle='rgba(255,255,255,.18)'; x.lineWidth=2; x.strokeRect(ox,oy,bw,bh);
-    var X=function(i){return ox+i/(ys.length-1)*bw;},Y=function(v){return oy+bh-(v-lo)/(mhi-lo||1)*bh;};
-    x.strokeStyle='#fca5a5'; x.lineWidth=5; x.beginPath(); var started=false; for(var i=0;i<temps.length;i++){ if(temps[i]==null)continue; var px=X(i),py=Y(temps[i]); if(!started){x.moveTo(px,py);started=true;}else x.lineTo(px,py); } x.stroke();
-    var bi=ys.indexOf(by); if(bi<0)bi=0; x.fillStyle='#fde68a'; x.beginPath(); x.arc(X(bi),Y(temps[bi]!=null?temps[bi]:pv[0]),11,0,7); x.fill();
-    x.fillStyle='#cbd5e1'; x.font='400 30px '+F; x.fillText(ys[0]+'',ox,oy+bh+40); x.textAlign='right'; x.fillText(ys[ys.length-1]+'',ox+bw,oy+bh+40); x.textAlign='left';
-    x.fillStyle='#fde68a'; x.font='500 44px '+F;
-    var hook=dr.peak?"‘처서’ 무렵 더위가 더 강해졌어요":"‘처서’(더위 끝) 더위가 약 "+Math.min(60,Math.round(Math.abs(dr.days)))+"일 더 길어졌어요";
-    wrapText(x,'🌡️ '+hook,80,1090,940,56);
-    x.fillStyle='#94a3b8'; x.font='400 30px '+F; x.fillText('데이터: 기상청 ASOS '+ys[0]+'–'+ys[ys.length-1]+' · 24절기 기후 탐험',80,1300);
-  }
-  function saveCard(){ var cv=document.getElementById('cardCanvas'); var place=document.getElementById('cPlace').value,by=document.getElementById('cBirth').value;
-    cv.toBlob(function(b){ var a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='기후카드_'+place+'_'+by+'.png'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function(){URL.revokeObjectURL(a.href);},2000); }); }
-
-  // ── 모달 ──
-  function openModal(id){ var m=document.getElementById(id); m.classList.add('open'); document.body.style.overflow='hidden';
-    if(id==='mTl'){ tlInit(); tlDraw(); } else if(id==='mTerm'){ renderTermModal(); } else if(id==='mQuiz'){ quizRender(); } else if(id==='mCard'){ drawCard(); }
-    var f=m.querySelector('button,select,input'); if(f)f.focus(); }
-  function closeModal(m){ m.classList.remove('open'); document.body.style.overflow=''; if(m.id==='mTl')tlStop(); }
-  document.querySelectorAll('.tbtn[data-modal]').forEach(function(b){ b.addEventListener('click',function(){ openModal(this.getAttribute('data-modal')); }); });
-  document.querySelectorAll('.modal').forEach(function(m){ m.addEventListener('click',function(e){ if(e.target===m)closeModal(m); }); m.querySelectorAll('[data-close]').forEach(function(b){ b.addEventListener('click',function(){ closeModal(m); }); }); });
-  document.addEventListener('keydown',function(e){ if(e.key==='Escape'){ document.querySelectorAll('.modal.open').forEach(closeModal); } });
-
-  // ── 컨트롤 + 메인 렌더 ──
-  function fillSelects(){ var cs=document.getElementById('citySel'),cp=document.getElementById('cPlace');
-    function opts(sel){ var cityG='<optgroup label="도시">',doG='<optgroup label="도(道)">'; CITYKEYS.forEach(function(n){ var o='<option value="'+n+'">'+n+'</option>'; if(D.cities[n].type==='do')doG+=o; else cityG+=o; }); sel.innerHTML=cityG+'</optgroup>'+doG+'</optgroup>'; }
-    opts(cs); opts(cp); cs.value=CITY;
-    var ms=document.getElementById('metricSeg'); ms.innerHTML=''; D.metrics.forEach(function(m){ var b=document.createElement('button'); b.textContent=m.label; b.className=(m.key===METRIC?'on':''); b.setAttribute('aria-pressed',m.key===METRIC); b.onclick=function(){ METRIC=m.key; renderAll(); }; ms.appendChild(b); });
-    var ts=document.getElementById('termSel'); ts.innerHTML=''; D.terms.forEach(function(t,i){ ts.innerHTML+='<option value="'+i+'">'+t.name+' ('+t.date+')</option>'; }); ts.value=SEL;
-    cs.onchange=function(){ CITY=this.value; renderAll(); }; ts.onchange=function(){ SEL=+this.value; renderAll(); };
-  }
-  function renderControls(){ document.getElementById('citySel').value=CITY; document.getElementById('termSel').value=SEL;
-    document.querySelectorAll('#metricSeg button').forEach(function(b){ var on=(b.textContent===METMAP[METRIC].label); b.classList.toggle('on',on); b.setAttribute('aria-pressed',on); }); }
-  function renderStats(){ var M=METMAP[METRIC],aP=annual('past'),aC=annual('present'),sP=summer('past'),sC=summer('present'),t=D.terms[SEL],tP=C('past',t.doy),tC=C('present',t.doy);
-    document.getElementById('kA').textContent=(isPrecip()?'연강수량':'연평균 '+M.label); document.getElementById('vA').textContent=fmtA(aC); var a=document.getElementById('dA'); a.textContent=deltaTxt(aC-aP); a.className='d '+((aC-aP)>=0?'up':'down');
-    document.getElementById('kB').textContent=t.name+' '+M.label; document.getElementById('vB').textContent=fmt(tC); var b=document.getElementById('dB'); b.textContent=deltaTxt(tC-tP); b.className='d '+((tC-tP)>=0?'up':'down');
-    document.getElementById('kC').textContent='여름철 '+(isPrecip()?'강수':M.label); document.getElementById('vC').textContent=fmtA(sC); var c=document.getElementById('dC'); c.textContent=deltaTxt(sC-sP); c.className='d '+((sC-sP)>=0?'up':'down'); }
-  function renderHeadline(){ var hl=document.getElementById('headline'),aP=annual('past'),aC=annual('present'),t=D.terms[SEL];
-    if(isTemp()){ var dr=termDrift(CITY,t.doy),tail=dr.peak?('이 무렵 세기가 <b>'+deltaTxt(dr.diff)+'</b> 강해짐'):('<b>'+t.name+'</b> 무렵 기온이 약 <b>'+Math.min(60,Math.round(Math.abs(dr.days)))+'일 '+(dr.days>0?'일찍':'늦게')+'</b> 나타남');
-      hl.innerHTML=CITY+'은(는) 53년 전보다 연평균 기온 <b>'+deltaTxt(aC-aP)+'</b>, '+tail+'.'; }
-    else if(isPrecip()) hl.innerHTML=CITY+' 연강수량이 과거 대비 <b>'+deltaTxt(aC-aP)+'</b> 변화.';
-    else hl.innerHTML=CITY+' 연평균 습도가 과거 대비 <b>'+deltaTxt(aC-aP)+'</b> 변화.'; }
-  function renderAll(){ var P=PAL(); renderControls(); renderHeadline(); renderStats(); drawHero(P);
-    if(document.getElementById('mTerm').classList.contains('open')) renderTermModal();
-    if(document.getElementById('mTl').classList.contains('open')) tlDraw(); }
-
-  // 이벤트
-  document.getElementById('helpBtn').addEventListener('click',function(){ openModal('mOb'); });
-  document.getElementById('obStart').addEventListener('click',function(){ closeModal(document.getElementById('mOb')); try{localStorage.setItem('solar_ob_v5','1');}catch(e){} });
-  document.getElementById('cMake').addEventListener('click',drawCard);
-  document.getElementById('cSave').addEventListener('click',function(){ drawCard(); saveCard(); });
-  if(window.matchMedia){ try{ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',renderAll); }catch(e){} }
-
-  // 초기화
-  fillSelects(); document.getElementById('cPlace').value=CITY; document.getElementById('cBirth').value=1995;
-  renderAll();
-  try{ if(!localStorage.getItem('solar_ob_v5')) openModal('mOb'); }catch(e){ openModal('mOb'); }
-})();
-</script>
+  <script src="./korea_geo.js?v=5"></script>
+  <script src="./solar_terms_data.js?v=5"></script>
+  <script src="./app.js?v=8"></script>
 </body>
 </html>
