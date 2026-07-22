@@ -83,6 +83,7 @@
     } finally { button.disabled = false; button.textContent = 'AI에게 힌트 받기'; }
   }
   function enterInvestigation(action) {
+    $('entryExperience').hidden = true;
     document.body.classList.remove('entry-mode');
     window.dispatchEvent(new CustomEvent('weather24:open-investigation', { detail:{ prediction:entryPrediction || 'unknown', city:'서울', metric:'temp', term:15 } }));
     window.setTimeout(function () {
