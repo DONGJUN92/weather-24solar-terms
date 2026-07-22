@@ -12,7 +12,7 @@
   <meta property="og:title" content="Weather24 | 계절 신호 수사" />
   <meta property="og:description" content="예측·비교·반증으로 계절의 약속을 수사하는 기후 탐험" />
   <meta property="og:image" content="https://weather-24solar-terms.vercel.app/thumbnail.png" />
-  <link rel="stylesheet" href="./style.css?v=10" />
+  <link rel="stylesheet" href="./style.css?v=11" />
 </head>
 <body class="mission-mode">
   <div class="sky-noise" aria-hidden="true"></div>
@@ -26,6 +26,7 @@
       <div class="mission-hud" aria-label="현재 수사 진행도">
         <span id="missionCode">CASE 01</span>
         <span class="signal-meter"><i id="signalOne"></i><i id="signalTwo"></i><i id="signalThree"></i></span>
+        <button class="mission-text-btn" id="openLearningGuide">학습 가이드</button>
         <button class="mission-text-btn" id="openMissionBoard">임무 지도</button>
       </div>
     </header>
@@ -38,6 +39,11 @@
     <h2>다음 수사 경로</h2>
     <p>한 사건을 끝내면 다음 사건의 난이도와 질문이 열립니다. 빠른 완주보다, 근거를 바꿔 보는 행동이 해금 조건입니다.</p>
     <div class="mission-board" id="missionBoard"></div>
+  </dialog>
+
+  <dialog class="mission-modal learning-guide-modal" id="learningGuideDialog">
+    <div class="modal-head"><p class="eyebrow">LEARNING GUIDE</p><button class="close-btn" data-mission-close="learningGuideDialog" aria-label="닫기">×</button></div>
+    <div id="learningGuide"></div>
   </dialog>
 
   <main class="app-shell" id="productShell">
@@ -61,7 +67,7 @@
       </section>
       <aside class="evidence-rail" aria-label="증거 보드"><div class="rail-heading"><span>증거 보드</span><b id="evidenceCount">0 / 3</b></div><p class="evidence-intro">숫자만 담지 마세요. 지역·기간·출처가 함께 있어야 근거가 됩니다.</p><div class="evidence-stack" id="evidenceStack"></div><div class="counter-slot" id="counterSlot"><span>↔</span><div><strong>반증 보류</strong><small>내 결론과 다른 가능성 하나를 확인하세요.</small></div></div><button class="finish-btn" id="finishCase" disabled>판정 기록 보관</button></aside>
     </section>
-    <section class="field-notes" aria-label="조사국 안내"><div><span class="note-icon">◌</span><p><strong>기후와 날씨를 구분하기</strong><br />하루의 기록은 날씨입니다. 여러 해의 비교가 기후를 보는 근거가 됩니다.</p></div><div><span class="note-icon">⌁</span><p><strong>절기는 이동하지 않습니다</strong><br />고정된 절기 날짜에 실제 계절 조건이 얼마나 달라졌는지 보여 줍니다.</p></div><div><span class="note-icon">✦</span><p><strong>AI는 결론을 대신하지 않습니다</strong><br />선택한 증거 안에서만 과장·비약·다음 질문을 찾습니다.</p></div></section>
+    <section class="field-notes" aria-label="조사국 안내"><div><span class="note-icon">◌</span><p><strong>기후와 날씨를 구분하기</strong><br />하루의 기록은 날씨입니다. 장기 기후 판단에는 여러 해의 시계열이 필요합니다.</p></div><div><span class="note-icon">⌁</span><p><strong>절기와 기상 조건은 다릅니다</strong><br />24절기는 태양 위치의 천문 기준이고, 실제 계절 조건은 장소·시기에 따라 관측합니다.</p></div><div><span class="note-icon">✦</span><p><strong>AI는 결론을 대신하지 않습니다</strong><br />선택한 증거 안에서만 과장·비약·다음 질문을 찾습니다.</p></div></section>
   </main>
 
   <dialog class="modal" id="guideDialog"><div class="modal-head"><p class="eyebrow">INVESTIGATION RULES</p><button class="close-btn" data-close="guideDialog" aria-label="닫기">×</button></div><h2>좋은 수사는<br />좋은 비교에서 시작합니다.</h2><ol class="guide-steps"><li><span>1</span><div><strong>예측을 먼저 남깁니다.</strong><p>데이터를 보고 정답을 고르는 것이 아니라, 생각을 검증합니다.</p></div></li><li><span>2</span><div><strong>지역·기간·지표를 직접 바꿉니다.</strong><p>같은 질문도 무엇을 비교하느냐에 따라 다른 답을 냅니다.</p></div></li><li><span>3</span><div><strong>근거와 한계를 함께 기록합니다.</strong><p>반증 카드를 포함한 결론만이 신뢰할 수 있습니다.</p></div></li></ol><button class="primary-btn" data-close="guideDialog">수사 시작하기</button></dialog>
@@ -70,6 +76,6 @@
   <script src="./korea_geo.js?v=5"></script>
   <script src="./solar_terms_data.js?v=5"></script>
   <script src="./app.js?v=10"></script>
-  <script src="./mission.js?v=3"></script>
+  <script src="./mission.js?v=4"></script>
 </body>
 </html>
