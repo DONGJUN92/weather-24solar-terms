@@ -119,7 +119,7 @@
   }
   function renderCounter() {
     var m = mission(); state.phase = 'counter';
-    stage('<section class="mission-card"><div class="mission-progress"><span>신호 3 / 3</span><b>반증으로 결론 지키기</b></div><p class="eyebrow">STEP 04 · 다른 지역 구조 요청</p><h1>' + m.city + '만 보고<br />결론을 내려도 될까?</h1><div class="ai-brief"><span aria-hidden="true">✦</span><div><strong>AI 안내관 루프</strong><p>한 지역의 변화는 중요한 신호지만, 그 신호의 범위는 비교해 봐야 알 수 있어요.</p></div><button id="askMissionAi">AI에게 반증 힌트 받기</button></div><div id="missionAiResult" class="mission-ai-result" hidden></div><button class="compare-card" id="compareCity"><span>비교 관측소</span><b>' + m.compareCity + '</b><small>같은 절기 · 같은 지표로 확인</small><i>열기 →</i></button><div class="mission-feedback" id="counterFeedback" hidden></div></section>');
+    stage('<section class="mission-card"><div class="mission-progress"><span>마지막 신호</span><b>반증으로 결론 지키기</b></div><p class="eyebrow">STEP 04 · 다른 지역 구조 요청</p><h1>' + m.city + '만 보고<br />결론을 내려도 될까?</h1><div class="ai-brief"><span aria-hidden="true">✦</span><div><strong>AI 안내관 루프</strong><p>한 지역의 변화는 중요한 신호지만, 그 신호의 범위는 비교해 봐야 알 수 있어요.</p></div><button id="askMissionAi">AI에게 반증 힌트 받기</button></div><div id="missionAiResult" class="mission-ai-result" hidden></div><button class="compare-card" id="compareCity"><span>비교 관측소</span><b>' + m.compareCity + '</b><small>같은 절기 · 같은 지표로 확인</small><i>열기 →</i></button><div class="mission-feedback" id="counterFeedback" hidden></div></section>');
     $('compareCity').addEventListener('click', function () {
       state.compared = true; var info = compareFact(m), box = $('counterFeedback'); box.hidden = false; box.className = 'mission-feedback is-good';
       box.innerHTML = '<strong>비교 관측 확보</strong><p>' + info.statement + ' 서울의 변화와 같은지·다른지를 살펴볼 수 있지만, 두 도시만으로 전국 전체를 말할 수는 없습니다.</p><div class="mission-question"><strong>이제 가장 책임 있는 결론은?</strong>' + choiceButtons([
@@ -158,7 +158,11 @@
       result.hidden = false; result.replaceChildren();
       var message = document.createElement('p'); message.textContent = data.feedback.message;
       var question = document.createElement('strong'); question.textContent = data.feedback.socratic_question;
-      var action = document.createElement('button'); action.textContent = data.feedback.action_label + ' →'; action.addEventListener('click', function () { $('compareCity').focus(); $('compareCity').scrollIntoView({ behavior:'smooth', block:'center' }); });
+      var action = document.createElement('button'); action.textContent = data.feedback.action_label + ' →'; action.addEventListener('click', function () {
+        if (data.feedback.next_action === 'compare_region') { $('compareCity').focus(); $('compareCity').scrollIntoView({ behavior:'smooth', block:'center' }); }
+        else if (data.feedback.next_action === 'check_period') { question.textContent = '현재 비교 기간은 ' + D.periods.past + '와 ' + D.periods.present + '입니다. 같은 절기와 같은 지표를 비교한 뒤 결론의 범위를 정해 보세요.'; }
+        else { question.textContent = '한계 문장 힌트: 지금 자료는 선택한 지역과 기간의 신호를 보여 줍니다. 더 넓은 결론에는 추가 지역과 기간이 필요합니다.'; }
+      });
       result.append(message, question, action);
     } catch (error) { result.hidden = false; result.textContent = '지금 가진 두 지역의 비교만으로 어디까지 말할 수 있는지 먼저 생각해 보세요.'; }
     finally { button.disabled = false; button.textContent = 'AI에게 반증 힌트 받기'; }
