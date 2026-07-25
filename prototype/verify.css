@@ -125,6 +125,25 @@
 .po-choice small { display: block; margin-top: 2px; font-size: 12px; color: #7f96a0; }
 .po-note { font-size: 12px; color: var(--muted); margin: 12px 0 0; }
 
+/* ---- 57년 장기 흐름 스파크라인 ---- */
+.spark-wrap { margin-top: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel2); padding: 10px 12px 4px; }
+.spark-cap { font-size: 12px; color: var(--muted); line-height: 1.5; margin: 0 0 4px; }
+.spark-cap span { color: var(--sky); margin-right: 3px; }
+.spark-cap b { font-weight: 700; }
+.spark-cap b.past { color: #a7bdc5; } .spark-cap b.now { color: var(--coral); }
+.spark { width: 100%; height: auto; display: block; }
+
+/* ---- 내 고향 기후 카드 ---- */
+.cardmaker { margin: 22px 0; padding: 18px; border: 1px solid var(--line); border-radius: 16px; background: var(--panel2); text-align: left; }
+.cardmaker-sub { font-size: 13px; color: var(--muted); margin: 6px 0 14px; line-height: 1.55; }
+.cardmaker-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+.cardmaker-row label { display: flex; flex-direction: column; gap: 5px; font-size: 12px; color: var(--muted); }
+.cardmaker-row select, .cardmaker-row input { height: 40px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); padding: 0 12px; font: inherit; font-size: 15px; }
+.cardmaker-row input { width: 120px; }
+.card-preview { margin-top: 16px; }
+.card-canvas { width: 100%; max-width: 380px; height: auto; border-radius: 16px; box-shadow: var(--shadow); display: block; }
+.card-save { display: inline-block; margin-top: 12px; text-decoration: none; border: 1px solid var(--sun); color: var(--sun); border-radius: 999px; padding: 8px 16px; }
+
 /* ---- 판정/자가진단/사후 ---- */
 .verdict-card .cerl { margin-top: 8px; }
 .selfcheck { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }

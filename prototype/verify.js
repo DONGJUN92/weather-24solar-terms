@@ -164,6 +164,7 @@
     $('thrOut').textContent = thr + mc.unit;
     renderReadouts(thr, pl, cl);
     updateLiveSentence();
+    updateSpark();
   }
 
   function liveSentence() {
@@ -172,6 +173,30 @@
     return '<b>' + n.city + '</b> · ‘' + mc.verb + ' ' + n.thr + mc.unit + '’ 기준 ' + mc.day + '은 과거 <b>' + n.pd + '일</b> → 현재 <b class="hot">' + n.cd + '일</b>입니다. <span class="cerl-tag">— 5년 관측 신호(30년 기후평년 아님)</span>';
   }
   function updateLiveSentence() { var el = $('freeCerl'); if (el) el.innerHTML = liveSentence(); }
+
+  /* 57년(1969~2025) 연간 장기 흐름 — 5년 비교가 이 흐름의 어디에 있는지 보여 준다. */
+  function sparklineSVG(city, metric) {
+    var tl = D.cities[city].timeline; if (!tl || !tl.years || !tl[metric]) return '';
+    var ys = tl.years, vs = tl[metric], W = 720, H = 96, L = 34, R = 12, T = 10, B = 18;
+    var lo = Math.min.apply(null, vs), hi = Math.max.apply(null, vs), pad = (hi - lo) * 0.14 || 1; lo -= pad; hi += pad;
+    function x(i) { return L + i / (ys.length - 1) * (W - L - R); }
+    function y(v) { return T + (hi - v) / (hi - lo) * (H - T - B); }
+    function xy(yr) { var i = ys.indexOf(yr); return i < 0 ? null : x(i); }
+    var path = vs.map(function (v, i) { return (i ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(v).toFixed(1); }).join('');
+    var pA = xy(1969), pB = xy(1973), cA = xy(2022), cB = xy(2026) != null ? xy(2026) : x(ys.length - 1);
+    var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + city + ' 1969년부터 2025년까지 연간 ' + (METRICS[metric] || METRICS.temp).label + ' 장기 흐름과 두 비교 구간" class="spark">';
+    if (pA != null) svg += '<rect x="' + pA.toFixed(1) + '" y="' + T + '" width="' + (pB - pA).toFixed(1) + '" height="' + (H - T - B) + '" fill="#a7bdc5" fill-opacity="0.2"/>';
+    if (cA != null) svg += '<rect x="' + cA.toFixed(1) + '" y="' + T + '" width="' + (cB - cA).toFixed(1) + '" height="' + (H - T - B) + '" fill="#ff8066" fill-opacity="0.2"/>';
+    svg += '<text x="2" y="' + (y(hi) + 4).toFixed(1) + '" fill="#8ba0a8" font-size="9">' + Math.round(hi) + '</text><text x="2" y="' + (y(lo)).toFixed(1) + '" fill="#8ba0a8" font-size="9">' + Math.round(lo) + '</text>';
+    svg += '<path d="' + path + '" fill="none" stroke="#77bff7" stroke-width="1.6"/>';
+    [1969, 1990, 2010, ys[ys.length - 1]].forEach(function (yr) { var bx = xy(yr); if (bx != null) svg += '<text x="' + bx.toFixed(1) + '" y="' + (H - 5) + '" fill="#8ba0a8" font-size="9" text-anchor="middle">' + yr + '</text>'; });
+    return svg + '</svg>';
+  }
+  function sparkBlock(city, metric) {
+    var s = sparklineSVG(city, metric); if (!s) return '';
+    return '<div class="spark-wrap"><p class="spark-cap"><span aria-hidden="true">◷</span> ' + city + ' · 1969–2025 연간 ' + (METRICS[metric] || METRICS.temp).label + ' 장기 흐름 <b class="past">과거</b>·<b class="now">현재</b> 비교 구간 표시 — <b>당신의 5년 비교는 이 긴 흐름의 양 끝입니다.</b></p>' + s + '</div>';
+  }
+  function updateSpark() { var el = $('sparkMount'); if (el) el.innerHTML = sparkBlock(state.city, state.metric); }
 
   function stat() {
     var thr = state.thr, mc = metricOf();
@@ -313,6 +338,7 @@
     save();
     var html = '<section class="card verdict-card"><h1 class="sr-only">미션 ' + (state.mi + 1) + ' 판정 — ' + m.title + '</h1><div class="mhead"><span class="mno">미션 ' + (state.mi + 1) + ' / 3 · 판정</span><span class="goal-chip">' + m.goal + '</span></div>'
       + '<p class="eyebrow">판정 (주장·근거·추론·한계)</p><p class="cerl">' + m.verdict(n) + '</p>'
+      + sparkBlock(state.city, 'temp')
       + '<div class="selfcheck" id="selfcheck"><p class="sc-q"><b>자가진단</b> — ' + m.selfCheck.q + '</p><div class="choice-row" id="scChoices"></div><p class="sc-explain" id="scExplain" hidden></p></div>';
     if (m.askPost) html += '<div class="post-box" id="postBox" hidden></div>';
     html += '<div class="mission-audit" id="missionAudit" hidden></div>';
@@ -372,8 +398,55 @@
 
   function renderComplete() {
     state.phase = 'free'; save();
-    setStage('<section class="card done-card"><div class="burst" aria-hidden="true">✦</div><p class="eyebrow">3개 미션 완료</p><h1 class="stage-h">검증을 마쳤어요.</h1><p class="sub">당신은 절기(고정)와 기후(이동)를 구분하고, 기준을 정의하고, 자료의 범위를 지켜 판정했습니다.</p><div class="skill-row"><span>① 절기≠기후</span><span>② 자료의 범위</span><span>③ 기준 정의</span><span>④ 근거만큼 결론</span></div><button class="primary-btn" id="startFree">내 지역·지표로 자유탐구 →</button></section>');
+    var yrs = D.cities['서울'].timeline.years, lastY = yrs[yrs.length - 1];
+    setStage('<section class="card done-card"><div class="burst" aria-hidden="true">✦</div><p class="eyebrow">3개 미션 완료</p><h1 class="stage-h">검증을 마쳤어요.</h1><p class="sub">당신은 절기(고정)와 기후(이동)를 구분하고, 기준을 정의하고, 자료의 범위를 지켜 판정했습니다.</p><div class="skill-row"><span>① 절기≠기후</span><span>② 자료의 범위</span><span>③ 기준 정의</span><span>④ 근거만큼 결론</span></div>'
+      + '<div class="cardmaker"><p class="eyebrow">내 고향 기후 카드 · 공유용</p><p class="cardmaker-sub">내가 태어난 해와 지금, 우리 지역 기후가 어떻게 달라졌는지 실측으로 카드를 만들어요.</p>'
+      + '<div class="cardmaker-row"><label>지역<select id="cardCity"></select></label><label>태어난 해<input id="cardYear" type="number" min="' + yrs[0] + '" max="' + lastY + '" value="2008" inputmode="numeric" /></label><button class="primary-btn" id="makeCard">카드 만들기</button></div>'
+      + '<div id="cardPreview" class="card-preview" hidden></div><a id="cardSave" class="ghost-btn card-save" download="weather24_기후카드.png" hidden>이미지 저장 ↓</a></div>'
+      + '<button class="ghost-btn" id="startFree">내 지역·지표로 자유탐구 →</button></section>');
+    $('cardCity').innerHTML = CITIES.map(function (c) { return '<option value="' + c + '"' + (c === state.city ? ' selected' : '') + '>' + c + '</option>'; }).join('');
+    $('makeCard').addEventListener('click', function () {
+      var y = Math.max(yrs[0], Math.min(lastY, Number($('cardYear').value) || 2008));
+      $('cardYear').value = y;
+      var cv = makeCard($('cardCity').value, y);
+      var prev = $('cardPreview'); prev.hidden = false; prev.innerHTML = ''; cv.className = 'card-canvas'; prev.appendChild(cv);
+      cv.toBlob(function (blob) { var a = $('cardSave'); if (a.href) URL.revokeObjectURL(a.href); a.href = URL.createObjectURL(blob); a.hidden = false; }, 'image/png');
+    });
     $('startFree').addEventListener('click', renderFree);
+  }
+
+  /* 내 고향 기후 카드 — 실제 57년 연간 timeline 값만 사용(가공·보간 없음). */
+  function cardText(g, s, x, y, color, weight, size) { g.fillStyle = color; g.font = weight + ' ' + size + 'px Pretendard, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif'; g.fillText(s, x, y); }
+  function makeCard(city, year) {
+    var tl = D.cities[city].timeline, ys = tl.years, temps = tl.temp, last = ys.length - 1, lastY = ys[last];
+    var bi = ys.indexOf(year); if (bi < 0) bi = year < ys[0] ? 0 : last;
+    var tBirth = temps[bi], tNow = temps[last], dT = Math.round((tNow - tBirth) * 10) / 10;
+    var drift = lastExceed('present', 25, city, 'temp') - lastExceed('past', 25, city, 'temp');
+    var cv = document.createElement('canvas'); cv.width = 1080; cv.height = 1080; var g = cv.getContext('2d');
+    var grad = g.createLinearGradient(0, 0, 1080, 1080); grad.addColorStop(0, '#0e3350'); grad.addColorStop(1, '#071726'); g.fillStyle = grad; g.fillRect(0, 0, 1080, 1080);
+    cardText(g, 'WEATHER24', 80, 108, '#ffbe58', '800', 34);
+    cardText(g, '절기의 약속 검증소 · 내 고향 기후 카드', 80, 150, '#a7bdc5', '400', 24);
+    cardText(g, city, 80, 268, '#ffffff', '800', 78);
+    cardText(g, '내가 태어난 ' + year + '년, 연평균 기온은', 80, 372, '#dfeaee', '400', 38);
+    cardText(g, tBirth.toFixed(1) + '°C', 80, 452, '#a7bdc5', '800', 66);
+    cardText(g, '지금(' + lastY + '년)은', 80, 548, '#dfeaee', '400', 38);
+    cardText(g, tNow.toFixed(1) + '°C', 80, 636, '#ff8066', '800', 92);
+    cardText(g, (dT >= 0 ? '+' : '') + dT + '°C', 430, 636, '#ffbe58', '800', 56);
+    if (drift > 0) { cardText(g, '처서(더위가 그침)가 지나도, 더위는 과거보다', 80, 726, '#dfeaee', '400', 32); cardText(g, drift + '일 더 이어집니다', 80, 780, '#ff8066', '800', 46); }
+    drawCardSpark(g, tl, 80, 820, 920, 128, bi);
+    cardText(g, '기상청 ASOS 실측 · 5년 관측 신호(30년 기후평년 아님)', 80, 1004, '#8ba0a8', '400', 22);
+    cardText(g, 'weather-24solar-terms.vercel.app', 80, 1038, '#8ba0a8', '400', 22);
+    return cv;
+  }
+  function drawCardSpark(g, tl, x, y, w, h, birthIdx) {
+    var ys = tl.years, vs = tl.temp, n = ys.length, lo = Math.min.apply(null, vs), hi = Math.max.apply(null, vs), pad = (hi - lo) * 0.14 || 1; lo -= pad; hi += pad;
+    function px(i) { return x + i / (n - 1) * w; } function py(v) { return y + (hi - v) / (hi - lo) * h; }
+    g.strokeStyle = 'rgba(167,189,197,.25)'; g.lineWidth = 1; g.beginPath(); g.moveTo(x, y + h); g.lineTo(x + w, y + h); g.stroke();
+    g.strokeStyle = '#77bff7'; g.lineWidth = 3; g.beginPath(); vs.forEach(function (v, i) { var xx = px(i), yy = py(v); if (i) g.lineTo(xx, yy); else g.moveTo(xx, yy); }); g.stroke();
+    var bx = px(birthIdx); g.strokeStyle = '#ffbe58'; g.lineWidth = 2; g.setLineDash([5, 4]); g.beginPath(); g.moveTo(bx, y); g.lineTo(bx, y + h); g.stroke(); g.setLineDash([]);
+    g.fillStyle = '#ffbe58'; g.beginPath(); g.arc(bx, py(vs[birthIdx]), 7, 0, 7); g.fill();
+    g.fillStyle = '#ff8066'; g.beginPath(); g.arc(px(n - 1), py(vs[n - 1]), 8, 0, 7); g.fill();
+    cardText(g, ys[0] + '', x, y + h + 26, '#8ba0a8', '400', 20); cardText(g, ys[n - 1] + '', x + w - 40, y + h + 26, '#8ba0a8', '400', 20);
   }
 
   function renderFree() {
@@ -381,6 +454,7 @@
     setStage('<section class="card explore-card"><h1 class="sr-only">자유탐구 — 내 지역·절기·지표로 검증</h1><div class="mhead"><span class="mno">자유탐구</span><span class="goal-chip">내 지역 · 절기 · 지표를 자유롭게</span></div><p class="task">지역·절기·지표를 바꾸고 기준선을 끌어, 내 관심 주제를 직접 검증하세요. 모든 결론은 지역·기간·기준이 붙은 문장으로 말합니다.</p>'
       + heroShell({ cityChips: true, termStrip: true, metricTabs: true })
       + '<p class="cerl" id="freeCerl"></p>'
+      + '<div id="sparkMount"></div>'
       + '<div class="judge-box"><label class="draft-label" for="freeDraft">내 판정문 <small>지역·기간·기준을 넣어 한 문장으로</small></label>'
       + '<textarea id="freeDraft" maxlength="400" placeholder="예: 서울에서 ‘덥다’를 25°C로 정하면, 처서 무렵 더위가 그치는 날이 과거보다 25일 늦어졌다. 다만 이는 5년 관측 신호로, 전국이나 원인으로 넓혀 말하기는 어렵다."></textarea>'
       + '<div class="ai-row"><button class="ai-btn" id="askAudit"><span aria-hidden="true">✦</span> AI 감사 요청</button><p class="audit-status" id="auditStatus">판정문을 쓰면 과장·범위·인과를 점검해 드려요. AI가 꺼져 있어도 규칙 점검이 작동합니다.</p></div>'
@@ -413,30 +487,44 @@
   function localAudit(draft) {
     var n = stat(), t = draft;
     /* 부정(‘…하기 어렵다/없다/아니다’)이 붙은 범위·인과 언급은 한계 진술로 보고 칭찬한다 — 잘 쓴 결론을 오탐하지 않게. */
-    var neg = '(어렵|어려우|없다|없이|없으|없음|아니|못\\s|못한|않|단정(할|하기)?\\s*(수\\s*)?없|말(할|하기)?\\s*수\\s*없|일반화(할|하기)?\\s*(수\\s*)?없|넓히기\\s*(는\\s*)?어렵)';
-    var hasLimitation = new RegExp('(전국|전체|모든|전\\s*지역|원인|인과|일반화|넓)[^.!?]{0,20}' + neg).test(t);
-    var overWord = /전국|모든\s*지역|우리나라\s*전체|한국\s*전체|전\s*지역|전세계|전 세계|어디(나|든)/.test(t);
-    var causalWord = /기후변화가?\s*(원인|때문)|원인이(다|라|야)|이(것| 것)?이?\s*원인|탓(이다|으로|에)|초래|야기/.test(t);
-    var overGeneral = overWord && !hasLimitation, causal = causalWord && !hasLimitation;
-    var hasRegion = t.indexOf(n.city) !== -1 || /지역|서울|부산|인천|대구|광주|대전|제주|강릉|경기|충북|충남|전북|전남|경북|경남|강원/.test(t);
-    var hasPeriod = /과거|현재|\d{4}|5년|기간|1969|2022/.test(t);
-    var hasCriterion = /기준|°|℃|이상|\d\s*도|mm|%|더위|여름|습|비/.test(t);
-    var fb = { evidence_status: 'ready' }, warns = [], missing = [];
-    if (overGeneral) { warns.push('한 지역·5년 자료로 ‘전국/전체’까지 넓혀 말하고 있어요. 결론을 선택한 지역의 범위로 좁혀 보세요.'); fb.evidence_status = 'revise'; }
-    if (causal) { warns.push('관측된 변화의 ‘원인’을 단정하고 있어요. 이 자료는 무엇이 함께 변했는지는 보여 줘도 원인을 증명하지는 않습니다.'); fb.evidence_status = 'revise'; }
+    var neg = '(어렵|어려우|없다|없음|없고|없어|없으|없지|아니|아님|못\\s|못한|못함|못하|않|안\\s|안한|안함|모르|몰라|모름|유보|보류|무리|부족|섣부르|힘들|힘듦|우연|곤란|비약|조심|신중|아직|섣불|성급)';
+    var hasLimitation = new RegExp('(전국|전체|모든|전\\s*지역|원인|인과|일반화|넓|단정|추세|장기|판단)[^.!?]{0,30}' + neg).test(t);
+    var climateLimit = new RegExp('(기후|기후변화|추세|장기|표본|기간)[^.!?]{0,30}' + neg).test(t);
+    var overWord = /전국|모든\s*(지역|도시|곳|데)|우리나라\s*(전체|다|기후|모든)|한국\s*(전체|기후|모든|다)|한반도|대한민국|전\s*지역|전세계|전 세계|어디(나|든)|지구\s*(전체|가)/.test(t);
+    var causalWord = /기후변화가?\s*(원인|때문)|온난화\s*(때문|탓|가 원인)|온실가스\s*(때문|탓)|이산화탄소|co2|화석연료|탄소\s*배출|인간\s*활동|원인이(다|라|야)|이(것| 것)?이?\s*원인|때문(이다|에 이렇|에 더)|탓(이다|으로|에)|초래|야기|증거다/i.test(t);
+    var solarMatch = t.match(/(입춘|우수|경칩|춘분|청명|곡우|입하|소만|망종|하지|소서|대서|입추|처서|백로|추분|한로|상강|입동|소설|대설|동지|소한|대한|절기)\s*(라는|이라는)?\s*(자체)?\s*(가|이|는|은|도)?\s*[^.!?]{0,14}?(더워|더웠|더 워|덥|더운|뜨거|따뜻|변했|변한|변해|바뀐|바뀌었|여름\s*절기)/);
+    var overGeneral = overWord && !hasLimitation, causal = causalWord && !hasLimitation && !climateLimit;
+    var oneYear = /기후변화(이다|다|라|야|지|임|입니|맞|진행|증명|확정|시작|온|왔|됐|되고|라고|인 거|인거)|기후가?\s*(바뀌|바뀐|바꼈|바꿨|변했|변한|변해|변화|달라|더워|더웠)/.test(t) && !climateLimit;
+    var misconception = !!solarMatch && !/(무렵|때|즈음|쯤|이후|이전|뒤|전후|근처|부근|시기|하순|상순|중순|경에|사이|기온|온도)/.test(solarMatch[0]);
+    var injection = /규칙[^.!?]{0,6}무시|프롬프트[^.!?]{0,4}무시|시스템[^.!?]{0,4}(무시|프롬프트)|지시[^.!?]{0,8}무시|위(에|에서)?[^.!?]{0,6}무시|무시하고|정답[^.!?]{0,8}(불러|알려|말해|줘|주라|달라|내놔|찍어|처리)|대신[^.!?]{0,4}(써|작성|적어)|써\s*줘|적어\s*줘|너는?\s*이제|지금부터[^.!?]{0,6}(교사|선생|채점|심사|모드)|(교사|선생|채점|심사|채점쌤|심사위원)[^.!?]{0,6}(모드|쌤|해|시켜|하)|역할[^.!?]{0,8}(바꿔|변경|해줘|맡|그만)|(100\s*점|만점|점수)[^.!?]{0,8}(줘|주라|주면|달라|매겨|처리)|무조건[^.!?]{0,5}(만점|합격|통과|정답|맞)|(ready|통과|맞다고|합격|우승|만점)[^.!?]{0,8}(해|처리|시켜|줘|주라|해줘|만)|위키(백과|피디아)|네이버|구글|검색(해|결과)|기사(에|에서)|나오(던데|더라)|출처[^.!?]{0,6}삽입/i.test(t);
+    var hasRegion = t.indexOf(n.city) !== -1 || /지역|동네|서울|부산|인천|대구|광주|대전|제주|강릉|청주|전주|수원|춘천|울산|경기|충북|충남|전북|전남|경북|경남|강원/.test(t);
+    var hasPeriod = /과거|현재|예전|옛날|요즘|최근|\d{4}|5년|기간|1969|1970|2022/.test(t);
+    var hasCriterion = /기준|°|℃|이상|\d\s*도|mm|%|더위|폭염|열대야|여름|밤|습|비|강수|기온|온도|최고기온|평균기온|최저기온/.test(t);
+    /* 적절히 신중한(판단 보류·표본 한계 인정) 답은 지역·기준이 덜 명시돼도 나무라지 않는다. */
+    var cautious = hasLimitation || climateLimit || /판단(을)?\s*(보류|유보|어렵|힘들|못|안)|단정(하기|짓기)?[^.!?]{0,5}(어렵|무리|힘들|못|안)|무리(인|다|라|고)|부족|섣부르|성급|충분(하지|치)\s*(않|못)|우연인지|진짜\s*(추세|변화)인지|근거가\s*부족|애매|모호|짧아|적어(서|어)|한\s*곳|한\s*지점/.test(t);
+    var fb = { evidence_status: 'ready', flags: [] }, warns = [], missing = [];
+    if (injection) { warns.push('프롬프트 지시·정답 요구·외부 자료 삽입은 따르지 않아요. 화면의 관측 자료 범위 안에서 스스로 결론을 써 주세요.'); fb.evidence_status = 'revise'; fb.flags.push('injection'); }
+    if (overGeneral) { warns.push('한 지역·5년 자료로 ‘전국/전체’까지 넓혀 말하고 있어요. 결론을 선택한 지역의 범위로 좁혀 보세요.'); fb.evidence_status = 'revise'; fb.flags.push('scope'); }
+    if (causal) { warns.push('관측된 변화의 ‘원인’을 단정하고 있어요. 이 자료는 무엇이 함께 변했는지는 보여 줘도 원인을 증명하지는 않습니다.'); fb.evidence_status = 'revise'; fb.flags.push('causal'); }
+    if (oneYear) { warns.push('짧은 관측(5년)만으로 ‘기후가 변했다/기후변화다’로 단정하고 있어요. 이 자료는 관측 신호일 뿐, 장기 기후(보통 30년)를 확정하지 않습니다.'); fb.evidence_status = 'revise'; fb.flags.push('one_year'); }
+    if (misconception) { warns.push('절기(예: 처서) 자체가 더워진 것이 아니에요. 절기는 태양 위치로 정한 날짜이고, 달라진 것은 그 무렵 관측된 기온·더위입니다.'); fb.evidence_status = 'revise'; fb.flags.push('misconception'); }
     if (!hasRegion) missing.push('지역');
     if (!hasPeriod) missing.push('비교 기간(과거·현재)');
     if (!hasCriterion) missing.push('기준(‘덥다/여름’의 정의)');
-    if (missing.length) { warns.push('결론에 ' + missing.join('·') + '이(가) 빠졌어요. 자료로 뒷받침되려면 이 요소가 문장에 있어야 합니다.'); if (fb.evidence_status === 'ready') fb.evidence_status = 'revise'; }
+    if (missing.length && !cautious) { warns.push('결론에 ' + missing.join('·') + '이(가) 빠졌어요. 자료로 뒷받침되려면 이 요소가 문장에 있어야 합니다.'); if (fb.evidence_status === 'ready') fb.evidence_status = 'revise'; fb.flags.push('missing'); }
     fb.overclaim_warning = warns.join(' ');
     if (fb.evidence_status === 'ready') {
-      fb.feedback = '좋아요. 지역·기간·기준이 문장에 들어 있어, 이 자료가 말할 수 있는 범위 안에서 판정했습니다.' + (hasLimitation ? ' 한계(전국·원인으로 넓히지 않음)까지 밝힌 점이 특히 좋습니다.' : '');
+      fb.feedback = '좋아요. 지역·기간·기준이 문장에 들어 있어, 이 자료가 말할 수 있는 범위 안에서 판정했습니다.' + (hasLimitation || climateLimit ? ' 한계(전국·원인·장기 기후로 넓히지 않음)까지 밝힌 점이 특히 좋습니다.' : '');
     } else {
       fb.feedback = '핵심 근거는 있지만, 아래를 보완하면 자료가 말하는 범위에 정확히 맞습니다.';
     }
-    fb.socratic_question = overGeneral ? '이 결론을 다른 지역에서도 확인하려면 무엇을 비교해야 할까요?'
-      : (causal ? '함께 변했다는 것과 원인이라는 것은 어떻게 다를까요?'
-      : (hasLimitation ? '기준(‘덥다’ 온도)을 바꾸면 이 결론은 그대로 유지될까요?' : '이 결론이 다른 지역·다른 기준에서도 유지되는지 어떻게 확인할까요?'));
+    fb.socratic_question = injection ? '이 자료(선택한 지역·기간·기준) 안에서, 당신은 무엇을 말할 수 있나요?'
+      : oneYear ? '5년 관측과 30년 기후평년은 무엇이 다를까요?'
+      : misconception ? '절기 날짜가 움직인 걸까요, 아니면 그 무렵의 기온이 달라진 걸까요?'
+      : overGeneral ? '이 결론을 다른 지역에서도 확인하려면 무엇을 비교해야 할까요?'
+      : causal ? '함께 변했다는 것과 원인이라는 것은 어떻게 다를까요?'
+      : (hasLimitation || climateLimit) ? '기준(‘덥다’ 온도)을 바꾸면 이 결론은 그대로 유지될까요?'
+      : '이 결론이 다른 지역·다른 기준에서도 유지되는지 어떻게 확인할까요?';
     return fb;
   }
 
