@@ -106,7 +106,7 @@
   function eunNeun(w) { return batchim(w) ? '은' : '는'; }
 
   function load() {
-    var base = { phase: 'pre', mi: 0, city: '서울', ti: 15, thr: 25, metric: 'temp', pre: null, post: null, predicts: {}, done: [], touched: false };
+    var base = { phase: 'intro', mi: 0, city: '서울', ti: 15, thr: 25, metric: 'temp', pre: null, post: null, predicts: {}, done: [], touched: false };
     try { var s = JSON.parse(localStorage.getItem('weather24_verify_v2')); if (s && typeof s === 'object') return Object.assign(base, s); } catch (e) {}
     return base;
   }
@@ -287,6 +287,54 @@
     $('preChoices').innerHTML = q.options.map(function (o) { return '<button class="choice-lg" data-v="' + o.v + '"><b>' + o.t + '</b><small>' + o.s + '</small></button>'; }).join('');
     $('preChoices').querySelectorAll('[data-v]').forEach(function (btn) { btn.addEventListener('click', function () { state.pre = btn.dataset.v; state.phase = 'mission'; state.mi = 0; save(); startMission(0); }); });
   }
+
+  /* ---------- 소개 화면 ---------- */
+  function renderIntro() {
+    state.phase = 'intro'; save();
+    setStage('<section class="card intro-card">'
+      + '<p class="intro-badge">기상청 ASOS 실측 · 1969–2026 · 16지역 × 24절기</p>'
+      + '<h1 class="intro-h">24절기의 약속은<br>아직 유효할까?</h1>'
+      + '<p class="intro-lead">“처서가 지나면 더위가 그친다” 같은 <b>절기의 약속</b>을, 내 지역의 <b>실제 기상 관측</b>으로 직접 검증하는 기후 학습 도구예요. 기준선을 손으로 끌어 과거와 현재를 비교하며 <b>절기·날씨·기후</b>를 구분하는 힘을 기릅니다.</p>'
+      + '<div class="intro-goals"><span>① 절기 ≠ 기후</span><span>② 자료의 범위</span><span>③ 기준을 정의</span><span>④ 근거만큼 결론</span></div>'
+      + '<div class="intro-actions"><button class="primary-btn" id="introStart">시작하기 →</button><button class="ghost-btn" id="introGuide"><span aria-hidden="true">✦</span> 가이드로 먼저 해볼게요</button></div>'
+      + '<p class="intro-foot">약 8분 · 설치·로그인 없이 · 모바일 지원 · AI 없이도 100% 동작</p>'
+      + '</section>');
+    $('introStart').addEventListener('click', function () { startMission(0); });
+    $('introGuide').addEventListener('click', renderTutorial);
+  }
+
+  /* ---------- 가이드(튜토리얼): 본 시나리오(처서/서울)와 겹치지 않는 소서/대구로 조작법만 익힘 ---------- */
+  var TUT = { city: '대구', ti: 12, metric: 'temp', thr: 25 };
+  var tutStep = 0;
+  var TUT_STEPS = [
+    { html: '이 그래프는 <b>대구</b>의 하루 기온이에요. <b class="tc-past">회색 점선</b> = 옛날(1969–73), <b class="tc-now">빨강</b> = 지금(2022–26).', btn: '다음' },
+    { html: '보라색 <b>‘덥다’ 기준선</b>을 위아래로 <b>끌어 보세요.</b> (맨 아래 슬라이더로도 됩니다)', wait: true, highlight: 'chart' },
+    { html: '끄는 순간 <b>기준 이상 더위일</b>이 과거 → 현재로 즉시 바뀌죠? 만지면 0초로 반응해요.', btn: '다음', highlight: 'readouts' },
+    { html: '노란 세로선은 <b>소서(절기)</b>예요. 태양 위치로 정한 날짜라 <b>움직이지 않아요</b> — 움직이는 건 기후(곡선)입니다.', btn: '다음' },
+    { html: '조작법은 이게 전부예요! 이제 진짜 임무 <b>‘처서’</b>로 가 볼까요?', btn: '진짜 임무 시작 →', done: true }
+  ];
+  function renderTutorial() {
+    state.phase = 'tutorial'; state.city = TUT.city; state.ti = TUT.ti; state.metric = TUT.metric; state.thr = TUT.thr; state.touched = false; tutStep = 0; save();
+    setStage('<section class="card tutorial-card"><div class="tut-top"><span class="tut-badge">가이드 · 조작법 익히기</span><button class="tut-skip" id="tutSkip">건너뛰기 →</button></div>'
+      + '<div class="tut-coach" id="tutCoach"></div>'
+      + heroShell({})
+      + '</section>');
+    bindThreshold();
+    drawHero();
+    $('tutSkip').addEventListener('click', function () { demoPlayed = true; startMission(0); });
+    onTouched = function () { if (tutStep === 1) tutNext(); };
+    renderCoach();
+  }
+  function renderCoach() {
+    var s = TUT_STEPS[tutStep], c = $('tutCoach'); if (!c) return;
+    c.innerHTML = '<div class="tut-dots" aria-hidden="true">' + TUT_STEPS.map(function (_, i) { return '<i class="' + (i <= tutStep ? 'on' : '') + '"></i>'; }).join('') + '</div>'
+      + '<p class="tut-text">' + s.html + '</p>'
+      + (s.btn ? '<button class="tut-btn" id="tutBtn">' + s.btn + '</button>' : '<span class="tut-hint">↑ 기준선을 끌면 다음 단계로 넘어가요</span>');
+    if (s.highlight === 'readouts') flash($('readouts'));
+    if (s.highlight === 'chart') flash($('heroSvg'));
+    if ($('tutBtn')) $('tutBtn').addEventListener('click', function () { if (s.done) { demoPlayed = true; startMission(0); } else tutNext(); });
+  }
+  function tutNext() { if (tutStep < TUT_STEPS.length - 1) { tutStep++; renderCoach(); } }
 
   var HEADLINES = { chuseo: '처서의 약속은 아직 유효할까?', summer: '‘여름’은 며칠이 되었을까?', region: '이 변화, 우리 지역만 그럴까?' };
   var demoPlayed = false, demoTimer = null, overlayOpen = false;
@@ -562,8 +610,9 @@
 
   /* ---------- 부팅 ---------- */
   $('openGuide').addEventListener('click', function () { $('guideDialog').showModal(); });
-  $('homeLink').addEventListener('click', function (e) { e.preventDefault(); if (confirm('처음부터 다시 시작할까요? 진행 기록은 유지됩니다.')) { startMission(0); } });
+  $('homeLink').addEventListener('click', function (e) { e.preventDefault(); if (confirm('처음(소개)으로 돌아갈까요? 진행 기록은 유지됩니다.')) { renderIntro(); } });
 
   if (state.phase === 'free') renderFree();
+  else if (state.phase === 'intro' || state.phase === 'tutorial') renderIntro();
   else { state.phase = 'mission'; state.mi = Math.min(Math.max(state.mi || 0, 0), MISSIONS.length - 1); renderExplore(); }
 })();
