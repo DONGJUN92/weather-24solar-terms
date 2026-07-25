@@ -15,9 +15,9 @@
   (function () { var s = 0; for (var i = 0; i < 12; i++) { CUM.push(s); s += MONTH_DAYS[i]; } })();
 
   var METRICS = {
-    temp: { key: 'temp', label: '기온', unit: '°C', verb: '덥다', day: '더위일', last: '더위가 그치는 날', showLast: true, range: function (b) { return { lo: 20, hi: Math.max(28, Math.min(34, Math.round(b.hi))) }; }, def: 25 },
-    precip: { key: 'precip', label: '강수', unit: 'mm', verb: '비가 많다', day: '비 온 날', last: null, showLast: false, range: function (b) { return { lo: 1, hi: Math.max(6, Math.min(20, Math.round(b.hi))) }; }, def: 3 },
-    humidity: { key: 'humidity', label: '습도', unit: '%', verb: '습하다', day: '습한 날', last: null, showLast: false, range: function (b) { return { lo: 55, hi: Math.max(75, Math.min(95, Math.round(b.hi))) }; }, def: 70 }
+    temp: { key: 'temp', label: '기온', unit: '°C', verb: '덥다', basis: '하루 평균기온', day: '더위일', last: '더위가 그치는 날', showLast: true, range: function (b) { return { lo: 20, hi: Math.max(28, Math.min(34, Math.round(b.hi))) }; }, def: 25 },
+    precip: { key: 'precip', label: '강수', unit: 'mm', verb: '비가 많다', basis: '하루 강수량', day: '비 온 날', last: null, showLast: false, range: function (b) { return { lo: 1, hi: Math.max(6, Math.min(20, Math.round(b.hi))) }; }, def: 3 },
+    humidity: { key: 'humidity', label: '습도', unit: '%', verb: '습하다', basis: '하루 평균습도', day: '습한 날', last: null, showLast: false, range: function (b) { return { lo: 55, hi: Math.max(75, Math.min(95, Math.round(b.hi))) }; }, def: 70 }
   };
 
   var PRE_QUESTION = {
@@ -172,9 +172,9 @@
   /* 낮은 기준(하루 평균기온 ≤23℃)은 ‘더위’를 흐릿하게 만든다 — 열대야·폭염 실제 기준을 설명하며 기준을 높이도록 안내. */
   function updateHeatNote() {
     var el = $('heatNote'); if (!el) return;
-    if (state.metric === 'temp' && state.thr <= 23) {
+    if (state.metric === 'temp' && state.thr <= 24) {
       el.hidden = false;
-      el.innerHTML = '<span aria-hidden="true">☀</span> 지금 슬라이더는 <b>하루 평균기온</b> 기준이에요. 실제 기상청은 <b>열대야</b>(전날 저녁 6시~다음 날 오전 9시 사이 최저기온이 25℃ 이상 유지)나 <b>폭염</b>(낮 최고기온 33℃ 이상)으로 더위를 정의합니다. 평균 ' + state.thr + '℃는 더위를 너무 넓게 잡은 편이라, 기준을 <b>조금 높이면</b> 뚜렷한 더위만 골라 비교할 수 있어요.';
+      el.innerHTML = '<span aria-hidden="true">☀</span> 하루 <b>평균</b> ' + state.thr + '℃는 더위를 넓게 잡은 편이에요. 실제 기상청은 <b>열대야</b>(밤새 최저 25℃↑)·<b>폭염</b>(낮 최고 33℃↑)으로 더위를 정의합니다 — 기준을 <b>조금 높이면</b> 뚜렷한 더위만 골라 비교할 수 있어요.';
     } else { el.hidden = true; el.innerHTML = ''; }
   }
 
@@ -238,7 +238,7 @@
     return (pickers ? '<div class="picker">' + pickers + '</div>' : '')
       + '<div class="chart-card">' + legend
       + '<svg id="heroSvg" viewBox="0 0 720 340" role="img" aria-label="과거와 현재의 하루 관측 곡선, 고정된 절기 세로선, 드래그 가능한 기준선"></svg>'
-      + '<div class="range-row"><span>‘' + mc.verb + '’ 기준을 위아래로 끌어 보세요</span><input id="thrRange" type="range" aria-label="기준값" /><output id="thrOut" aria-live="polite"></output></div></div>'
+      + '<div class="range-row"><span>‘' + mc.verb + '’ 기준<b class="basis">(' + mc.basis + ')</b>을 위아래로 끌어 보세요</span><input id="thrRange" type="range" aria-label="기준값(' + mc.basis + ')" /><output id="thrOut" aria-live="polite"></output></div></div>'
       + '<div class="readouts" id="readouts" aria-live="polite"></div>'
       + '<p class="heat-note" id="heatNote" aria-live="polite" hidden></p>'
       + '<p class="integrity"><span aria-hidden="true">◈</span> 1969–73 vs 2022–26 · <b>5년 관측 신호</b>(30년 기후평년 아님) · 절기는 태양 위치로 정한 <b>천문 날짜</b>라 움직이지 않습니다</p>';
@@ -297,7 +297,8 @@
       + '<p class="intro-lead">“처서가 지나면 더위가 그친다” 같은 <b>절기의 약속</b>을, 내 지역의 <b>실제 기상 관측</b>으로 직접 검증하는 기후 학습 도구예요. 기준선을 손으로 끌어 과거와 현재를 비교하며 <b>절기·날씨·기후</b>를 구분하는 힘을 기릅니다.</p>'
       + '<div class="intro-goals"><span>① 절기 ≠ 기후</span><span>② 자료의 범위</span><span>③ 기준을 정의</span><span>④ 근거만큼 결론</span></div>'
       + '<div class="intro-actions"><button class="primary-btn" id="introStart">시작하기 →</button><button class="ghost-btn" id="introGuide"><span aria-hidden="true">✦</span> 가이드로 먼저 해볼게요</button></div>'
-      + '<p class="intro-foot">약 8분 · 설치·로그인 없이 · 모바일 지원 · AI 없이도 100% 동작</p>'
+      + '<p class="intro-foot">미션 하나 약 8분 · 전체(3미션+자유탐구) 40~45분 · 설치·로그인 없이 · 모바일 지원</p>'
+      + '<p class="intro-teacher"><a href="./교사_학습지.html" target="_blank" rel="noopener">📄 교사용 학습지 — 수업 흐름·활동지·오개념 표·평가 루브릭 →</a></p>'
       + '</section>');
     $('introStart').addEventListener('click', function () { startMission(0); });
     $('introGuide').addEventListener('click', renderTutorial);
@@ -356,6 +357,7 @@
   function updateGate(m) {
     var btn = $('toVerdict'), hint = $('touchHint'); if (!btn) return;
     btn.classList.toggle('is-muted', !(state.touched && missionAsked(m)));
+    hint.classList.remove('hint-urge');
     hint.textContent = !state.touched ? '‘덥다’ 기준선을 위아래로 끌어 보세요.' : (!missionAsked(m) ? '예측을 봉인하면 판정할 수 있어요.' : '좋아요 — 준비되면 판정하세요.');
   }
   function flash(el) { if (!el) return; el.classList.remove('is-flash'); void el.offsetWidth; el.classList.add('is-flash'); }
@@ -390,8 +392,8 @@
     onTouched = function () { stopDemo(); if (!missionAsked(m)) showPredictOverlay(m); updateGate(m); };
     updateGate(m);
     $('toVerdict').addEventListener('click', function () {
-      if (!state.touched) { flash($('heroSvg')); flash($('touchHint')); return; }
-      if (!missionAsked(m)) { showPredictOverlay(m); var el = $('predictOverlay'); flash(el); if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+      if (!state.touched) { var h = $('touchHint'); h.textContent = '아직 판정할 수 없어요 — 먼저 ‘덥다’ 기준선을 위아래로 끌어 보세요 ↑'; h.classList.add('hint-urge'); flash($('heroSvg')); flash(h); return; }
+      if (!missionAsked(m)) { var h2 = $('touchHint'); h2.textContent = '예측을 먼저 봉인해 주세요 ↓'; h2.classList.add('hint-urge'); showPredictOverlay(m); var el = $('predictOverlay'); flash(el); if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
       renderVerdict();
     });
     if (!demoPlayed && state.mi === 0 && state.pre == null && !state.touched) { demoPlayed = true; setTimeout(function () { autoDemo(m); }, 450); }
@@ -468,7 +470,8 @@
       + '<div class="cardmaker"><p class="eyebrow">내 고향 기후 카드 · 공유용</p><p class="cardmaker-sub">내가 태어난 해와 지금, 우리 지역 기후가 어떻게 달라졌는지 실측으로 카드를 만들어요.</p>'
       + '<div class="cardmaker-row"><label>지역<select id="cardCity"></select></label><label>태어난 해<input id="cardYear" type="number" min="' + yrs[0] + '" max="' + lastY + '" value="2008" inputmode="numeric" /></label><button class="primary-btn" id="makeCard">카드 만들기</button></div>'
       + '<div id="cardPreview" class="card-preview" hidden></div><a id="cardSave" class="ghost-btn card-save" download="weather24_기후카드.png" hidden>이미지 저장 ↓</a></div>'
-      + '<button class="ghost-btn" id="startFree">내 지역·지표로 자유탐구 →</button></section>');
+      + '<button class="ghost-btn" id="startFree">내 지역·지표로 자유탐구 →</button>'
+      + '<p class="intro-teacher"><a href="./교사_학습지.html" target="_blank" rel="noopener">📄 교사용 학습지 (인쇄용) →</a></p></section>');
     $('cardCity').innerHTML = CITIES.map(function (c) { return '<option value="' + c + '"' + (c === state.city ? ' selected' : '') + '>' + c + '</option>'; }).join('');
     $('makeCard').addEventListener('click', function () {
       var y = Math.max(yrs[0], Math.min(lastY, Number($('cardYear').value) || 2008));
@@ -611,6 +614,7 @@
   /* ---------- 부팅 ---------- */
   $('openGuide').addEventListener('click', function () { $('guideDialog').showModal(); });
   $('homeLink').addEventListener('click', function (e) { e.preventDefault(); if (confirm('처음(소개)으로 돌아갈까요? 진행 기록은 유지됩니다.')) { renderIntro(); } });
+  var rb = $('resetBtn'); if (rb) rb.addEventListener('click', function () { if (confirm('기록을 지우고 처음부터 시작할까요?\n(공용 컴퓨터에서 다음 사람을 위해 초기화합니다)')) { try { localStorage.removeItem('weather24_verify_v2'); } catch (e) {} location.reload(); } });
 
   if (state.phase === 'free') renderFree();
   else if (state.phase === 'intro' || state.phase === 'tutorial') renderIntro();

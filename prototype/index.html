@@ -13,7 +13,7 @@
   <meta property="og:description" content="드래그 한 번으로, 내 지역에서 절기의 약속을 실측으로 검증하는 기후 레슨" />
   <meta property="og:image" content="https://weather-24solar-terms.vercel.app/thumbnail.png" />
   <link rel="stylesheet" href="./style.css?v=14" />
-  <link rel="stylesheet" href="./verify.css?v=12" />
+  <link rel="stylesheet" href="./verify.css?v=13" />
 </head>
 <body class="verify-mode">
   <div class="sky-noise" aria-hidden="true"></div>
@@ -22,6 +22,7 @@
     <header class="verify-top">
       <a class="brand" href="#" id="homeLink" aria-label="Weather24 절기의 약속 검증소"><span class="brand-mark" aria-hidden="true">W</span><span><strong>WEATHER24</strong><small>절기의 약속 검증소</small></span></a>
       <div class="verify-actions">
+        <button class="text-btn" id="resetBtn" title="공용 컴퓨터에서 다음 사람을 위해 기록을 지우고 처음부터 시작">↺ 처음부터</button>
         <button class="text-btn" id="openGuide">사용법</button>
         <a class="text-btn ghost-link" href="./archive.html">데이터 보관실 →</a>
       </div>
@@ -43,6 +44,6 @@
   </dialog>
 
   <script src="./solar_terms_data.js?v=5"></script>
-  <script src="./verify.js?v=13"></script>
+  <script src="./verify.js?v=14"></script>
 </body>
 </html>

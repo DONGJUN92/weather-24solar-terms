@@ -142,6 +142,11 @@
 .intro-actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; align-items: center; }
 .intro-actions .primary-btn { font-size: 15px; padding: 12px 22px; }
 .intro-foot { font-size: 12px; color: #7f96a0; margin: 18px 0 4px; }
+.intro-teacher { margin: 8px 0 0; font-size: 12.5px; }
+.intro-teacher a { color: var(--sea); text-decoration: none; border-bottom: 1px solid rgba(59,208,192,.35); padding-bottom: 1px; }
+.intro-teacher a:hover { color: #7fefe0; }
+.range-row .basis { color: var(--muted); font-weight: 400; font-size: .92em; }
+.hint-urge { color: var(--sun) !important; font-weight: 700; }
 
 /* ---- 가이드(튜토리얼) ---- */
 .tut-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
