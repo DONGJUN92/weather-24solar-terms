@@ -138,6 +138,7 @@
   function drawHero() {
     var svg = $('heroSvg'); if (!svg) return;
     var mc = metricOf(), b = bounds(), hr = heatRange(b), tm = term();
+    if (!isFinite(state.thr)) state.thr = Math.min(mc.def, hr.hi);
     if (state.thr < hr.lo) state.thr = hr.lo; if (state.thr > hr.hi) state.thr = hr.hi;
     function yf(v) { return TP + (b.hi - v) / (b.hi - b.lo) * (H - TP - BT); }
     function path(a) { var d = ''; for (var i = 0; i < 365; i++) d += (i ? 'L' : 'M') + xf(i).toFixed(1) + ' ' + yf(a[i]).toFixed(1); return d; }
@@ -165,6 +166,16 @@
     renderReadouts(thr, pl, cl);
     updateLiveSentence();
     updateSpark();
+    updateHeatNote();
+  }
+
+  /* 낮은 기준(하루 평균기온 ≤23℃)은 ‘더위’를 흐릿하게 만든다 — 열대야·폭염 실제 기준을 설명하며 기준을 높이도록 안내. */
+  function updateHeatNote() {
+    var el = $('heatNote'); if (!el) return;
+    if (state.metric === 'temp' && state.thr <= 23) {
+      el.hidden = false;
+      el.innerHTML = '<span aria-hidden="true">☀</span> 지금 슬라이더는 <b>하루 평균기온</b> 기준이에요. 실제 기상청은 <b>열대야</b>(전날 저녁 6시~다음 날 오전 9시 사이 최저기온이 25℃ 이상 유지)나 <b>폭염</b>(낮 최고기온 33℃ 이상)으로 더위를 정의합니다. 평균 ' + state.thr + '℃는 더위를 너무 넓게 잡은 편이라, 기준을 <b>조금 높이면</b> 뚜렷한 더위만 골라 비교할 수 있어요.';
+    } else { el.hidden = true; el.innerHTML = ''; }
   }
 
   function liveSentence() {
@@ -229,6 +240,7 @@
       + '<svg id="heroSvg" viewBox="0 0 720 340" role="img" aria-label="과거와 현재의 하루 관측 곡선, 고정된 절기 세로선, 드래그 가능한 기준선"></svg>'
       + '<div class="range-row"><span>‘' + mc.verb + '’ 기준을 위아래로 끌어 보세요</span><input id="thrRange" type="range" aria-label="기준값" /><output id="thrOut" aria-live="polite"></output></div></div>'
       + '<div class="readouts" id="readouts" aria-live="polite"></div>'
+      + '<p class="heat-note" id="heatNote" aria-live="polite" hidden></p>'
       + '<p class="integrity"><span aria-hidden="true">◈</span> 1969–73 vs 2022–26 · <b>5년 관측 신호</b>(30년 기후평년 아님) · 절기는 태양 위치로 정한 <b>천문 날짜</b>라 움직이지 않습니다</p>';
   }
   function bindCityChips() {
@@ -257,7 +269,7 @@
   }
   function bindThreshold() {
     var svg = $('heroSvg'), dragging = false;
-    function setY(clientY) { var r = svg.getBoundingClientRect(), vy = (clientY - r.top) / r.height * H, b = bounds(), hr = heatRange(b), v = b.hi - (vy - TP) / (H - TP - BT) * (b.hi - b.lo); state.thr = Math.max(hr.lo, Math.min(hr.hi, Math.round(v))); state.touched = true; save(); drawHero(); onTouched(); }
+    function setY(clientY) { var r = svg.getBoundingClientRect(); if (!r.height) return; var vy = (clientY - r.top) / r.height * H, b = bounds(), hr = heatRange(b), v = b.hi - (vy - TP) / (H - TP - BT) * (b.hi - b.lo); if (!isFinite(v)) return; state.thr = Math.max(hr.lo, Math.min(hr.hi, Math.round(v))); state.touched = true; save(); drawHero(); onTouched(); }
     svg.addEventListener('pointerdown', function (e) { dragging = true; try { svg.setPointerCapture(e.pointerId); } catch (x) {} setY(e.clientY); });
     svg.addEventListener('pointermove', function (e) { if (dragging) setY(e.clientY); });
     window.addEventListener('pointerup', function () { dragging = false; });
@@ -295,9 +307,10 @@
   function missionAsked(m) { return missionAsk(m).get() != null; }
   function updateGate(m) {
     var btn = $('toVerdict'), hint = $('touchHint'); if (!btn) return;
-    btn.disabled = !(state.touched && missionAsked(m));
+    btn.classList.toggle('is-muted', !(state.touched && missionAsked(m)));
     hint.textContent = !state.touched ? '‘덥다’ 기준선을 위아래로 끌어 보세요.' : (!missionAsked(m) ? '예측을 봉인하면 판정할 수 있어요.' : '좋아요 — 준비되면 판정하세요.');
   }
+  function flash(el) { if (!el) return; el.classList.remove('is-flash'); void el.offsetWidth; el.classList.add('is-flash'); }
   function showPredictOverlay(m) {
     var a = missionAsk(m), el = $('predictOverlay'); if (!el || overlayOpen || a.get() != null) return;
     overlayOpen = true; el.hidden = false;
@@ -319,7 +332,7 @@
       + '<div class="mhead"><span class="mno">미션 ' + (state.mi + 1) + ' / 3</span><span class="goal-chip">' + m.goal + '</span></div>'
       + '<p class="hero-sub">' + m.task + '</p>'
       + heroShell({ cityChips: !m.lockCity || useCompare, termStrip: !m.lockTerm })
-      + '<div class="explore-actions"><button class="primary-btn" id="toVerdict" disabled>이 결과로 판정하기 →</button><small id="touchHint">‘덥다’ 기준선을 위아래로 끌어 보세요.</small></div>'
+      + '<div class="explore-actions"><button class="primary-btn is-muted" id="toVerdict">이 결과로 판정하기 →</button><small id="touchHint">‘덥다’ 기준선을 위아래로 끌어 보세요.</small></div>'
       + '<div class="predict-overlay" id="predictOverlay" hidden></div>'
       + '</section>');
     if (useCompare) bindCompareChips(m.compare); else if (!m.lockCity) bindCityChips();
@@ -328,7 +341,11 @@
     drawHero();
     onTouched = function () { stopDemo(); if (!missionAsked(m)) showPredictOverlay(m); updateGate(m); };
     updateGate(m);
-    $('toVerdict').addEventListener('click', function () { if (state.touched && missionAsked(m)) renderVerdict(); });
+    $('toVerdict').addEventListener('click', function () {
+      if (!state.touched) { flash($('heroSvg')); flash($('touchHint')); return; }
+      if (!missionAsked(m)) { showPredictOverlay(m); var el = $('predictOverlay'); flash(el); if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+      renderVerdict();
+    });
     if (!demoPlayed && state.mi === 0 && state.pre == null && !state.touched) { demoPlayed = true; setTimeout(function () { autoDemo(m); }, 450); }
   }
 

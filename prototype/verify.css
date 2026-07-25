@@ -57,6 +57,9 @@
 .v-past { color: var(--muted); }
 .v-now { color: var(--coral); }
 
+.heat-note { margin: 12px 0 0; font-size: 13px; line-height: 1.6; color: #ffe1a8; background: rgba(255,190,88,.1); border: 1px solid rgba(255,190,88,.32); border-radius: 12px; padding: 10px 14px; animation: cardIn .22s ease; }
+.heat-note span { color: var(--sun); margin-right: 4px; }
+.heat-note b { color: #fff; font-weight: 700; }
 .integrity { margin: 14px 2px 0; font-size: 12px; line-height: 1.6; color: #8ba0a8; }
 .integrity span { color: var(--sea); margin-right: 4px; }
 .integrity b { color: var(--muted); font-weight: 700; }
@@ -109,6 +112,9 @@
 
 .explore-actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 16px; }
 .explore-actions small { font-size: 12px; color: var(--muted); }
+.primary-btn.is-muted { filter: grayscale(.55) opacity(.72); }
+.is-flash { animation: flashRing .5s ease 2; border-radius: 12px; }
+@keyframes flashRing { 0%, 100% { box-shadow: none; } 50% { box-shadow: 0 0 0 3px var(--sun); } }
 
 /* ---- 히어로 랜딩 헤드라인 + 예측 오버레이 ---- */
 .hero-headline { font-size: clamp(21px, 2.7vw, 27px); line-height: 1.3; letter-spacing: -.01em; color: #fff; margin: 2px 0 6px; }
