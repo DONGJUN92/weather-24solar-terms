@@ -251,32 +251,60 @@
     $('preChoices').querySelectorAll('[data-v]').forEach(function (btn) { btn.addEventListener('click', function () { state.pre = btn.dataset.v; state.phase = 'mission'; state.mi = 0; save(); startMission(0); }); });
   }
 
+  var HEADLINES = { chuseo: '처서의 약속은 아직 유효할까?', summer: '‘여름’은 며칠이 되었을까?', region: '이 변화, 우리 지역만 그럴까?' };
+  var demoPlayed = false, demoTimer = null, overlayOpen = false;
+  function stopDemo() { if (demoTimer) { clearInterval(demoTimer); demoTimer = null; } }
+
   function startMission(i) {
     var m = MISSIONS[i];
-    state.phase = 'mission'; state.mi = i; state.city = m.city; state.ti = m.ti; state.metric = m.metric; state.thr = m.thr; state.touched = false; save();
-    renderPredict();
+    state.phase = 'mission'; state.mi = i; state.city = m.city; state.ti = m.ti; state.metric = m.metric; state.thr = m.thr; state.touched = false; overlayOpen = false; save();
+    renderExplore();
   }
 
-  function renderPredict() {
-    var m = MISSIONS[state.mi], p = m.predict;
-    setStage('<section class="card"><div class="mhead"><span class="mno">미션 ' + (state.mi + 1) + ' / 3</span><span class="goal-chip">' + m.goal + '</span></div><h1 class="stage-h">' + m.title + '</h1><p class="brief">' + m.brief + '</p><div class="predict-box"><p class="predict-q"><b>예측 봉인</b> — ' + p.q + '</p><div class="choice-col" id="predictChoices"></div></div></section>');
-    $('predictChoices').innerHTML = p.options.map(function (o) { return '<button class="choice-lg" data-v="' + o.v + '"><b>' + o.t + '</b>' + (o.s ? '<small>' + o.s + '</small>' : '') + '</button>'; }).join('');
-    $('predictChoices').querySelectorAll('[data-v]').forEach(function (btn) { btn.addEventListener('click', function () { state.predicts[m.id] = btn.dataset.v; save(); renderExplore(); }); });
+  /* 첫 화면부터 히어로. 예측(선개념)은 텍스트 게이트가 아니라 첫 조작 직후 오버레이로 봉인한다. */
+  function missionAsk(m) {
+    return m.id === 'chuseo'
+      ? { q: PRE_QUESTION.q, options: PRE_QUESTION.options, get: function () { return state.pre; }, set: function (v) { state.pre = v; } }
+      : { q: m.predict.q, options: m.predict.options, get: function () { return state.predicts[m.id]; }, set: function (v) { state.predicts[m.id] = v; } };
+  }
+  function missionAsked(m) { return missionAsk(m).get() != null; }
+  function updateGate(m) {
+    var btn = $('toVerdict'), hint = $('touchHint'); if (!btn) return;
+    btn.disabled = !(state.touched && missionAsked(m));
+    hint.textContent = !state.touched ? '‘덥다’ 기준선을 위아래로 끌어 보세요.' : (!missionAsked(m) ? '예측을 봉인하면 판정할 수 있어요.' : '좋아요 — 준비되면 판정하세요.');
+  }
+  function showPredictOverlay(m) {
+    var a = missionAsk(m), el = $('predictOverlay'); if (!el || overlayOpen || a.get() != null) return;
+    overlayOpen = true; el.hidden = false;
+    el.innerHTML = '<div class="po-inner"><p class="po-eyebrow">방금 만져 봤죠 · 예측 봉인</p><p class="po-q">' + a.q + '</p><div class="po-choices">' + a.options.map(function (o) { return '<button class="po-choice" data-v="' + o.v + '"><b>' + o.t + '</b>' + (o.s ? '<small>' + o.s + '</small>' : '') + '</button>'; }).join('') + '</div><p class="po-note">정답을 맞히는 게 아니에요. 지금 생각을 봉인해 두고, 검증이 끝나면 다시 확인합니다.</p></div>';
+    el.querySelectorAll('[data-v]').forEach(function (btn) { btn.addEventListener('click', function () { a.set(btn.dataset.v); save(); overlayOpen = false; el.hidden = true; el.innerHTML = ''; updateGate(m); var t = $('toVerdict'); if (t) t.focus(); }); });
+  }
+  function autoDemo(m) {
+    var svg = $('heroSvg'); if (!svg) return;
+    var hr = heatRange(bounds()), start = hr.hi, end = m.thr, steps = 16, i = 0;
+    state.thr = start; drawHero();
+    demoTimer = setInterval(function () { i++; state.thr = Math.round(start + (end - start) * (i / steps)); drawHero(); if (i >= steps) { state.thr = end; drawHero(); stopDemo(); } }, 70);
   }
 
   function renderExplore() {
-    var m = MISSIONS[state.mi];
-    var useCompare = !!m.compare;
-    setStage('<section class="card explore-card"><h1 class="sr-only">미션 ' + (state.mi + 1) + ' 조작 — ' + m.title + '</h1><div class="mhead"><span class="mno">미션 ' + (state.mi + 1) + ' / 3 · 조작</span><span class="goal-chip">' + m.goal + '</span></div><p class="task">' + m.task + '</p>'
+    var m = MISSIONS[state.mi], useCompare = !!m.compare;
+    stopDemo(); overlayOpen = false;
+    setStage('<section class="card explore-card">'
+      + '<h1 class="hero-headline">' + (HEADLINES[m.id] || m.title) + '</h1>'
+      + '<div class="mhead"><span class="mno">미션 ' + (state.mi + 1) + ' / 3</span><span class="goal-chip">' + m.goal + '</span></div>'
+      + '<p class="hero-sub">' + m.task + '</p>'
       + heroShell({ cityChips: !m.lockCity || useCompare, termStrip: !m.lockTerm })
-      + '<div class="explore-actions"><button class="primary-btn" id="toVerdict" disabled>이 결과로 판정하기 →</button><small id="touchHint">기준선을 한 번 끌어 본 뒤 판정할 수 있어요.</small></div></section>');
+      + '<div class="explore-actions"><button class="primary-btn" id="toVerdict" disabled>이 결과로 판정하기 →</button><small id="touchHint">‘덥다’ 기준선을 위아래로 끌어 보세요.</small></div>'
+      + '<div class="predict-overlay" id="predictOverlay" hidden></div>'
+      + '</section>');
     if (useCompare) bindCompareChips(m.compare); else if (!m.lockCity) bindCityChips();
     if (!m.lockTerm) bindTermStrip();
     bindThreshold();
     drawHero();
-    onTouched = function () { if (state.touched) { $('toVerdict').disabled = false; $('touchHint').textContent = '좋아요 — 준비되면 판정하세요.'; } };
-    if (state.touched) onTouched();
-    $('toVerdict').addEventListener('click', renderVerdict);
+    onTouched = function () { stopDemo(); if (!missionAsked(m)) showPredictOverlay(m); updateGate(m); };
+    updateGate(m);
+    $('toVerdict').addEventListener('click', function () { if (state.touched && missionAsked(m)) renderVerdict(); });
+    if (!demoPlayed && state.mi === 0 && state.pre == null && !state.touched) { demoPlayed = true; setTimeout(function () { autoDemo(m); }, 450); }
   }
 
   function renderVerdict() {
@@ -287,6 +315,7 @@
       + '<p class="eyebrow">판정 (주장·근거·추론·한계)</p><p class="cerl">' + m.verdict(n) + '</p>'
       + '<div class="selfcheck" id="selfcheck"><p class="sc-q"><b>자가진단</b> — ' + m.selfCheck.q + '</p><div class="choice-row" id="scChoices"></div><p class="sc-explain" id="scExplain" hidden></p></div>';
     if (m.askPost) html += '<div class="post-box" id="postBox" hidden></div>';
+    html += '<div class="mission-audit" id="missionAudit" hidden></div>';
     html += '<div class="verdict-actions" id="verdictActions" hidden></div></section>';
     setStage(html);
     var sc = m.selfCheck;
@@ -319,7 +348,19 @@
     });
   }
 
+  function buildDraftSeed(m) {
+    var n = stat();
+    if (m.id === 'region') { var a = n.driftFor('제주'), b = n.driftFor('강원'); return '처서 뒤 더위가 그치는 날의 시차는 제주 ' + (a == null ? '?' : (a >= 0 ? '+' + a : a)) + '일, 강원 ' + (b == null ? '?' : (b >= 0 ? '+' + b : b)) + '일로 지역마다 다르다. 그래서 한 지역 결과를 전국으로 넓혀 말하기는 어렵다.'; }
+    return n.city + '에서 ‘덥다’를 ' + n.thr + '°C로 정하면 기준 이상 더위일이 과거 ' + n.pd + '일 → 현재 ' + n.cd + '일로 나타났다. 다만 이는 5년 관측 신호라 전국이나 원인으로 넓히기는 어렵다.';
+  }
   function revealVerdictActions() {
+    var m = MISSIONS[state.mi], au = $('missionAudit');
+    if (au && au.hidden) {
+      au.hidden = false;
+      au.innerHTML = '<div class="judge-box"><p class="eyebrow">✦ AI 증거 감사관 (선택)</p><label class="draft-label" for="freeDraft">내 판정을 한 문장으로 <small>고쳐 써도 좋아요</small></label><textarea id="freeDraft" maxlength="400"></textarea><div class="ai-row"><button class="ai-btn" id="askAudit"><span aria-hidden="true">✦</span> AI 감사 요청</button><p class="audit-status" id="auditStatus">AI가 과장·범위·인과를 점검합니다. 꺼져 있어도 규칙 점검이 작동해요.</p></div><div class="audit-result" id="auditResult" hidden></div></div>';
+      $('freeDraft').value = buildDraftSeed(m);
+      $('askAudit').addEventListener('click', doAudit);
+    }
     var acts = $('verdictActions'); acts.hidden = false;
     var next = state.mi + 1;
     if (next < MISSIONS.length) acts.innerHTML = '<button class="primary-btn" id="nextMission">다음 미션 →</button><button class="ghost-btn" id="retry">다시 조작</button>';
@@ -416,9 +457,8 @@
 
   /* ---------- 부팅 ---------- */
   $('openGuide').addEventListener('click', function () { $('guideDialog').showModal(); });
-  $('homeLink').addEventListener('click', function (e) { e.preventDefault(); if (confirm('처음(예측)부터 다시 시작할까요? 진행 기록은 유지됩니다.')) { startMission(0); } });
+  $('homeLink').addEventListener('click', function (e) { e.preventDefault(); if (confirm('처음부터 다시 시작할까요? 진행 기록은 유지됩니다.')) { startMission(0); } });
 
-  if (state.phase === 'pre' || state.pre == null) renderPre();
-  else if (state.phase === 'free') renderFree();
-  else { state.mi = Math.min(state.mi, MISSIONS.length - 1); renderPredict(); }
+  if (state.phase === 'free') renderFree();
+  else { state.phase = 'mission'; state.mi = Math.min(Math.max(state.mi || 0, 0), MISSIONS.length - 1); renderExplore(); }
 })();
