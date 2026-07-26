@@ -27,7 +27,7 @@ BASE = Path(__file__).resolve().parent.parent
 JS = BASE / "prototype" / "solar_terms_data.js"
 SRC = BASE / "data_collectors" / "output" / "allyears"
 MIN_DAYS = 350
-GRIDS = {"temp": range(20, 35), "humidity": range(55, 96), "precip": range(1, 21)}
+GRIDS = {"temp": range(20, 35), "humidity": range(55, 96), "precip": range(1, 81)}
 FILL0 = {"precip"}
 COL = {"temp": "avgTa", "humidity": "avgRhm", "precip": "sumRn"}
 
@@ -166,6 +166,17 @@ def main():
                 shown = q - p
                 ck(real == 0 or shown == 0 or (real > 0) == (shown > 0),
                    f"E: {name}.{mk} thr={t} 증감 방향 역전 (화면 {shown:+.1f} vs 실측 {real:+.1f})")
+
+    # ── G. 강수 강도 미션(RC-N)이 쓰는 rainFlip ─────────────────
+    for name, c in cities.items():
+        f = c.get("rainFlip")
+        ck(f is not None, f"G: {name} rainFlip 누락 (강수 미션이 참조)")
+        if not f:
+            continue
+        ck(f["low"][0] == 1, f"G: {name} rainFlip 낮은 기준이 1mm가 아님")
+        lo1 = c["precip"]["exceedDays"]["present"]["1"] - c["precip"]["exceedDays"]["past"]["1"]
+        ck(abs(f["low"][1] - round(lo1, 1)) < 0.05, f"G: {name} rainFlip low 값 불일치")
+        ck(f["flip"] is None or 1 <= f["flip"] <= 80, f"G: {name} flip 범위 밖 {f['flip']}")
 
     # ── F. 하드코딩 수치 일치 ───────────────────────────────────
     s = cities["서울"]["temp"]

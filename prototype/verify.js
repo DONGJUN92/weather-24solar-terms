@@ -34,8 +34,9 @@
     },
     precip: {
       key: 'precip', label: '강수', unit: 'mm', verb: '비가 많다', basis: '하루 강수량', day: '비 온 날', last: null, showLast: false, def: 1,
-      grid: [1, 20],
-      presets: [{ v: 1, t: '1mm', s: '기상청 강수일 기준' }, { v: 10, t: '10mm', s: '제법 많은 비' }, { v: 20, t: '20mm', s: '큰 비' }]
+      grid: [1, 80], coarse: true,
+      presets: [{ v: 1, t: '1mm', s: '기상청 ‘비 온 날’ 기준' }, { v: 10, t: '10mm', s: '우산이 필요한 비' },
+                { v: 30, t: '30mm', s: '하루 30mm 넘는 강한 비' }, { v: 50, t: '50mm', s: '하루 50mm 큰비' }]
     },
     humidity: {
       key: 'humidity', label: '습도', unit: '%', verb: '습하다', basis: '하루 평균습도', day: '습한 날', last: null, showLast: false, def: 70,
@@ -167,11 +168,76 @@
     }
   ];
 
+  /* RC-N: 앞의 세 미션과 다른 과학적 대상 — 강수의 '양'이 아니라 '강도 분포'.
+     같은 자료가 기준을 어디에 두느냐에 따라 정반대 결론을 낸다는 것을 실측으로 보여 준다. */
+  MISSIONS.push({
+    id: 'rain', goal: '목표 ③④ 같은 자료, 반대 결론 — 강수는 ‘얼마나 자주’와 ‘얼마나 세게’가 다르다',
+    title: '비는 줄었을까 늘었을까',
+    city: '서울', ti: 12, metric: 'precip', thr: 1, lockCity: false, lockTerm: true,
+    brief: '“요즘 비가 줄었다”와 “요즘 물난리가 잦다”는 둘 다 자주 듣는 말입니다. 하나의 강수 자료로 두 말이 동시에 맞을 수 있는지, 기준을 바꿔 가며 확인하세요.',
+    task: '아래 프리셋을 <b>1mm → 10mm → 30mm → 50mm</b> 순서로 눌러, 변화의 <b>방향이 어디서 뒤집히는지</b> 찾아보세요.',
+    predict: {
+      q: '‘비 온 날(1mm 이상)’과 ‘하루 50mm 넘는 큰비’는 같은 방향으로 변했을까?',
+      options: [{ v: 'same', t: '둘 다 같은 방향으로 변했다', s: '비는 비다' },
+                { v: 'flip', t: '방향이 서로 다를 것이다', s: '약한 비와 강한 비는 다르다' },
+                { v: 'unknown', t: '잘 모르겠다', s: '직접 확인해 봅니다' }]
+    },
+    verdict: function (n) {
+      var lo = rainAt(n.city, 1), hi = rainAt(n.city, 50), cur = rainAt(n.city, n.thr);
+      var nat = rainNationwide();
+      var flipped = lo.d < 0 && hi.d > 0;
+      return {
+        c: flipped
+          ? '‘비가 줄었다’와 ‘큰비가 늘었다’가 <b>동시에 참</b>일 수 있습니다.'
+          : '같은 강수 자료라도 어떤 기준으로 세느냐에 따라 변화의 크기와 방향이 달라집니다.',
+        e: n.city + '(' + cityOf(n.city).station + ' 관측소)에서 <b>비 온 날(1mm 이상)</b>은 연평균 <b>' + lo.p + '일 → ' + lo.c + '일</b>(' + lo.dStr + '), '
+           + '<b>하루 50mm 넘는 큰비</b>는 <b class="hot">' + hi.p + '일 → ' + hi.c + '일</b>(' + hi.dStr + ')입니다.'
+           + (n.thr !== 1 && n.thr !== 50 ? ' 지금 고른 ' + n.thr + 'mm 기준으로는 ' + cur.p + '일 → ' + cur.c + '일(' + cur.dStr + ')입니다.' : ''),
+        r: flipped
+          ? '비의 <b>횟수</b>는 줄었는데 <b>한 번의 세기</b>는 커졌습니다. 전국 16지점을 합쳐 보아도 1mm 이상은 <b>' + nat.lo + '</b>, 50mm 이상은 <b class="hot">' + nat.hi + '</b>로 같은 방향이 나타납니다 — 그래서 “비가 줄었다”만 말하면 물난리가 왜 잦아지는지 설명할 수 없습니다.'
+          : n.city + '에서는 방향이 뚜렷하게 갈리지 않습니다. 다만 전국 16지점 합계로는 1mm 이상 <b>' + nat.lo + '</b>, 50mm 이상 <b class="hot">' + nat.hi + '</b>로 갈립니다 — 지역마다 다르다는 것 또한 자료가 말해 주는 사실입니다.',
+        l: '이 값은 ' + n.sampleText + '의 관측 신호이고, 하루 강수량만으로 셌기 때문에 <b>같은 하루 안에 몇 시간 만에 쏟아졌는지</b>는 알 수 없습니다. 호우특보는 3시간·12시간 강우량으로 정하므로 이 화면의 일강수량과는 기준이 다릅니다.'
+      };
+    },
+    selfCheck: {
+      q: '“요즘 비가 줄었다”는 뉴스와 “물난리가 잦아졌다”는 뉴스가 함께 나올 때, 가장 정확한 판단은?',
+      options: [{ v: 'both', t: '둘 중 하나는 틀렸다' }, { v: 'ok', t: '기준이 다르면 둘 다 맞을 수 있다' }, { v: 'no', t: '비는 하나이므로 함께 성립할 수 없다' }],
+      correct: 'ok',
+      explain: '강수는 ‘며칠 왔는가’와 ‘한 번에 얼마나 왔는가’가 서로 다른 지표입니다. 실제 관측에서도 비 온 날은 줄고 큰비의 날은 늘었습니다 — 그래서 강수 이야기는 반드시 <b>어떤 기준으로 셌는지</b>를 함께 말해야 합니다.'
+    }
+  });
+
+  /* 미션4 계산 보조 — 화면에 나온 실측값만 사용한다 */
+  function rainAt(city, thr) {
+    var g = cityOf(city).precip.exceedDays, p = g.past[String(thr)], c = g.present[String(thr)];
+    p = p == null ? 0 : p; c = c == null ? 0 : c;
+    var d = Math.round((c - p) * 10) / 10;
+    return { p: fmtNum(p), c: fmtNum(c), d: d, dStr: (d > 0 ? '+' : '') + fmtNum(d) + '일' };
+  }
+  function rainNationwide() {
+    function sum(thr, k) { var t = 0; CITIES.forEach(function (c) { var v = cityOf(c).precip.exceedDays[k][String(thr)]; t += (v == null ? 0 : v); }); return t; }
+    function part(thr) {
+      var p = sum(thr, 'past'), c = sum(thr, 'present'), d = c - p;
+      return fmtNum(p) + '일 → ' + fmtNum(c) + '일(' + (d > 0 ? '+' : '') + fmtNum(d) + '일, ' + (d > 0 ? '+' : '') + Math.round(d / p * 100) + '%)';
+    }
+    return { lo: part(1), hi: part(50) };
+  }
+  function fmtNum(v) { return String(Math.round(v * 10) / 10); }
+
   var state = load();
 
   function $(id) { return document.getElementById(id); }
   function term(ti) { var t = D.terms[ti == null ? state.ti : ti]; return t || D.terms[15]; }
   function metricOf() { return METRICS[state.metric] || METRICS.temp; }
+  /* 강수는 기준에 따라 부르는 이름이 달라야 한다 — 50mm를 '비 온 날'이라 부르지 않는다 */
+  function dayLabel(thr) {
+    var mc = metricOf(), t = thr == null ? state.thr : thr;
+    if (mc.key !== 'precip') return mc.day;
+    if (t <= 1) return '비 온 날';
+    if (t < 10) return t + 'mm 넘는 날';
+    if (t < 30) return t + 'mm 넘는 제법 큰 비';
+    return t + 'mm 넘는 큰비';
+  }
   function cityOf(c) { return D.cities[c || state.city] || D.cities[CITIES[0]]; }
   function series(period, city, metric) { return cityOf(city)[metric || state.metric][period]; }
   function doyStr(doy1) { var d = Math.max(0, Math.min(364, doy1 - 1)), m = 0; while (m < 11 && d >= CUM[m + 1]) m++; return (m + 1) + '월 ' + (d - CUM[m] + 1) + '일'; }
@@ -206,7 +272,7 @@
 
   function load() {
     var base = { phase: 'intro', mi: 0, city: '서울', ti: 15, thr: 25, thr0: 25, metric: 'temp', pre: null, post: null,
-                 predicts: {}, done: [], touched: false, moved: false, missionDraft: {}, selfChecks: {}, freeDraft: '' };
+                 predicts: {}, done: [], touched: false, moved: false, missionDraft: {}, selfChecks: {}, freeDraft: '', zoom: false, view: 'chart' };
     try {
       var s = JSON.parse(localStorage.getItem('weather24_verify_v3'));
       if (s && typeof s === 'object') {
@@ -220,6 +286,8 @@
         o.mi = Math.min(Math.max(Number(o.mi) || 0, 0), MISSIONS.length - 1);
         if (!o.missionDraft || typeof o.missionDraft !== 'object') o.missionDraft = {};
         if (!o.selfChecks || typeof o.selfChecks !== 'object') o.selfChecks = {};
+        if (o.view !== 'table') o.view = 'chart';
+        o.zoom = !!o.zoom;
         return o;
       }
     } catch (e) {}
@@ -227,18 +295,57 @@
   }
   function save() { try { localStorage.setItem('weather24_verify_v3', JSON.stringify(state)); } catch (e) {} }
 
-  /* y축은 연간 곡선 전체를 보여준다(계절 곡선의 형태가 학습 내용이므로 자르지 않는다). */
-  function bounds(city, metric) {
+  /* 상태 딥링크 — 교사가 '이 화면'을 그대로 배부하고, 모둠끼리 설정을 비교할 수 있게 한다. */
+  function stateHash() {
+    return '#c=' + encodeURIComponent(state.city) + '&m=' + state.metric + '&t=' + state.thr + '&s=' + state.ti
+      + (state.phase === 'free' ? '&v=free' : (state.phase === 'mission' ? '&v=m' + state.mi : ''));
+  }
+  function applyHash() {
+    var h = (location.hash || '').replace(/^#/, '');
+    if (!h) return false;
+    var q = {};
+    h.split('&').forEach(function (kv) { var a = kv.split('='); if (a[0]) q[a[0]] = decodeURIComponent(a[1] || ''); });
+    var touched = false;
+    if (q.c && CITIES.indexOf(q.c) !== -1) { state.city = q.c; touched = true; }
+    if (q.m && METRICS[q.m]) { state.metric = q.m; touched = true; }
+    if (q.s != null && q.s !== '' && isFinite(q.s) && q.s >= 0 && q.s < D.terms.length) { state.ti = Number(q.s); touched = true; }
+    if (q.t != null && q.t !== '' && isFinite(q.t)) { state.thr = Number(q.t); touched = true; }
+    if (q.v === 'free') { state.phase = 'free'; touched = true; }
+    else if (/^m[0-9]+$/.test(q.v || '')) {
+      var i = Number(q.v.slice(1));
+      if (i >= 0 && i < MISSIONS.length) { state.phase = 'mission'; state.mi = i; touched = true; }
+    }
+    if (touched) { clampThr(); save(); }
+    return touched;
+  }
+  function copyLink(btn) {
+    var url = location.origin + location.pathname + stateHash();
+    function done(msg) { var t = btn.textContent; btn.textContent = msg; setTimeout(function () { btn.textContent = t; }, 1800); }
+    try {
+      navigator.clipboard.writeText(url).then(function () { done('링크 복사됨 ✓'); }, function () { prompt('이 링크를 복사하세요', url); });
+    } catch (e) { prompt('이 링크를 복사하세요', url); }
+  }
+
+  /* y축은 기본적으로 연간 곡선 전체를 보여준다(계절 곡선의 형태가 학습 내용이므로 자르지 않는다).
+     '기준 구간 확대'를 켜면 기준선 주변으로 축을 좁혀 드래그 해상도를 크게 올린다 (UX-1). */
+  function fullBounds(city, metric) {
     var all = series('past', city, metric).concat(series('present', city, metric));
     var lo = Math.min.apply(null, all), hi = Math.max.apply(null, all), pad = (hi - lo) * 0.08 || 1;
     return { lo: lo - pad, hi: hi + pad };
   }
+  function bounds(city, metric) {
+    var b = fullBounds(city, metric);
+    if (!state.zoom) return b;
+    var hr = heatRange(city, metric), span = hr.hi - hr.lo, pad = Math.max(0.5, span * 0.10);
+    return { lo: Math.max(b.lo, hr.lo - pad), hi: Math.min(b.hi, hr.hi + pad) };
+  }
   /* 슬라이더 범위는 '데이터가 있는 구간'으로 잘라 죽은 칸을 없앤다 (UX-1).
      상한 = 현재 시기에 연평균 1일 이상 나타나는 마지막 기준 + 1 */
-  function heatRange() {
-    var mc = metricOf(), lo = mc.grid[0], gmax = mc.grid[1], hi = lo + 4;
-    for (var t = lo; t <= gmax; t++) if (exceed('present', t) >= 1) hi = t;
-    hi = Math.min(gmax, hi + 1);
+  function heatRange(city, metric) {
+    var mc = METRICS[metric || state.metric] || METRICS.temp, lo = mc.grid[0], gmax = mc.grid[1], hi = lo + 4;
+    var floor = mc.coarse ? 2 : 1;
+    for (var t = lo; t <= gmax; t++) if (exceed('present', t, city, metric) >= floor) hi = t;
+    hi = Math.min(gmax, hi + (mc.coarse ? 6 : 1));
     return { lo: lo, hi: Math.max(lo + 4, hi) };
   }
   function clampThr() {
@@ -282,14 +389,17 @@
     for (var i = 0; i < 365; i++) { if (pres[i] >= thr) { if (!seg) seg = [i, i]; else seg[1] = i; } else if (seg) { fill += segPath(seg); seg = null; } }
     if (seg) fill += segPath(seg);
     var tx = xf(tm.doy - 1), pl = lastExceed('past', thr), cl = lastExceed('present', thr);
-    var grid = '';
-    [0, 0.5, 1].forEach(function (f) {
+    var grid = '', narrow = window.innerWidth && window.innerWidth < 620;
+    [0, 0.25, 0.5, 0.75, 1].forEach(function (f) {
       var v = b.lo + (b.hi - b.lo) * f, y = yf(v);
-      grid += '<line x1="' + L + '" y1="' + y.toFixed(1) + '" x2="' + (W - R) + '" y2="' + y.toFixed(1) + '" stroke="rgba(217,238,238,.14)"/>'
-            + '<text x="6" y="' + (y + 4).toFixed(1) + '" fill="#9fb3ba" font-size="11">' + Math.round(v) + mc.unit + '</text>';
+      grid += '<line x1="' + L + '" y1="' + y.toFixed(1) + '" x2="' + (W - R) + '" y2="' + y.toFixed(1) + '" stroke="rgba(217,238,238,' + (f === 0 || f === 1 ? '.2' : '.11') + ')"/>'
+            + '<text x="6" y="' + (y + 4).toFixed(1) + '" fill="#9fb3ba" font-size="11">' + (Math.round(v * 10) / 10) + (f === 1 ? mc.unit : '') + '</text>';
     });
-    [['1월', 0], ['4월', 90], ['7월', 181], ['10월', 273]].forEach(function (t) {
-      grid += '<text x="' + xf(t[1]).toFixed(1) + '" y="' + (H - 8) + '" fill="#9fb3ba" font-size="11" text-anchor="middle">' + t[0] + '</text>';
+    var months = narrow ? [1, 3, 5, 7, 9, 11] : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+    months.forEach(function (m) {
+      var i = CUM[m - 1];
+      grid += '<line x1="' + xf(i).toFixed(1) + '" y1="' + (H - BT) + '" x2="' + xf(i).toFixed(1) + '" y2="' + (H - BT + 5) + '" stroke="rgba(217,238,238,.28)"/>'
+            + '<text x="' + xf(i + 14).toFixed(1) + '" y="' + (H - 8) + '" fill="#9fb3ba" font-size="11" text-anchor="middle">' + m + '월</text>';
     });
     svg.innerHTML = grid
       + '<path d="' + fill + '" fill="' + COLORS.present + '" fill-opacity="0.16"/>'
@@ -303,13 +413,15 @@
       + '<text x="' + (L + 13) + '" y="' + (yT + 3.6).toFixed(1) + '" fill="#20143a" font-size="10" font-weight="800" text-anchor="middle">⇅</text>'
       + '<rect x="' + (W - R - 104) + '" y="' + (yT - 11).toFixed(1) + '" width="104" height="20" rx="6" fill="' + COLORS.threshold + '"/>'
       + '<text x="' + (W - R - 52) + '" y="' + (yT + 3.5).toFixed(1) + '" fill="#20143a" font-size="12" font-weight="700" text-anchor="middle">' + mc.verb + ' ' + thr + mc.unit + '</text>'
-      + (mc.showLast && pl > 0 ? '<circle cx="' + xf(pl - 1).toFixed(1) + '" cy="' + yT.toFixed(1) + '" r="5" fill="' + COLORS.past + '" stroke="#0b2231" stroke-width="1"/>' : '')
-      + (mc.showLast && cl > 0 ? '<circle cx="' + xf(cl - 1).toFixed(1) + '" cy="' + yT.toFixed(1) + '" r="6.5" fill="' + COLORS.present + '" stroke="#2a0f0a" stroke-width="1"/>' : '');
+      + (mc.showLast && pl > 0 ? '<circle cx="' + xf(pl - 1).toFixed(1) + '" cy="' + yT.toFixed(1) + '" r="6.5" fill="' + COLORS.past + '" stroke="#0b2231" stroke-width="1.5"/>'
+          + '<text x="' + xf(pl - 1).toFixed(1) + '" y="' + (yT - 12).toFixed(1) + '" fill="' + COLORS.past + '" font-size="11" text-anchor="middle">' + doyStr(pl) + '</text>' : '')
+      + (mc.showLast && cl > 0 ? '<circle cx="' + xf(cl - 1).toFixed(1) + '" cy="' + yT.toFixed(1) + '" r="8" fill="' + COLORS.present + '" stroke="#2a0f0a" stroke-width="1.5"/>'
+          + '<text x="' + xf(cl - 1).toFixed(1) + '" y="' + (yT + 22).toFixed(1) + '" fill="' + COLORS.present + '" font-size="11.5" font-weight="700" text-anchor="middle">' + doyStr(cl) + '</text>' : '');
     svg.setAttribute('aria-label', chartAlt());
     var ri = $('thrRange');
     if (ri) {
       ri.min = hr.lo; ri.max = hr.hi; ri.step = 1; ri.value = thr;
-      ri.setAttribute('aria-valuetext', mc.verb + ' 기준 ' + thr + mc.unit + ' · ' + mc.day + ' 과거 ' + fmtDays(exceed('past', thr)) + ', 현재 ' + fmtDays(exceed('present', thr)));
+      ri.setAttribute('aria-valuetext', mc.verb + ' 기준 ' + thr + mc.unit + ' · ' + dayLabel(thr) + ' 과거 ' + fmtDays(exceed('past', thr)) + ', 현재 ' + fmtDays(exceed('present', thr)));
     }
     if ($('thrOut')) $('thrOut').textContent = thr + mc.unit;
     syncPresets();
@@ -318,6 +430,7 @@
     updateSpark();
     updateHeatNote();
     updateLiveSentence();
+    updateTable();
     updateMethod();
   }
 
@@ -325,7 +438,7 @@
     var mc = metricOf(), n = stat(), tm = term();
     return state.city + ' ' + mc.label + ' 연간 곡선. 과거 ' + PERIOD_PAST + '(회색 점선)과 현재 ' + PERIOD_NOW + '(빨간 실선), '
       + tm.name + ' ' + tm.date + ' 고정 세로선, ' + mc.verb + ' 기준 ' + state.thr + mc.unit + ' 가로선. '
-      + '기준 이상 ' + mc.day + ' 연평균 과거 ' + fmtDays(n.pd) + ', 현재 ' + fmtDays(n.cd) + '.'
+      + '기준 이상 ' + dayLabel() + ' 연평균 과거 ' + fmtDays(n.pd) + ', 현재 ' + fmtDays(n.cd) + '.'
       + (mc.showLast && n.drift != null ? ' ' + mc.last + ' 과거 ' + n.plStr + ', 현재 ' + n.clStr + ', 시차 ' + n.drift + '일.' : '');
   }
 
@@ -333,7 +446,7 @@
   function renderLiveNums() {
     var el = $('liveNums'); if (!el) return;
     var mc = metricOf(), n = stat();
-    var s = '<b>' + mc.day + '</b> <span class="v-past">과거 ' + fmtDays(n.pd) + '</span> <i>→</i> <span class="v-now">현재 ' + fmtDays(n.cd) + '</span>';
+    var s = '<b>' + dayLabel() + '</b> <span class="v-past">과거 ' + fmtDays(n.pd) + '</span> <i>→</i> <span class="v-now">현재 ' + fmtDays(n.cd) + '</span>';
     if (mc.showLast) {
       s += ' <span class="ln-sep">·</span> <b>' + mc.last + '</b> ' + (n.pl > 0 ? '<span class="v-past">' + n.plStr + '</span>' : '<span class="v-none">없음</span>')
         + ' <i>→</i> ' + (n.cl > 0 ? '<span class="v-now">' + n.clStr + '</span>' : '<span class="v-none">없음</span>')
@@ -367,7 +480,7 @@
   function renderReadouts() {
     var el = $('readouts'); if (!el) return;
     var mc = metricOf(), n = stat();
-    var cards = '<div class="readout"><div class="ro-k">기준 이상 ' + mc.day + ' <small>(연평균, 연중)</small></div>'
+    var cards = '<div class="readout"><div class="ro-k">기준 이상 ' + dayLabel() + ' <small>(연평균, 연중)</small></div>'
       + '<div class="ro-v"><span class="v-past">과거 ' + n.pdStr + '</span> <i>→</i> <span class="v-now">현재 ' + n.cdStr + '</span></div>'
       + '<div class="ro-s">' + n.ddStr + ' 변화</div></div>';
     if (mc.showLast) {
@@ -424,7 +537,7 @@
   function liveSentence() {
     var n = stat(), mc = metricOf(), tm = term();
     if (mc.showLast && n.drift != null) return '<b>' + n.city + '</b>에서 ‘' + mc.verb + '’를 <b>' + n.thr + mc.unit + '</b>로 정하면, ' + mc.last + '이 과거보다 <b class="hot">' + n.drift + '일</b> ' + (n.drift >= 0 ? '늦어졌습니다' : '빨라졌습니다') + '. <span class="cerl-tag">— ' + tm.name + ' 무렵 · ' + n.sampleText + '</span>';
-    return '<b>' + n.city + '</b> · ‘' + mc.verb + ' ' + n.thr + mc.unit + '’ 기준 ' + mc.day + '은 연평균 과거 <b>' + n.pdStr + '</b> → 현재 <b class="hot">' + n.cdStr + '</b>입니다. <span class="cerl-tag">— ' + n.sampleText + ' · 30년 기후평년 아님</span>';
+    return '<b>' + n.city + '</b> · ‘' + mc.verb + ' ' + n.thr + mc.unit + '’ 기준 ' + dayLabel() + '은 연평균 과거 <b>' + n.pdStr + '</b> → 현재 <b class="hot">' + n.cdStr + '</b>입니다. <span class="cerl-tag">— ' + n.sampleText + ' · 30년 기후평년 아님</span>';
   }
   function updateLiveSentence() { var el = $('freeCerl'); if (el) el.innerHTML = liveSentence(); }
 
@@ -472,6 +585,49 @@
       + '<thead><tr><th scope="col">월</th><th scope="col">과거 평균(' + mc.unit + ')</th><th scope="col">현재 평균(' + mc.unit + ')</th><th scope="col">과거 기준초과(일)</th><th scope="col">현재 기준초과(일)</th></tr></thead><tbody>'
       + rows + '</tbody></table><p class="table-note">이 표의 일수는 <b>곡선</b>에서 센 값이라 위 카드의 <b>연평균 실측 일수</b>와 다릅니다 — 곡선은 오르내림이 줄어들어 있기 때문입니다.</p></div>';
   }
+  /* 차트의 근거 데이터를 그대로 표로 — 스크린리더·저시력 사용자와 '숫자로 보고 싶은' 학습자 모두를 위한 대안 (UX-8) */
+  function dataTable() {
+    var mc = metricOf(), c = cityOf(), hr = heatRange(), rows = '', step = mc.coarse ? 5 : 1;
+    var list = [];
+    for (var t = hr.lo; t <= hr.hi; t += step) list.push(t);
+    if (list.indexOf(state.thr) === -1) { list.push(state.thr); list.sort(function (a, b) { return a - b; }); }
+    list.forEach(function (t) {
+      var pv = exceed('past', t), qv = exceed('present', t), d = Math.round((qv - pv) * 10) / 10;
+      var li = lastInfo('past', t), ci = lastInfo('present', t);
+      rows += '<tr' + (t === state.thr ? ' class="is-cur"' : '') + '><th scope="row">' + t + mc.unit
+        + (t === state.thr ? ' <span class="cur-tag">지금</span>' : '') + '</th>'
+        + '<td>' + fmtDays(pv) + '</td><td>' + fmtDays(qv) + '</td>'
+        + '<td class="' + (d > 0 ? 'up' : (d < 0 ? 'down' : '')) + '">' + (d > 0 ? '+' : '') + (Math.round(d * 10) / 10) + '일</td>'
+        + (mc.showLast ? '<td>' + (li ? doyStr(li[0]) : '없음') + '</td><td>' + (ci ? doyStr(ci[0]) : '없음') + '</td>' : '')
+        + '</tr>';
+    });
+    return '<div class="table-wrap"><table class="data-table">'
+      + '<caption>' + state.city + '(' + c.station + ' 관측소) · ' + mc.label + ' · 기준별 연평균 ' + dayLabel()
+      + ' — 과거 ' + PERIOD_PAST + ' vs 현재 ' + PERIOD_NOW + ' · 연도별 실측을 평균한 값</caption>'
+      + '<thead><tr><th scope="col">기준</th><th scope="col">과거</th><th scope="col">현재</th><th scope="col">변화</th>'
+      + (mc.showLast ? '<th scope="col">' + mc.last + '(과거)</th><th scope="col">' + mc.last + '(현재)</th>' : '')
+      + '</tr></thead><tbody>' + rows + '</tbody></table></div>';
+  }
+  function updateTable() { var el = $('tableMount'); if (el && !el.hidden) el.innerHTML = dataTable(); }
+  function setView(mode) {
+    state.view = mode; save();
+    var svg = $('heroSvg'), tbl = $('tableMount');
+    if (!svg || !tbl) return;
+    var isTable = mode === 'table';
+    svg.style.display = isTable ? 'none' : '';
+    tbl.hidden = !isTable;
+    if ($('viewChart')) { $('viewChart').setAttribute('aria-pressed', String(!isTable)); $('viewChart').classList.toggle('is-on', !isTable); }
+    if ($('viewTable')) { $('viewTable').setAttribute('aria-pressed', String(isTable)); $('viewTable').classList.toggle('is-on', isTable); }
+    if (isTable) updateTable();
+  }
+  function bindViewTools() {
+    if ($('viewChart')) $('viewChart').addEventListener('click', function () { setView('chart'); });
+    if ($('viewTable')) $('viewTable').addEventListener('click', function () { setView('table'); });
+    var z = $('zoomChk');
+    if (z) { z.checked = !!state.zoom; z.addEventListener('change', function () { state.zoom = z.checked; save(); drawHero(); }); }
+    setView(state.view === 'table' ? 'table' : 'chart');
+  }
+
   function updateMethod() {
     var box = $('methodMount'); if (!box) return;
     var open = box.querySelector('details') && box.querySelector('details').open;
@@ -490,6 +646,14 @@
     return (pickers ? '<div class="picker">' + pickers + '</div>' : '')
       + '<div class="chart-card">'
       + '<p class="live-nums" id="liveNums" aria-live="polite"></p>'
+      + '<div class="view-tools">'
+      + '<div class="seg" role="group" aria-label="보기 방식">'
+      + '<button type="button" class="seg-btn" id="viewChart" aria-pressed="true">그래프</button>'
+      + '<button type="button" class="seg-btn" id="viewTable" aria-pressed="false">표</button>'
+      + '</div>'
+      + '<label class="zoom-toggle"><input type="checkbox" id="zoomChk" /> 기준 구간 확대 <small>(세밀 조절)</small></label>'
+      + '</div>'
+      + '<div id="tableMount" hidden></div>'
       + '<svg id="heroSvg" viewBox="0 0 720 340" role="img" aria-label="관측 곡선"></svg>'
       + '<div class="range-row"><span>‘' + mc.verb + '’ 기준<b class="basis">(' + mc.basis + ')</b></span>'
       + '<button class="step-btn" id="thrDown" type="button" aria-label="기준 1 낮추기">−</button>'
@@ -689,7 +853,7 @@
       + '<div class="tut-coach" id="tutCoach"></div>'
       + heroShell({})
       + '</section>');
-    bindThreshold(); drawHero();
+    bindThreshold(); bindViewTools(); drawHero();
     $('tutSkip').addEventListener('click', function () { demoPlayed = true; startMission(0); });
     onTouched = function () { if (tutStep === 1) tutNext(); };
     renderCoach();
@@ -705,7 +869,7 @@
   }
   function tutNext() { if (tutStep < TUT_STEPS.length - 1) { tutStep++; renderCoach(); } }
 
-  var HEADLINES = { chuseo: '처서의 약속은 아직 유효할까?', summer: '‘여름’은 며칠이 되었을까?', region: '이 변화, 우리 지역만 그럴까?' };
+  var HEADLINES = { chuseo: '처서의 약속은 아직 유효할까?', summer: '‘여름’은 며칠이 되었을까?', region: '이 변화, 우리 지역만 그럴까?', rain: '비는 줄었을까, 늘었을까?' };
   var demoPlayed = false, overlayOpen = false;
 
   function startMission(i) {
@@ -766,7 +930,7 @@
     state.phase = 'mission'; overlayOpen = false; save();
     setStage('<section class="card explore-card">'
       + '<h1 class="hero-headline">' + (HEADLINES[m.id] || m.title) + '</h1>'
-      + '<div class="mhead"><span class="mno">미션 ' + (state.mi + 1) + ' / 3</span><span class="goal-chip">' + m.goal + '</span></div>'
+      + '<div class="mhead"><span class="mno">미션 ' + (state.mi + 1) + ' / ' + MISSIONS.length + '</span><span class="goal-chip">' + m.goal + '</span></div>'
       + '<p class="hero-sub"><b>지금 할 일</b> ' + m.task + '</p>'
       + '<details class="brief-box"><summary>이 미션은 무엇을 확인하나요?</summary><p>' + m.brief + '</p></details>'
       + heroShell({ cityChips: !m.lockCity || useCompare, termStrip: !m.lockTerm })
@@ -775,7 +939,7 @@
       + '</section>');
     if (useCompare) bindCityChips(m.compare); else if (!m.lockCity) bindCityChips();
     if (!m.lockTerm) bindTermStrip();
-    bindThreshold(); drawHero();
+    bindThreshold(); bindViewTools(); drawHero();
     onTouched = function () { stopTimers(); if (!missionAsked(m)) showPredictOverlay(m); updateGate(m); };
     updateGate(m);
     $('toVerdict').addEventListener('click', function () {
@@ -802,7 +966,7 @@
     state.phase = 'verdict';
     save();
     var html = '<section class="card verdict-card"><h1 class="sr-only">미션 ' + (state.mi + 1) + ' 판정 — ' + m.title + '</h1>'
-      + '<div class="mhead"><span class="mno">미션 ' + (state.mi + 1) + ' / 3 · 판정</span><span class="goal-chip">' + m.goal + '</span></div>'
+      + '<div class="mhead"><span class="mno">미션 ' + (state.mi + 1) + ' / ' + MISSIONS.length + ' · 판정</span><span class="goal-chip">' + m.goal + '</span></div>'
       + '<p class="eyebrow">판정 — 주장 · 근거 · 추론 · 한계(CERL)</p>'
       + cerlHTML(v)
       + sparkBlock(state.city, 'temp')
@@ -896,7 +1060,7 @@
     var drafts = MISSIONS.filter(function (m) { return (state.missionDraft[m.id] || '').trim(); })
       .map(function (m) { return '<li><b>' + m.title + '</b><br>' + escapeHTML(state.missionDraft[m.id]) + '</li>'; }).join('');
     var yrs = D.cities['서울'].timeline.years;
-    setStage('<section class="card done-card"><div class="burst" aria-hidden="true">✦</div><p class="eyebrow">3개 미션 완료</p>'
+    setStage('<section class="card done-card"><div class="burst" aria-hidden="true">✦</div><p class="eyebrow">' + MISSIONS.length + '개 미션 완료</p>'
       + '<h1 class="stage-h">검증을 마쳤어요.</h1>'
       + '<p class="sub">당신은 절기(고정)와 기후(이동)를 구분하고, 기준을 정의하고, 자료의 범위를 지켜 판정했습니다.</p>'
       + '<div class="skill-row"><span>① 절기≠기후</span><span>② 자료의 범위</span><span>③ 기준 정의</span><span>④ 근거만큼 결론</span></div>'
@@ -999,24 +1163,27 @@
       + '<p class="task">지역·절기·지표를 바꾸고 기준선을 옮겨, 내 관심 주제를 직접 검증하세요. 모든 결론은 지역·기간·기준이 붙은 문장으로 말합니다.</p>'
       + heroShell({ cityChips: true, termStrip: true, metricTabs: true })
       + '<p class="cerl" id="freeCerl"></p>'
+      + '<p class="share-row"><button class="ghost-btn small-btn" id="copyLink" type="button">🔗 이 화면 링크 복사</button>'
+      + '<small>지역·절기·지표·기준이 그대로 열리는 주소예요. 모둠끼리 비교하거나 선생님이 배부할 때 쓰세요.</small></p>'
       + '<div id="sparkMount"></div>'
       + '<div class="judge-box"><label class="draft-label" for="freeDraft">내 판정문 <small>지역 · 기간 · 기준 · 한계를 넣어 한 문장으로</small></label>'
       + '<textarea id="freeDraft" maxlength="400" placeholder="예: 서울에서 ‘덥다’를 25°C로 정하면, 처서 무렵 더위가 그치는 날이 과거보다 13일 늦어졌다. 다만 이는 5년 관측 신호로, 전국이나 원인으로 넓혀 말하기는 어렵다."></textarea>'
       + '<div class="ai-row"><button class="ai-btn" id="askAudit"><span aria-hidden="true">✦</span> AI 감사 요청</button></div>'
       + '<p class="audit-status" id="auditStatus">판정문을 쓰면 과장 · 범위 · 인과를 점검합니다. AI가 응답하지 않아도 같은 항목을 규칙 점검이 확인합니다.</p>'
       + '<div class="audit-result" id="auditResult" hidden></div></div></section>');
-    bindCityChips(); bindTermStrip(); bindMetricTabs(); bindThreshold();
+    bindCityChips(); bindTermStrip(); bindMetricTabs(); bindThreshold(); bindViewTools();
     onTouched = function () {}; drawHero();
     $('freeDraft').value = state.freeDraft || '';
     $('freeDraft').addEventListener('input', function () { state.freeDraft = $('freeDraft').value.slice(0, 400); save(); });
     $('askAudit').addEventListener('click', function () { doAudit(null); });
+    if ($('copyLink')) $('copyLink').addEventListener('click', function () { copyLink($('copyLink')); });
   }
 
   /* ---------- AI 감사관 (+ 규칙 점검) ---------- */
   function buildEvidence() {
     var n = stat(), mc = metricOf(), tm = term(), y = yearsOf(), ev = [];
     var period = PERIOD_PAST + ' vs ' + PERIOD_NOW + ' (완결 ' + y.past.length + '년/' + y.present.length + '년)';
-    ev.push({ id: 'E-1', statement: n.city + '(' + cityOf().station + ' 관측소)의 ‘' + mc.verb + ' ' + n.thr + mc.unit + '’ 기준 ' + mc.day + '은 연평균 과거 ' + n.pdStr + ', 현재 ' + n.cdStr + '이다.', source: '기상청 ASOS 일자료(연도별 실측 집계)', period: period, kind: mc.label + ' · 기준 이상 일수' });
+    ev.push({ id: 'E-1', statement: n.city + '(' + cityOf().station + ' 관측소)의 ‘' + mc.verb + ' ' + n.thr + mc.unit + '’ 기준 ' + dayLabel() + '은 연평균 과거 ' + n.pdStr + ', 현재 ' + n.cdStr + '이다.', source: '기상청 ASOS 일자료(연도별 실측 집계)', period: period, kind: mc.label + ' · 기준 이상 일수' });
     if (mc.showLast && n.pl > 0 && n.cl > 0) ev.push({ id: 'E-2', statement: n.city + '의 ' + mc.last + '은 과거 ' + n.plStr + ', 현재 ' + n.clStr + '로 ' + n.drift + '일 늦어졌다.', source: '기상청 ASOS 일자료(연도별 실측 집계)', period: period, kind: tm.name + ' · 마지막 기준초과일' });
     else ev.push({ id: 'E-2', statement: '이 비교는 ' + n.city + '의 ' + n.sampleText + ' 관측 신호이며, 30년 기후평년이나 전국을 뜻하지 않는다.', source: '해석 범위', period: period, kind: '자료의 한계' });
     return ev;
@@ -1123,6 +1290,7 @@
     resizeTimer = setTimeout(function () { if ($('heroSvg')) drawHero(); }, 150);
   });
 
+  applyHash();
   if (state.phase === 'free') renderFree();
   else if (state.phase === 'complete') renderComplete();
   else if (state.phase === 'verdict') { state.phase = 'mission'; renderExplore(); }

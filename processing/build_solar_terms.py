@@ -52,7 +52,7 @@ MIN_DAYS = 350                  # 완결 연도 판정 기준 (annual_series와 
 #          key         col        label  unit    nd  fill0  임계값 그리드(화면 슬라이더가 도달 가능한 전 범위)
 METRICS = [("temp",     "avgTa",   "기온",   "℃",    1, False, range(20, 35)),
            ("humidity", "avgRhm",  "습도",   "%",    0, False, range(55, 96)),
-           ("precip",   "sumRn",   "강수량", "mm/일", 1, True,  range(1, 21))]
+           ("precip",   "sumRn",   "강수량", "mm/일", 1, True,  range(1, 81))]
 LAST_DOY_METRICS = {"temp"}     # '마지막 기준초과일'을 쓰는 지표 (화면 showLast와 일치)
 
 # 24절기 — 이름/한자/양력 대표날짜/뜻/계절/字풀이/특징
@@ -197,6 +197,26 @@ def window_sensitivity(df, thr=25):
             "long": round(lm - base, 1)}
 
 
+def rain_flip(e):
+    """RC-N 강수 미션: '비 온 날'은 줄고 '강한 비'는 느는 전환점을 데이터에서 찾는다.
+    낮은 기준에서 감소, 높은 기준에서 증가로 부호가 바뀌는 첫 임계값을 반환."""
+    g = e["precip"]["exceedDays"]
+    ts = sorted(int(t) for t in g["past"])
+    diffs = [(t, round(g["present"][str(t)] - g["past"][str(t)], 1)) for t in ts]
+    usable = [(t, d) for t, d in diffs if g["past"][str(t)] >= 1.0]
+    if not usable:
+        return None
+    flip = None
+    for t, d in usable:
+        if d > 0:
+            flip = t
+            break
+    lo = usable[0]
+    hi = max(usable, key=lambda x: x[0])
+    return {"low": [lo[0], lo[1]], "high": [hi[0], hi[1]], "flip": flip,
+            "maxThr": hi[0], "diffs": {str(t): d for t, d in usable}}
+
+
 def annual_series(df, col, agg):
     s = pd.to_numeric(df[col], errors="coerce")
     if agg == "sum":
@@ -240,6 +260,7 @@ def main():
             tl[mk] = [(round(series[mk][y], 1) if y in series[mk] else None) for y in yrs]
         e["timeline"] = tl
         e["sensitivity"] = window_sensitivity(df)
+        e["rainFlip"] = rain_flip(e)
         cities[name] = e
         d25 = e["temp"]["exceedDays"]
         l25 = e["temp"]["lastDoy"]

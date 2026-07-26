@@ -325,6 +325,18 @@ button.pstep:focus-visible { outline: 3px solid var(--sun); outline-offset: 3px;
   .range-row > span { width: 100%; }
   .step-btn { width: 44px; height: 44px; }
   /* 조작 화면을 폴드 위로 — 제목·과제문을 압축 (UX-2) */
+  /* 조작기(슬라이더·프리셋)를 차트 위로 올려 숫자·조작기·차트를 한 화면에 둔다 (UX-2) */
+  .chart-card { display: flex; flex-direction: column; }
+  .chart-card > .live-nums { order: 1; }
+  .chart-card > .view-tools { order: 2; }
+  .chart-card > .range-row { order: 3; }
+  .chart-card > .presets { order: 4; }
+  .chart-card > #heroSvg { order: 5; }
+  .chart-card > #tableMount { order: 5; }
+  .chart-card > .chart-legend { order: 6; }
+  .presets { padding: 0 2px 8px; }
+  .data-table { min-width: 0; font-size: 12.5px; }
+  .data-table th, .data-table td { padding: 6px 7px; }
   .hero-headline { font-size: 21px !important; line-height: 1.3; margin-bottom: 4px; }
   .hero-sub { font-size: 13.5px; line-height: 1.6; margin: 6px 2px 8px; }
   .mhead { margin: 4px 0 6px; }
@@ -360,3 +372,47 @@ button.pstep:focus-visible { outline: 3px solid var(--sun); outline-offset: 3px;
 .brief-box > summary::before { content: '▸ '; color: var(--sea); }
 .brief-box[open] > summary::before { content: '▾ '; }
 .brief-box p { margin: 0; padding: 0 12px 11px; font-size: 13.5px; line-height: 1.7; color: #b6c9d0; }
+
+/* ── 보기 도구: 그래프↔표 토글 + 기준 구간 확대 (UX-1 / UX-8) ── */
+.view-tools { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 0 2px 8px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.seg-btn { border: 0; background: transparent; color: var(--muted); font-size: 12.5px; padding: 7px 14px; min-height: 34px; }
+.seg-btn.is-on { background: rgba(119,191,247,.18); color: #dff0ff; font-weight: 700; }
+.seg-btn:not(.is-on):hover { color: var(--ink); }
+.zoom-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); cursor: pointer; min-height: 34px; }
+.zoom-toggle input { width: 17px; height: 17px; accent-color: #caa8ff; }
+.zoom-toggle small { color: #7f96a0; font-size: 11px; }
+
+/* ── 근거 데이터 표 (UX-8 / WCAG 1.1.1) ── */
+.data-table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 400px; }
+.data-table caption { text-align: left; color: #9fb3ba; font-size: 12px; line-height: 1.6; padding: 2px 2px 8px; }
+.data-table th, .data-table td { border: 1px solid var(--line); padding: 7px 10px; text-align: right; }
+.data-table thead th { background: rgba(255,255,255,.05); text-align: center; color: #cce8ff; font-weight: 700; }
+.data-table tbody th { text-align: left; color: var(--ink); font-weight: 700; white-space: nowrap; }
+.data-table tr.is-cur { background: rgba(202,168,255,.12); }
+.data-table tr.is-cur th { color: #e6d8ff; }
+.cur-tag { font-size: 10.5px; font-weight: 700; color: #20143a; background: #caa8ff; border-radius: 999px; padding: 1px 7px; margin-left: 4px; }
+.data-table td.up { color: var(--coral); font-weight: 700; }
+.data-table td.down { color: #8fd3f4; font-weight: 700; }
+
+/* ── 링크 공유 (딥링크) ── */
+.share-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 10px 2px 0; }
+.share-row small { color: #8ba0a8; font-size: 11.5px; line-height: 1.55; flex: 1; min-width: 200px; }
+
+/* 아주 좁은 화면(320~380px) — 헤더·칩·표가 잘리지 않게 (레드팀 320px 항목) */
+@media (max-width: 380px) {
+  .verify-shell { padding: 12px 10px 36px; }
+  .brand-mark { width: 28px; height: 28px; font-size: 15px; }
+  .brand strong { font-size: 12px; letter-spacing: .06em; }
+  .brand small { display: none; }
+  .verify-actions { gap: 6px; }
+  .verify-actions .text-btn { font-size: 12px; }
+  .view-tools { gap: 6px; }
+  .seg-btn { padding: 7px 10px; }
+  .zoom-toggle { font-size: 12px; }
+  .zoom-toggle small { display: none; }
+  .preset small { display: none; }
+  .preset { padding: 8px 10px; min-height: 40px; }
+  .pstep { max-width: 68px; }
+  .pstep small { font-size: 10.5px; }
+}
