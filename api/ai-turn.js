@@ -1,6 +1,24 @@
+/*
+ * Weather24 — AI 증거 감사관 / 탐구 파트너
+ *
+ * 502 간헐 실패 수정 (실측 진단 결과):
+ *   원인 — max_output_tokens=360인데 추론 토큰이 107~346개를 소비했다.
+ *          추론이 길게 나온 요청은 예산을 다 써서 JSON 본문이 잘리고
+ *          (status="incomplete", incomplete_details.reason="max_output_tokens")
+ *          JSON.parse가 예외를 던져 catch로 떨어졌다. 실패율 38~50%.
+ *   조치 — ① 출력 예산을 추론 몫까지 포함해 넉넉히 잡는다(1200/900)
+ *          ② 그래도 잘리면 추론을 끄고 1회 재시도한다(약 1.7초, 추론 토큰 0)
+ *          ③ 업스트림에 타임아웃을 걸어 함수가 매달리지 않게 한다
+ *          ④ 실패 원인을 code로 구분해 화면이 정확한 문구를 고를 수 있게 한다
+ */
+
 const WINDOW_MS = 10 * 60 * 1000;
 const MAX_REQUESTS = 18;
 const buckets = new Map();
+
+const AUDIT_TOKENS = 1200;      // 실측: 추론 173~349 + 본문 ~250 → 1200이면 여유 3배 이상
+const COACH_TOKENS = 900;
+const UPSTREAM_TIMEOUT_MS = 12000;
 
 const AUDIT_ACTIONS = ["compare_region", "change_metric", "check_period", "add_counter_evidence", "state_limitation", "submit_verdict"];
 const COACH_ACTIONS = ["compare_region", "change_metric", "check_period", "add_counter_evidence", "state_limitation", "save_evidence", "open_investigation"];
@@ -66,7 +84,7 @@ function allowedAuditRequest(body) {
   const draft = text(body.draft, 900);
   const evidence = evidenceList(body.evidence, 3);
   if (!caseData || draft.length < 12 || evidence.length < 2) return null;
-  return { case:caseData, verdict:text(body.verdict, 40), draft, evidence };
+  return { case: caseData, verdict: text(body.verdict, 40), draft, evidence };
 }
 
 function allowedCoachRequest(body) {
@@ -78,9 +96,9 @@ function allowedCoachRequest(body) {
   const learnerMessage = text(body.learnerMessage, 300);
   if (!caseData || !learnerMessage || !facts.length || !availableActions.length) return null;
   return {
-    case:caseData,
-    phase:text(body.phase, 40) || "investigation",
-    prediction:text(body.prediction, 40) || "unknown",
+    case: caseData,
+    phase: text(body.phase, 40) || "investigation",
+    prediction: text(body.prediction, 40) || "unknown",
     learnerMessage,
     facts,
     evidence,
@@ -104,9 +122,22 @@ function outputText(response) {
   for (const item of response.output || []) {
     for (const content of item.content || []) {
       if (content.type === "output_text" && typeof content.text === "string") return content.text;
+      if (content.type === "refusal" && typeof content.refusal === "string") return "";
     }
   }
   return "";
+}
+
+/* 응답에서 JSON을 꺼낸다. 잘렸거나(incomplete) 파싱이 안 되면 이유를 함께 돌려준다. */
+function extractFeedback(data) {
+  const truncated = data && data.status === "incomplete";
+  const raw = outputText(data);
+  if (!raw) return { ok: false, reason: truncated ? "truncated" : "empty" };
+  try {
+    return { ok: true, value: JSON.parse(raw) };
+  } catch (e) {
+    return { ok: false, reason: truncated ? "truncated" : "unparsable" };
+  }
 }
 
 function auditInstructions() {
@@ -133,44 +164,95 @@ function coachInstructions() {
   ].join("\n");
 }
 
+async function callOpenAI({ isCoach, payload, effort, maxTokens }) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS);
+  try {
+    const body = {
+      model: process.env.OPENAI_MODEL || "gpt-5.4-mini",
+      store: false,
+      max_output_tokens: maxTokens,
+      text: { format: { type: "json_schema", name: isCoach ? "weather24_micro_coach" : "weather24_evidence_audit", strict: true, schema: isCoach ? coachSchema : auditSchema } },
+      input: [
+        { role: "system", content: [{ type: "input_text", text: isCoach ? coachInstructions() : auditInstructions() }] },
+        { role: "user", content: [{ type: "input_text", text: JSON.stringify(payload) }] }
+      ]
+    };
+    /* effort가 null이면 reasoning 필드를 아예 보내지 않는다 — 재시도 경로에서 추론 토큰을 0으로 만든다. */
+    if (effort) body.reasoning = { effort };
+
+    const response = await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${process.env.OPENAI_API_KEY}` },
+      body: JSON.stringify(body),
+      signal: controller.signal
+    });
+    const data = await response.json().catch(() => null);
+    return { ok: response.ok, httpStatus: response.status, data };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 module.exports = async (req, res) => {
-  if (req.method !== "POST") return res.status(405).json({ error: "POST 요청만 사용할 수 있습니다." });
-  if (!rateLimit(req)) return res.status(429).json({ error: "잠시 후 다시 시도해 주세요." });
-  if (!process.env.OPENAI_API_KEY) return res.status(503).json({ error: "AI 탐구 파트너가 아직 설정되지 않았습니다." });
+  if (req.method !== "POST") return res.status(405).json({ error: "POST 요청만 사용할 수 있습니다.", code: "method" });
+  if (!rateLimit(req)) return res.status(429).json({ error: "요청이 몰렸습니다. 잠시 후 다시 시도해 주세요.", code: "rate_limited" });
+  if (!process.env.OPENAI_API_KEY) return res.status(503).json({ error: "AI 감사관이 아직 설정되지 않았습니다.", code: "not_configured" });
 
   const isCoach = req.body && req.body.mode === "coach";
   const payload = isCoach ? allowedCoachRequest(req.body) : allowedAuditRequest(req.body);
-  if (!payload) return res.status(400).json({ error:isCoach ? "현재 관측 신호와 질문을 먼저 선택해 주세요." : "증거 카드 2장과 12자 이상의 판정문이 필요합니다." });
+  if (!payload) return res.status(400).json({ error: isCoach ? "현재 관측 신호와 질문을 먼저 선택해 주세요." : "증거 카드 2장과 12자 이상의 판정문이 필요합니다.", code: "bad_request" });
 
-  try {
-    const openaiResponse = await fetch("https://api.openai.com/v1/responses", {
-      method: "POST",
-      headers: { "Content-Type":"application/json", "Authorization":`Bearer ${process.env.OPENAI_API_KEY}` },
-      body: JSON.stringify({
-        model:process.env.OPENAI_MODEL || "gpt-5.4-mini",
-        store:false,
-        reasoning:{ effort:isCoach ? "none" : "low" },
-        max_output_tokens:isCoach ? 260 : 360,
-        text:{ format:{ type:"json_schema", name:isCoach ? "weather24_micro_coach" : "weather24_evidence_audit", strict:true, schema:isCoach ? coachSchema : auditSchema } },
-        input:[
-          { role:"system", content:[{ type:"input_text", text:isCoach ? coachInstructions() : auditInstructions() }] },
-          { role:"user", content:[{ type:"input_text", text:JSON.stringify(payload) }] }
-        ]
-      })
-    });
-    const data = await openaiResponse.json();
-    if (!openaiResponse.ok) {
-      console.error("OpenAI response error", data && data.error && data.error.code);
-      return res.status(502).json({ error:"AI 탐구 파트너가 응답하지 않았습니다. 잠시 후 다시 시도해 주세요." });
+  const maxTokens = isCoach ? COACH_TOKENS : AUDIT_TOKENS;
+  /* 1차: 추론 low로 품질을 확보. 2차: 잘렸으면 추론을 끄고 재시도(실측 ~1.7초, 추론 토큰 0). */
+  const attempts = [
+    { effort: isCoach ? "none" : "low", maxTokens },
+    { effort: null, maxTokens }
+  ];
+
+  let lastReason = "unknown";
+  for (let i = 0; i < attempts.length; i++) {
+    let result;
+    try {
+      result = await callOpenAI({ isCoach, payload, effort: attempts[i].effort, maxTokens: attempts[i].maxTokens });
+    } catch (error) {
+      const aborted = error && error.name === "AbortError";
+      console.error("AI upstream error", aborted ? "timeout" : (error && error.message));
+      lastReason = aborted ? "timeout" : "network";
+      continue;
     }
-    const feedback = JSON.parse(outputText(data));
-    if (isCoach && !payload.availableActions.includes(feedback.next_action)) {
-      feedback.next_action = payload.availableActions[0];
-      feedback.action_label = ACTION_LABELS[feedback.next_action];
+
+    if (!result.ok) {
+      const code = result.data && result.data.error && result.data.error.code;
+      console.error("OpenAI response error", result.httpStatus, code);
+      /* 업스트림이 4xx로 거절하면 재시도해도 같으므로 즉시 종료 */
+      if (result.httpStatus >= 400 && result.httpStatus < 500 && result.httpStatus !== 429) {
+        return res.status(502).json({ error: "AI 감사관 설정에 문제가 있습니다. 규칙 점검으로 확인해 주세요.", code: "upstream_rejected" });
+      }
+      lastReason = "upstream_" + result.httpStatus;
+      continue;
     }
-    return res.status(200).json({ ok:true, feedback });
-  } catch (error) {
-    console.error("AI turn error", error && error.message);
-    return res.status(502).json({ error:"AI 탐구 요청을 처리하지 못했습니다. 데이터 수사는 계속 사용할 수 있습니다." });
+
+    const parsed = extractFeedback(result.data);
+    if (parsed.ok) {
+      const feedback = parsed.value;
+      if (isCoach && !payload.availableActions.includes(feedback.next_action)) {
+        feedback.next_action = payload.availableActions[0];
+        feedback.action_label = ACTION_LABELS[feedback.next_action];
+      }
+      return res.status(200).json({ ok: true, feedback, retried: i > 0 });
+    }
+
+    const usage = result.data && result.data.usage;
+    console.error("AI output not usable", parsed.reason,
+      "status=", result.data && result.data.status,
+      "out=", usage && usage.output_tokens,
+      "reasoning=", usage && usage.output_tokens_details && usage.output_tokens_details.reasoning_tokens);
+    lastReason = parsed.reason;
   }
+
+  return res.status(502).json({
+    error: "AI 감사관의 응답을 받지 못했습니다. 규칙 점검 결과를 확인해 주세요.",
+    code: lastReason
+  });
 };
