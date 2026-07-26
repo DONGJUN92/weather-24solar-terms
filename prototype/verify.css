@@ -416,3 +416,10 @@ button.pstep:focus-visible { outline: 3px solid var(--sun); outline-offset: 3px;
   .pstep { max-width: 68px; }
   .pstep small { font-size: 10.5px; }
 }
+
+/* 예측 봉인 전 잠금 상태 (RC-G) */
+.live-nums.is-locked { background: rgba(255,190,88,.08); border-color: rgba(255,190,88,.3); color: #ffe1a8; }
+.live-nums.is-locked b { color: #fff; }
+.readout.is-locked { border-style: dashed; border-color: rgba(255,190,88,.34); background: rgba(255,190,88,.06); }
+.readout.is-locked .ro-v { color: #ffe1a8; font-size: 15px; }
+.locked-note { margin: 0; padding: 18px 12px; text-align: center; color: #ffe1a8; font-size: 13px; }

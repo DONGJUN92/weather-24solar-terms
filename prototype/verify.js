@@ -445,6 +445,13 @@
   /* 조작과 결과를 같은 화면에 둔다 (UX-2 / F-8) */
   function renderLiveNums() {
     var el = $('liveNums'); if (!el) return;
+    /* RC-G: 예측을 봉인하기 전에는 값을 잠근다 — 곡선의 '모양' 변화는 보이되 정답 수치는 나중에 열린다 */
+    if (state.phase === 'mission' && !missionAsked(MISSIONS[state.mi])) {
+      el.classList.add('is-locked');
+      el.innerHTML = '<span aria-hidden="true">🔒</span> 숫자는 <b>예측을 봉인한 뒤</b> 열립니다 — 먼저 기준선을 움직여 보고, 어떻게 될지 예측해 주세요.';
+      return;
+    }
+    el.classList.remove('is-locked');
     var mc = metricOf(), n = stat();
     var s = '<b>' + dayLabel() + '</b> <span class="v-past">과거 ' + fmtDays(n.pd) + '</span> <i>→</i> <span class="v-now">현재 ' + fmtDays(n.cd) + '</span>';
     if (mc.showLast) {
@@ -479,6 +486,12 @@
   /* 경계값에서 다음 행동을 안내한다 (F-5) */
   function renderReadouts() {
     var el = $('readouts'); if (!el) return;
+    if (state.phase === 'mission' && !missionAsked(MISSIONS[state.mi])) {
+      el.innerHTML = '<div class="readout is-locked"><div class="ro-k">기준 이상 일수 · 마지막 초과일</div>'
+        + '<div class="ro-v">🔒 예측 봉인 후 공개</div>'
+        + '<div class="ro-s">데이터를 보고 답을 고르는 것이 아니라, 내 예측을 검증하는 순서입니다.</div></div>';
+      return;
+    }
     var mc = metricOf(), n = stat();
     var cards = '<div class="readout"><div class="ro-k">기준 이상 ' + dayLabel() + ' <small>(연평균, 연중)</small></div>'
       + '<div class="ro-v"><span class="v-past">과거 ' + n.pdStr + '</span> <i>→</i> <span class="v-now">현재 ' + n.cdStr + '</span></div>'
@@ -608,7 +621,14 @@
       + (mc.showLast ? '<th scope="col">' + mc.last + '(과거)</th><th scope="col">' + mc.last + '(현재)</th>' : '')
       + '</tr></thead><tbody>' + rows + '</tbody></table></div>';
   }
-  function updateTable() { var el = $('tableMount'); if (el && !el.hidden) el.innerHTML = dataTable(); }
+  function updateTable() {
+    var el = $('tableMount'); if (!el || el.hidden) return;
+    if (state.phase === 'mission' && !missionAsked(MISSIONS[state.mi])) {
+      el.innerHTML = '<p class="locked-note">🔒 표는 예측을 봉인한 뒤 열립니다.</p>';
+      return;
+    }
+    el.innerHTML = dataTable();
+  }
   function setView(mode) {
     state.view = mode; save();
     var svg = $('heroSvg'), tbl = $('tableMount');
@@ -793,7 +813,7 @@
       + '<div class="intro-actions"><button class="primary-btn" id="introStart">시작하기 →</button><button class="ghost-btn" id="introGuide"><span aria-hidden="true">✦</span> 가이드로 먼저 해볼게요</button></div>'
       + '<div class="intro-preview"><svg id="introChart" viewBox="0 0 560 186" role="img" aria-label="서울 처서 무렵 과거와 현재 기온 미리보기 — 기준을 넘는 더위일이 과거보다 현재에 늘어납니다"></svg><p class="intro-counter" id="introCounter"></p></div>'
       + '<p class="intro-lead">“처서가 지나면 더위가 그친다” 같은 <b>절기의 약속</b>을, 내 지역의 <b>실제 기상 관측</b>으로 직접 검증하는 기후 학습 도구예요. 기준선을 손으로 정해 과거와 현재를 비교하며 <b>절기·날씨·기후</b>를 구분하는 힘을 기릅니다.</p>'
-      + '<div class="intro-goals"><span>① 절기 ≠ 기후</span><span>② 자료의 범위(지역·기간·지표)</span><span>③ ‘덥다’를 숫자로 정의</span><span>④ 근거만큼만 결론</span></div>'
+      + '<div class="intro-goals"><span>① 절기와 기후는 어떻게 다를까</span><span>② 이 자료는 어디까지 말할 수 있을까</span><span>③ ‘덥다’는 몇 도부터일까</span><span>④ 근거만큼만 결론 쓰기</span></div>'
       + '<p class="intro-foot">미션 하나 약 8분 · 전체(3미션+자유탐구) 40~45분 · 설치·로그인 없이 · 모바일 지원</p>'
       + '<p class="intro-teacher"><a href="./교사_학습지.html" target="_blank" rel="noopener">📄 교사용 학습지 — 수업 흐름·활동지·오개념 표·평가 루브릭 →</a></p>'
       + '</section>');
@@ -910,6 +930,8 @@
     el.querySelectorAll('[data-v]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         a.set(btn.dataset.v); save(); overlayOpen = false; el.hidden = true; el.innerHTML = '';
+        drawHero();                                   /* 봉인 완료 → 잠겼던 수치를 연다 */
+        if (!demoPlayed && state.mi === 0) { demoPlayed = true; setTimeout(function () { autoDemo(m); }, 250); }
         updateGate(m); var t = $('toVerdict'); if (t) t.focus();
       });
     });
@@ -951,7 +973,8 @@
       if (!missionAsked(m)) { var h2 = $('touchHint'); h2.textContent = '예측을 먼저 봉인해 주세요 ↓'; h2.classList.add('hint-urge'); showPredictOverlay(m); return; }
       renderVerdict();
     });
-    if (!demoPlayed && state.mi === 0 && state.pre == null) { demoPlayed = true; setTimeout(function () { autoDemo(m); }, 400); }
+    /* 자동 시연은 예측을 봉인한 뒤에 실행한다 (RC-G). 이미 봉인된 재방문 학습자에게는 바로 보여 준다. */
+    if (!demoPlayed && state.mi === 0 && state.pre != null) { demoPlayed = true; setTimeout(function () { autoDemo(m); }, 400); }
   }
 
   /* ---------- 판정 ---------- */
