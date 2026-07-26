@@ -18,7 +18,9 @@ const buckets = new Map();
 
 const AUDIT_TOKENS = 1200;      // 실측: 추론 173~349 + 본문 ~250 → 1200이면 여유 3배 이상
 const COACH_TOKENS = 900;
-const UPSTREAM_TIMEOUT_MS = 12000;
+/* 실측 지연: 중앙값 ~3초, 최대 11.7초. 1차는 넉넉히 기다리고, 재시도는 짧게 끊는다. */
+const FIRST_TIMEOUT_MS = 16000;
+const RETRY_TIMEOUT_MS = 9000;
 
 const AUDIT_ACTIONS = ["compare_region", "change_metric", "check_period", "add_counter_evidence", "state_limitation", "submit_verdict"];
 const COACH_ACTIONS = ["compare_region", "change_metric", "check_period", "add_counter_evidence", "state_limitation", "save_evidence", "open_investigation"];
@@ -164,9 +166,9 @@ function coachInstructions() {
   ].join("\n");
 }
 
-async function callOpenAI({ isCoach, payload, effort, maxTokens }) {
+async function callOpenAI({ isCoach, payload, effort, maxTokens, timeoutMs }) {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const body = {
       model: process.env.OPENAI_MODEL || "gpt-5.4-mini",
@@ -206,15 +208,15 @@ module.exports = async (req, res) => {
   const maxTokens = isCoach ? COACH_TOKENS : AUDIT_TOKENS;
   /* 1차: 추론 low로 품질을 확보. 2차: 잘렸으면 추론을 끄고 재시도(실측 ~1.7초, 추론 토큰 0). */
   const attempts = [
-    { effort: isCoach ? "none" : "low", maxTokens },
-    { effort: null, maxTokens }
+    { effort: isCoach ? "none" : "low", maxTokens, timeoutMs: FIRST_TIMEOUT_MS },
+    { effort: null, maxTokens, timeoutMs: RETRY_TIMEOUT_MS }
   ];
 
   let lastReason = "unknown";
   for (let i = 0; i < attempts.length; i++) {
     let result;
     try {
-      result = await callOpenAI({ isCoach, payload, effort: attempts[i].effort, maxTokens: attempts[i].maxTokens });
+      result = await callOpenAI({ isCoach, payload, effort: attempts[i].effort, maxTokens: attempts[i].maxTokens, timeoutMs: attempts[i].timeoutMs });
     } catch (error) {
       const aborted = error && error.name === "AbortError";
       console.error("AI upstream error", aborted ? "timeout" : (error && error.message));
