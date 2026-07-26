@@ -278,7 +278,7 @@
   var onTouched = function () {};
 
   /* ---------- 페이즈 렌더 ---------- */
-  function setStage(html) { stage.innerHTML = html; renderProgress(); document.querySelectorAll('[data-close]').forEach(function (b) { b.addEventListener('click', function () { $(b.dataset.close).close(); }); }); }
+  function setStage(html) { if (introTimer) { clearInterval(introTimer); introTimer = null; } stage.innerHTML = html; renderProgress(); document.querySelectorAll('[data-close]').forEach(function (b) { b.addEventListener('click', function () { $(b.dataset.close).close(); }); }); }
 
   function renderPre() {
     state.phase = 'pre'; save();
@@ -294,6 +294,7 @@
     setStage('<section class="card intro-card">'
       + '<p class="intro-badge">기상청 ASOS 실측 · 1969–2026 · 16지역 × 24절기</p>'
       + '<h1 class="intro-h">24절기의 약속은<br>아직 유효할까?</h1>'
+      + '<div class="intro-preview"><svg id="introChart" viewBox="0 0 560 186" role="img" aria-label="서울 처서 무렵 과거와 현재 기온 미리보기 — 기준을 넘는 더위일이 과거보다 현재에 크게 늘어납니다"></svg><p class="intro-counter" id="introCounter"></p></div>'
       + '<p class="intro-lead">“처서가 지나면 더위가 그친다” 같은 <b>절기의 약속</b>을, 내 지역의 <b>실제 기상 관측</b>으로 직접 검증하는 기후 학습 도구예요. 기준선을 손으로 끌어 과거와 현재를 비교하며 <b>절기·날씨·기후</b>를 구분하는 힘을 기릅니다.</p>'
       + '<div class="intro-goals"><span>① 절기 ≠ 기후</span><span>② 자료의 범위</span><span>③ 기준을 정의</span><span>④ 근거만큼 결론</span></div>'
       + '<div class="intro-actions"><button class="primary-btn" id="introStart">시작하기 →</button><button class="ghost-btn" id="introGuide"><span aria-hidden="true">✦</span> 가이드로 먼저 해볼게요</button></div>'
@@ -302,6 +303,38 @@
       + '</section>');
     $('introStart').addEventListener('click', function () { startMission(0); });
     $('introGuide').addEventListener('click', renderTutorial);
+    introPreview();
+  }
+
+  /* 소개 화면 라이브 미리보기 — 서울·처서 과거 vs 현재 곡선 위로 기준선이 스스로 훑으며 더위일 수를 카운트업. */
+  var introTimer = null;
+  function introPreview() {
+    var svg = $('introChart'); if (!svg) return;
+    var W = 560, H = 186, L = 8, RR = 8, TT = 12, BB = 20;
+    var past = D.cities['서울'].temp.past, pres = D.cities['서울'].temp.present, doy = D.terms[15].doy;
+    var all = past.concat(pres), lo = Math.min.apply(null, all), hi = Math.max.apply(null, all), pad = (hi - lo) * 0.08; lo -= pad; hi += pad;
+    function xf(i) { return L + i / 364 * (W - L - RR); }
+    function yf(v) { return TT + (hi - v) / (hi - lo) * (H - TT - BB); }
+    function pathOf(a) { var d = ''; for (var i = 0; i < 365; i++) d += (i ? 'L' : 'M') + xf(i).toFixed(1) + ' ' + yf(a[i]).toFixed(1); return d; }
+    var tx = xf(doy - 1), pastP = pathOf(past), presP = pathOf(pres);
+    function draw(thr) {
+      var yT = yf(thr), fill = '', seg = null;
+      function sp(s) { var d = 'M' + xf(s[0]).toFixed(1) + ' ' + yT.toFixed(1); for (var k = s[0]; k <= s[1]; k++) d += 'L' + xf(k).toFixed(1) + ' ' + yf(pres[k]).toFixed(1); return d + 'L' + xf(s[1]).toFixed(1) + ' ' + yT.toFixed(1) + 'Z'; }
+      for (var i = 0; i < 365; i++) { if (pres[i] >= thr) { if (!seg) seg = [i, i]; else seg[1] = i; } else if (seg) { fill += sp(seg); seg = null; } }
+      if (seg) fill += sp(seg);
+      var pd = past.filter(function (v) { return v >= thr; }).length, cd = pres.filter(function (v) { return v >= thr; }).length;
+      svg.innerHTML = '<path d="' + fill + '" fill="#ff8066" fill-opacity="0.15"/>'
+        + '<path d="' + pastP + '" fill="none" stroke="#a7bdc5" stroke-width="1.6" stroke-dasharray="4 3"/>'
+        + '<path d="' + presP + '" fill="none" stroke="#ff8066" stroke-width="2.3"/>'
+        + '<line x1="' + tx.toFixed(1) + '" y1="' + TT + '" x2="' + tx.toFixed(1) + '" y2="' + (H - BB) + '" stroke="#ffbe58" stroke-width="1.4" stroke-dasharray="3 3"/>'
+        + '<text x="' + (tx + 4).toFixed(1) + '" y="' + (TT + 9) + '" fill="#ffbe58" font-size="10">처서(고정)</text>'
+        + '<line x1="' + L + '" y1="' + yT.toFixed(1) + '" x2="' + (W - RR) + '" y2="' + yT.toFixed(1) + '" stroke="#caa8ff" stroke-width="1.8"/>';
+      var c = $('introCounter'); if (c) c.innerHTML = '서울 · 처서 무렵 <b class="ip-pill">덥다 ' + thr + '°</b> — 기준 이상 더위일 <b class="past">과거 ' + pd + '일</b> → <b class="now">현재 ' + cd + '일</b>';
+    }
+    var startThr = Math.round(hi - pad), end = 25, steps = 18, n = 0;
+    draw(startThr);
+    if (introTimer) clearInterval(introTimer);
+    introTimer = setInterval(function () { n++; draw(Math.round(startThr + (end - startThr) * (n / steps))); if (n >= steps) { draw(end); clearInterval(introTimer); introTimer = null; } }, 70);
   }
 
   /* ---------- 가이드(튜토리얼): 본 시나리오(처서/서울)와 겹치지 않는 소서/대구로 조작법만 익힘 ---------- */
@@ -615,6 +648,8 @@
   $('openGuide').addEventListener('click', function () { $('guideDialog').showModal(); });
   $('homeLink').addEventListener('click', function (e) { e.preventDefault(); if (confirm('처음(소개)으로 돌아갈까요? 진행 기록은 유지됩니다.')) { renderIntro(); } });
   var rb = $('resetBtn'); if (rb) rb.addEventListener('click', function () { if (confirm('기록을 지우고 처음부터 시작할까요?\n(공용 컴퓨터에서 다음 사람을 위해 초기화합니다)')) { try { localStorage.removeItem('weather24_verify_v2'); } catch (e) {} location.reload(); } });
+  /* ?demo — 라이브 데모 동선에서 폐기된 옛 '데이터 보관실' 링크를 숨겨 단일 제품 인상을 유지. */
+  if (/(^|[?&])demo(=|&|$)/.test(location.search)) { var av = document.querySelector('.verify-actions .ghost-link'); if (av) av.style.display = 'none'; }
 
   if (state.phase === 'free') renderFree();
   else if (state.phase === 'intro' || state.phase === 'tutorial') renderIntro();

@@ -135,6 +135,12 @@
 .intro-card { text-align: center; padding: 8px 4px; }
 .intro-badge { display: inline-block; font-size: 11.5px; color: var(--sea); border: 1px solid rgba(59,208,192,.3); background: rgba(59,208,192,.08); border-radius: 999px; padding: 5px 13px; margin: 6px 0 14px; }
 .intro-h { font-size: clamp(26px, 4.4vw, 40px); line-height: 1.22; letter-spacing: -.015em; color: #fff; margin: 0 0 14px; }
+.intro-preview { max-width: 540px; margin: 2px auto 16px; }
+#introChart { width: 100%; height: auto; display: block; border: 1px solid var(--line); border-radius: 12px; background: var(--panel2); padding: 6px 8px; }
+.intro-counter { font-size: 13px; color: var(--muted); margin: 9px 0 0; line-height: 1.5; }
+.intro-counter .ip-pill { color: #e6d8ff; font-weight: 700; }
+.intro-counter .past { color: #a7bdc5; }
+.intro-counter .now { color: var(--coral); font-weight: 700; }
 .intro-lead { font-size: 15px; line-height: 1.7; color: var(--muted); max-width: 560px; margin: 0 auto 18px; }
 .intro-lead b { color: var(--ink); font-weight: 700; }
 .intro-goals { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 0 auto 22px; }
