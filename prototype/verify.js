@@ -233,13 +233,22 @@
     city: '서울', ti: 11, metric: 'temp', thr: 25, lockCity: false, lockTerm: true, lagMode: true,
     brief: '낮이 가장 긴 날은 하지(6/21)입니다. 태양이 가장 높이 뜨는 날이죠. 그런데 우리가 가장 더위를 느끼는 날도 그날일까요? 직접 찍어서 확인해 보세요.',
     task: '그래프를 좌우로 끌어 <b>가장 더울 것 같은 날</b>을 찍어 보세요. 실제 기록과 비교해 볼 수 있어요.',
-    predict: {
-      q: '낮이 가장 긴 날(하지, 6월 21일)이 1년 중 가장 더운 날일까?',
-      options: [
-        { v: 'same', t: '하지가 가장 덥다', s: '해가 가장 높으니까' },
-        { v: 'later', t: '하지보다 나중이 더 덥다', s: '데워지는 데 시간이 걸린다' },
-        { v: 'unknown', t: '잘 모르겠다', s: '직접 찍어 봅니다' }
-      ]
+    /* 문항이 화면과 어긋나면 '예측 봉인'이라는 장치 자체가 무너진다.
+       겨울 모드에서 동지를 보여 주면서 하지를 묻던 것을 계절별로 나눈다. */
+    predict: function () {
+      return state.lagSeason === 'winter'
+        ? { q: '밤이 가장 긴 날(동지, 12월 22일)이 1년 중 가장 추운 날일까?',
+            options: [
+              { v: 'same', t: '동지가 가장 춥다', s: '해가 가장 낮으니까' },
+              { v: 'later', t: '동지보다 나중이 더 춥다', s: '식는 데 시간이 걸린다' },
+              { v: 'unknown', t: '잘 모르겠다', s: '직접 찍어 봅니다' }
+            ] }
+        : { q: '낮이 가장 긴 날(하지, 6월 21일)이 1년 중 가장 더운 날일까?',
+            options: [
+              { v: 'same', t: '하지가 가장 덥다', s: '해가 가장 높으니까' },
+              { v: 'later', t: '하지보다 나중이 더 덥다', s: '데워지는 데 시간이 걸린다' },
+              { v: 'unknown', t: '잘 모르겠다', s: '직접 찍어 봅니다' }
+            ] };
     },
     verdict: function (n) {
       var L = lagOf(n.city), season = state.lagSeason === 'winter' ? 'winter' : 'summer';
@@ -251,7 +260,10 @@
       var temp = isS ? L.present.hotT : L.present.coldT;
       var nat = lagNationwide(season);
       var guess = state.markDoy || actDoy;
-      var off = Math.abs(guess - actDoy);
+      /* 1월 13일과 12월 24일은 20일 차이지, 345일 차이가 아니다. 연말·연초를
+         가로지르는 겨울 미션에서 |a−b|를 그대로 쓰면 그런 값이 화면에 찍힌다. */
+      var raw = Math.abs(guess - actDoy), off = Math.min(raw, 365 - raw);
+      var chg = lagChange(season);
       return {
         c: isS
           ? '가장 더운 날은 하지가 아니라, 하지보다 <b class="hot">약 ' + lag + '일 뒤</b>입니다.'
@@ -265,24 +277,88 @@
             + '전국 16지점에서 이 지연은 <b>' + nat.min + '~' + nat.max + '일</b>로 거의 같습니다 — 지역을 가리지 않는 <b>물리 현상</b>이라는 뜻입니다.'
           : '겨울 지연은 지역마다 크게 다릅니다 — 전국 <b>' + nat.min + '~' + nat.max + '일</b>. '
             + '바다는 천천히 식기 때문에 <b>해안(평균 ' + nat.coast + '일)은 내륙(평균 ' + nat.inland + '일)보다 가장 추운 날이 훨씬 늦게 찾아옵니다</b>. 미션 3의 “지역마다 다르다”에는 이런 물리적 이유가 있습니다.',
-        l: '<b>이 지연은 기후변화가 아닙니다.</b> 과거(' + PERIOD_PAST + ')에도 지연은 ' + (isS ? L.past.hotLag : L.past.coldLag) + '일이었고, 16지점 평균으로 봐도 거의 변하지 않았습니다. '
-           + '반면 같은 기간 ' + n.city + '의 더위일은 ' + fmtDays(exceed('past', 25, n.city, 'temp')) + ' → ' + fmtDays(exceed('present', 25, n.city, 'temp')) + '로 늘었습니다. '
-           + '<b>절기가 어긋나 보이는 데에는 두 가지 이유가 있고, 그 둘을 섞어 말하면 안 됩니다</b> — 늘 있던 계절 지연, 그리고 관측된 온난화 신호입니다.'
+        /* '거의 변하지 않았다'를 실제 변화와 무관하게 찍던 것을 값으로 분기한다.
+           여름 지연은 16지점 평균 1일 안쪽으로 정말 안 변했지만, 겨울은 지점에 따라
+           수십 일씩 흔들린다 — 겨울 곡선이 평탄해 최저점이 잘 정해지지 않기 때문이다.
+           그 사실을 숨기면 이 미션이 가르치려는 '변동성과 신호의 구별'을 앱이 어긴다. */
+        l: isS
+          ? '<b>이 지연은 기후변화가 아닙니다.</b> 과거(' + PERIOD_PAST + ')에도 ' + n.city + '의 지연은 ' + L.past.hotLag + '일이었고, 16지점 평균으로도 ' + chg.pastAvg + '일 → ' + chg.nowAvg + '일로 거의 그대로입니다. '
+            + '반면 같은 기간 ' + n.city + '의 더위일은 ' + fmtDays(exceed('past', 25, n.city, 'temp')) + ' → ' + fmtDays(exceed('present', 25, n.city, 'temp')) + '로 늘었습니다. '
+            + '<b>절기가 어긋나 보이는 데에는 두 가지 이유가 있고, 그 둘을 섞어 말하면 안 됩니다</b> — 늘 있던 계절 지연, 그리고 관측된 온난화 신호입니다.'
+          : (function () {
+              var sm = lagNationwide('summer');
+              return '<b>겨울 지연은 이 자료로 정밀하게 말하기 어렵습니다.</b> ' + n.city + eunNeun(n.city) + ' 과거 ' + L.past.coldLag + '일 → 현재 ' + L.present.coldLag + '일이고, 16지점 평균도 ' + chg.pastAvg + '일 → ' + chg.nowAvg + '일로 <b>거의 그대로입니다</b>. 문제는 시기가 아니라 <b>지점 사이의 퍼짐</b>이에요 — 같은 해에도 ' + nat.min + '일부터 ' + nat.max + '일까지 벌어집니다. '
+                + '겨울 기온 곡선은 최저점 부근이 평탄해서, ' + n.city + eunNeun(n.city) + ' 가장 추운 날 전후 <b>' + chg.flatDays + '일이 ' + chg.flatSpan + '°C 안에</b> 들어옵니다. 하루 단위의 “가장 추운 날”은 <b>표본이 조금만 바뀌어도 달라집니다</b>. '
+                + '<b>그래서 겨울 지연의 변화는 온난화 신호로 읽으면 안 됩니다.</b> 여름 지연이 16지점에서 ' + sm.min + '~' + sm.max + '일로 좁게 모이는 것과 비교해 보세요 — <b>흔들리는 숫자와 남는 방향을 구별하는 것</b>이 이 미션의 핵심입니다.';
+            })()
       };
     },
-    selfCheck: {
-      q: '“처서(8/23)가 지났는데도 덥다”의 이유로 <b>가장 정확한 설명</b>은?',
-      options: [
-        { v: 'both', t: '원래 늦게까지 더운 데다(계절 지연), 최근 더위가 더 길어졌다' },
-        { v: 'onlyclimate', t: '전부 기후변화 때문이다' },
-        { v: 'onlylag', t: '전부 계절 지연 때문이고 기후변화와 무관하다' }
-      ],
-      correct: 'both',
-      explain: '두 가지가 함께 작용합니다. <b>계절 지연</b>은 예전에도 있던 물리 현상이라 “원래 처서 무렵은 덥다”가 맞고, 동시에 <b>관측된 더위일 증가</b>는 최근의 변화입니다. 한쪽만 말하면 절반만 맞는 설명이 됩니다.'
+    selfCheck: function () {
+      if (state.lagSeason === 'winter') {
+        return {
+          q: '“동지가 지났는데 1월이 더 춥다”를 가장 잘 설명하는 것은?',
+          options: [
+            { v: 'both', t: '땅과 바다가 식는 데 시간이 걸려서(계절 지연)이고, 그 늦는 정도는 지역마다 다르다' },
+            { v: 'onlyclimate', t: '기후변화로 겨울이 이상해져서다' },
+            { v: 'onlysun', t: '동지 뒤에도 해가 계속 낮아지기 때문이다' }
+          ],
+          correct: 'both',
+          explain: '동지 뒤에는 해가 다시 높아집니다. 그런데도 더 추운 이유는 <b>나가는 열이 들어오는 열보다 아직 많기 때문</b>입니다(계절 지연). 바다는 천천히 식으므로 <b>해안일수록 가장 추운 날이 늦게</b> 옵니다 — 그래서 지역마다 다릅니다.'
+        };
+      }
+      return {
+        q: '“처서(8/23)가 지났는데도 덥다”의 이유로 <b>가장 정확한 설명</b>은?',
+        options: [
+          { v: 'both', t: '원래 늦게까지 더운 데다(계절 지연), 최근 더위가 더 길어졌다' },
+          { v: 'onlyclimate', t: '전부 기후변화 때문이다' },
+          { v: 'onlylag', t: '전부 계절 지연 때문이고 기후변화와 무관하다' }
+        ],
+        correct: 'both',
+        explain: '두 가지가 함께 작용합니다. <b>계절 지연</b>은 예전에도 있던 물리 현상이라 “원래 처서 무렵은 덥다”가 맞고, 동시에 <b>관측된 더위일 증가</b>는 최근의 변화입니다. 한쪽만 말하면 절반만 맞는 설명이 됩니다.'
+      };
     }
   });
 
+  /* 미션 정의가 계절에 따라 달라질 수 있으므로 함수면 호출해서 쓴다. */
+  function askOf(m) { return typeof m.predict === 'function' ? m.predict() : m.predict; }
+  function checkOf(m) { return typeof m.selfCheck === 'function' ? m.selfCheck() : m.selfCheck; }
+  /* 선택한 절기 무렵(±7일)의 평년값. 이미 있는 365일 곡선에서 뽑으므로
+     새 데이터가 필요 없고, 절기를 바꾸면 이 값은 실제로 달라진다.
+     연간 통계(기준 이상 일수)는 절기와 무관하므로 그쪽에 절기 이름을 붙이지 않는다. */
+  function termWindow(city, metric) {
+    var t = term(); if (!t) return null;
+    var pa = series('past', city, metric), pr = series('present', city, metric);
+    if (!pa || !pr) return null;
+    var mid = t.doy - 1, half = 7, a = [], b = [];
+    for (var k = -half; k <= half; k++) {
+      var i = (mid + k + 365) % 365;
+      if (pa[i] != null) a.push(pa[i]);
+      if (pr[i] != null) b.push(pr[i]);
+    }
+    if (!a.length || !b.length) return null;
+    function mean(x) { return x.reduce(function (p, q) { return p + q; }, 0) / x.length; }
+    var pv = mean(a), cv = mean(b);
+    return { name: t.name, date: t.date, past: pv, now: cv, diff: cv - pv, days: half * 2 + 1 };
+  }
   function lagOf(city) { return cityOf(city).seasonalLag; }
+  /* 16지점 평균 지연이 과거→현재로 얼마나 변했는지, 그리고 지금 도시의 극값
+     부근이 얼마나 평탄한지. 후자는 '이 날짜를 하루 단위로 믿어도 되는가'의 답이다. */
+  function lagChange(season) {
+    var isS = season === 'summer', pa = [], na = [];
+    CITIES.forEach(function (c) {
+      var L = lagOf(c); if (!L) return;
+      pa.push(isS ? L.past.hotLag : L.past.coldLag);
+      na.push(isS ? L.present.hotLag : L.present.coldLag);
+    });
+    function avg(a) { return a.length ? Math.round(a.reduce(function (x, y) { return x + y; }, 0) / a.length) : 0; }
+    var L2 = lagOf(), cur = series('present'), ext = isS ? L2.present.hotDoy : L2.present.coldDoy;
+    var v0 = cur[(ext - 1 + 365) % 365], tol = 0.5, n = 0;
+    for (var k = -30; k <= 30; k++) {
+      var v = cur[(ext - 1 + k + 365) % 365];
+      if (v != null && Math.abs(v - v0) <= tol) n++;
+    }
+    return { pastAvg: avg(pa), nowAvg: avg(na), flatDays: n, flatSpan: tol * 2 };
+  }
   var COASTAL = { '제주': 1, '전남': 1, '부산': 1, '강릉': 1, '인천': 1, '충남': 1, '경북': 1 };
   function lagNationwide(season) {
     var isS = season === 'summer', all = [], coast = [], inland = [];
@@ -337,6 +413,8 @@
     return ' 참고로 같은 기준(' + s.thr + '°C)에서 비교하는 5년 창을 옮겨 보면 시차는 <b>' + fmt1(s.min) + '~' + fmt1(s.max) + '일</b> 사이에서 움직이고, ' + s.longYears + '년(' + s.longSpan.join('–') + ')으로 보면 <b>' + fmt1(s.long) + '일</b>입니다.';
   }
   function fmt1(v) { return (v >= 0 ? '+' : '') + (Math.round(v * 10) / 10); }
+  /* fmt1은 증감용이라 항상 부호를 붙인다. 절대값 표기에는 이쪽을 쓴다. */
+  function num1(v) { return String(Math.round(v * 10) / 10); }
   /* 한국어 조사 — '강원은(는)' 같은 표기를 피한다 */
   /* 조사 선택 — 괄호·따옴표로 끝나는 라벨(예: "기준(‘덥다’의 정의)")은
      소리 나는 마지막 한글 음절로 판단해야 한다. 안 그러면 "정의)을"이 된다. */
@@ -502,12 +580,16 @@
       + '<path d="' + path(pres) + '" fill="none" stroke="' + COLORS.present + '" stroke-width="2.7"/>'
       + '<line x1="' + tx.toFixed(1) + '" y1="' + TP + '" x2="' + tx.toFixed(1) + '" y2="' + (H - BT) + '" stroke="' + COLORS.term + '" stroke-width="1.7" stroke-dasharray="4 3"/>'
       + '<text x="' + (tx + 5).toFixed(1) + '" y="' + (TP + 11) + '" fill="' + COLORS.term + '" font-size="11.5">' + tm.name + '(' + tm.hanja + ') ' + tm.date + ' · ' + tm.meaning + '</text>'
-      + '<line x1="' + L + '" y1="' + yT.toFixed(1) + '" x2="' + (W - R) + '" y2="' + yT.toFixed(1) + '" stroke="' + COLORS.threshold + '" stroke-width="2.2"/>'
-      /* 잡을 곳을 알려주는 그립 (F-11) */
-      + '<circle cx="' + (L + 13) + '" cy="' + yT.toFixed(1) + '" r="8" fill="' + COLORS.threshold + '" stroke="var(--ink-on-accent)" stroke-width="1.5"/>'
-      + '<text x="' + (L + 13) + '" y="' + (yT + 3.6).toFixed(1) + '" fill="var(--ink-on-accent)" font-size="10" font-weight="800" text-anchor="middle">⇅</text>'
-      + '<rect x="' + (W - R - 104) + '" y="' + (yT - 11).toFixed(1) + '" width="104" height="20" rx="6" fill="' + COLORS.threshold + '"/>'
-      + '<text x="' + (W - R - 52) + '" y="' + (yT + 3.5).toFixed(1) + '" fill="var(--ink-on-accent)" font-size="12" font-weight="700" text-anchor="middle">' + mc.verb + ' ' + thr + mc.unit + '</text>'
+      /* 미션5(계절 지연)는 '날짜'를 가로로 찍는 미션이다. 임계값 기준선과 ⇅ 그립을
+         남겨 두면 학습자가 그것을 잡고 세로로 끌고, 그립이 차트 왼쪽 8% 지점에 있어
+         '가장 더운 날 = 1월 8일'이 찍힌다. 이 미션에서는 아예 그리지 않는다. */
+      + (isLagMode() ? '' :
+          '<line x1="' + L + '" y1="' + yT.toFixed(1) + '" x2="' + (W - R) + '" y2="' + yT.toFixed(1) + '" stroke="' + COLORS.threshold + '" stroke-width="2.2"/>'
+          /* 잡을 곳을 알려주는 그립 (F-11) */
+          + '<circle cx="' + (L + 13) + '" cy="' + yT.toFixed(1) + '" r="8" fill="' + COLORS.threshold + '" stroke="var(--ink-on-accent)" stroke-width="1.5"/>'
+          + '<text x="' + (L + 13) + '" y="' + (yT + 3.6).toFixed(1) + '" fill="var(--ink-on-accent)" font-size="10" font-weight="800" text-anchor="middle">⇅</text>'
+          + '<rect x="' + (W - R - 104) + '" y="' + (yT - 11).toFixed(1) + '" width="104" height="20" rx="6" fill="' + COLORS.threshold + '"/>'
+          + '<text x="' + (W - R - 52) + '" y="' + (yT + 3.5).toFixed(1) + '" fill="var(--ink-on-accent)" font-size="12" font-weight="700" text-anchor="middle">' + mc.verb + ' ' + thr + mc.unit + '</text>')
       + lagOverlay(yf, b)
       + (mc.showLast && pl > 0 && !isLagMode() ? '<circle cx="' + xf(pl - 1).toFixed(1) + '" cy="' + yT.toFixed(1) + '" r="6.5" fill="' + COLORS.past + '" stroke="var(--ink-on-accent)" stroke-width="1.5"/>'
           + '<text x="' + xf(pl - 1).toFixed(1) + '" y="' + (yT - 12).toFixed(1) + '" fill="' + COLORS.past + '" font-size="11" text-anchor="middle">' + doyStr(pl) + '</text>' : '')
@@ -526,6 +608,7 @@
     updateSpark();
     updateHeatNote();
     updateLiveSentence();
+    syncMetricLabels();
     updateTable();
     if (state.view === 'map') updateMap();
     if ($('winMount')) updateWindow();
@@ -668,7 +751,17 @@
       return;
     }
     var mc = metricOf(), n = stat();
-    var cards = '<div class="readout"><div class="ro-k">기준 이상 ' + dayLabel() + ' <small>(1년 전체 · 해마다 센 값의 평균)</small></div>'
+    /* 절기를 바꾸면 실제로 달라지는 유일한 수치. 이 카드가 없으면 24개 절기 선택이
+       어떤 숫자와도 연결되지 않아 '조작이 작동하지 않는다'로 읽힌다. */
+    var tw = termWindow();
+    var cards = '';
+    if (tw) {
+      cards += '<div class="readout is-term"><div class="ro-k">' + tw.name + '(' + tw.date + ') 무렵 ' + mc.label + ' <small>(앞뒤 ' + tw.days + '일 평균)</small></div>'
+        + '<div class="ro-v"><span class="v-past">과거 ' + num1(tw.past) + mc.unit + '</span> <i>→</i> <span class="v-now">현재 ' + num1(tw.now) + mc.unit + '</span>'
+        + ' <span class="ro-delta">' + fmt1(tw.diff) + mc.unit + '</span></div>'
+        + '<div class="ro-s">절기를 바꾸면 이 값이 달라집니다 — 아래 두 수치는 <b>1년 전체</b> 통계라 절기와 무관합니다.</div></div>';
+    }
+    cards += '<div class="readout"><div class="ro-k">기준 이상 ' + dayLabel() + ' <small>(1년 전체 · 해마다 센 값의 평균)</small></div>'
       + '<div class="ro-v"><span class="v-past">과거 ' + n.pdStr + '</span> <i>→</i> <span class="v-now">현재 ' + n.cdStr + '</span></div>'
       + '<div class="ro-s">' + n.ddStr + ' 변화</div></div>';
     if (mc.showLast) {
@@ -730,7 +823,15 @@
 
   function liveSentence() {
     var n = stat(), mc = metricOf(), tm = term();
-    if (mc.showLast && n.drift != null) return '<b>' + n.city + '</b>에서 ‘' + mc.verb + '’를 <b>' + n.thr + mc.unit + '</b>로 정하면, ' + mc.last + '이 과거보다 <b class="hot">' + n.drift + '일</b> ' + (n.drift >= 0 ? '늦어졌습니다' : '빨라졌습니다') + '. <span class="cerl-tag">— ' + tm.name + ' 무렵 · ' + n.sampleText + '</span>';
+    if (mc.showLast && n.drift != null) {
+      /* 이 문장의 수치는 1년 전체 통계다. 여기에 '소한 무렵'을 붙이면
+         "소한 무렵 더위가 그치는 날이 13일 늦어졌습니다"라는 틀린 문장이 만들어진다.
+         절기 정보는 그 절기 무렵의 기온 변화로 따로 붙인다. */
+      var tw0 = termWindow();
+      return '<b>' + n.city + '</b>에서 ‘' + mc.verb + '’를 <b>' + n.thr + mc.unit + '</b>로 정하면, ' + mc.last + '이 과거보다 <b class="hot">' + n.drift + '일</b> ' + (n.drift >= 0 ? '늦어졌습니다' : '빨라졌습니다') + '(1년 전체 기준). '
+        + (tw0 ? '<b>' + tw0.name + '</b> 무렵만 보면 ' + mc.label + '이 ' + num1(tw0.past) + mc.unit + ' → ' + num1(tw0.now) + mc.unit + '입니다. ' : '')
+        + '<span class="cerl-tag">— ' + n.sampleText + ' · 30년 기후평년 아님</span>';
+    }
     return '<b>' + n.city + '</b> · ‘' + mc.verb + ' ' + n.thr + mc.unit + '’ 기준 ' + dayLabel() + eunNeun(dayLabel()) + ' 연평균 과거 <b>' + n.pdStr + '</b> → 현재 <b class="hot">' + n.cdStr + '</b>입니다. <span class="cerl-tag">— ' + n.sampleText + ' · 30년 기후평년 아님</span>';
   }
   function updateLiveSentence() { var el = $('freeCerl'); if (el) el.innerHTML = liveSentence(); }
@@ -1173,7 +1274,7 @@
   /* ---------- 히어로 셸 ---------- */
   function heroShell(opts) {
     var mc = metricOf(), y = yearsOf();
-    var legend = '<div class="chart-legend"><span><i class="lg lg-past"></i> 과거 ' + PERIOD_PAST + '</span><span><i class="lg lg-now"></i> 현재 ' + PERIOD_NOW + '</span><span><i class="lg lg-term"></i> 절기(고정)</span><span><i class="lg lg-thr"></i> 내가 정한 ‘' + mc.verb + '’</span></div>';
+    var legend = '<div class="chart-legend"><span><i class="lg lg-past"></i> 과거 ' + PERIOD_PAST + '</span><span><i class="lg lg-now"></i> 현재 ' + PERIOD_NOW + '</span><span><i class="lg lg-term"></i> 절기(고정)</span><span><i class="lg lg-thr"></i> 내가 정한 ‘<b id="legendVerb">' + mc.verb + '</b>’</span></div>';
     var pickers = '';
     if (opts.cityChips) pickers += '<div class="picker-block"><span class="picker-label">지역 <small>(지역마다 대표 관측소 1곳)</small></span><div class="chips" id="cityChips" role="tablist" aria-label="관측 지역"></div></div>';
     if (opts.termStrip) pickers += '<div class="picker-block"><span class="picker-label">절기 <small>(태양 위치로 정한 24개 천문 날짜)</small></span><div class="terms" id="termStrip" aria-label="절기 선택"></div></div>';
@@ -1193,7 +1294,7 @@
       + '<div id="tableMount" hidden></div>'
       + '<svg id="heroSvg" viewBox="0 0 720 340" role="img" aria-label="관측 곡선"></svg>'
       + (opts.lagMode ? lagControls() : '')
-      + '<div class="range-row"' + (opts.lagMode ? ' hidden' : '') + '><span>‘' + mc.verb + '’ 기준<b class="basis">(' + mc.basis + ')</b></span>'
+      + '<div class="range-row"' + (opts.lagMode ? ' hidden' : '') + '><span id="thrLabel">‘' + mc.verb + '’ 기준<b class="basis">(' + mc.basis + ')</b></span>'
       + '<button class="step-btn" id="thrDown" type="button" aria-label="기준을 1 낮추기">−</button>'
       + '<input id="thrRange" type="range" aria-label="' + mc.verb + ' 기준(' + mc.basis + ')" />'
       + '<button class="step-btn" id="thrUp" type="button" aria-label="기준을 1 높이기">+</button>'
@@ -1254,7 +1355,10 @@
       state.lagRevealed = true; save(); drawHero(); onTouched();
     });
     function season(kind) {
+      /* 계절을 바꾸면 묻는 질문이 달라진다. 여름 예측을 봉인한 채 겨울로 넘어가면
+         판정문은 겨울 값을 쓰면서 예측은 여름 것을 참조하게 되므로 봉인도 푼다. */
       state.lagSeason = kind; state.markDoy = null; state.lagRevealed = false;
+      delete state.predicts['lag']; delete state.selfChecks['lag'];
       state.ti = kind === 'winter' ? 23 : 11;
       save(); drawHero();
       $('lagSummer').classList.toggle('is-on', kind === 'summer');
@@ -1309,10 +1413,20 @@
       btn.addEventListener('click', function () {
         state.metric = btn.dataset.metric; state.thr = METRICS[state.metric].def; state.touched = true; save();
         el.querySelectorAll('.mtab').forEach(function (x) { x.classList.toggle('is-on', x.dataset.metric === state.metric); x.setAttribute('aria-selected', x.dataset.metric === state.metric); });
-        renderPresets(); drawHero(); onTouched();
+        renderPresets(); syncMetricLabels(); drawHero(); onTouched();
       });
     });
   }
+  /* heroShell이 라벨을 한 번 굽고 끝나므로, 지표를 바꾸면 여기서 다시 칠한다.
+     aria-label까지 함께 고쳐야 스크린리더가 '덥다 기준'으로 계속 읽지 않는다. */
+  function syncMetricLabels() {
+    var mc = metricOf();
+    var lab = $('thrLabel');
+    if (lab) lab.innerHTML = '‘' + mc.verb + '’ 기준<b class="basis">(' + mc.basis + ')</b>';
+    var lv = $('legendVerb'); if (lv) lv.textContent = mc.verb;
+    var ri = $('thrRange'); if (ri) ri.setAttribute('aria-label', mc.verb + ' 기준(' + mc.basis + ')');
+  }
+
   function refreshChipsOn(el, kind, val) {
     el.querySelectorAll('button').forEach(function (b) { var on = b.dataset[kind] === val; b.classList.toggle('is-on', on); b.setAttribute(kind === 'city' ? 'aria-selected' : 'aria-pressed', on); });
   }
@@ -1615,7 +1729,7 @@
   function missionAsk(m) {
     return m.id === 'chuseo'
       ? { q: PRE_QUESTION.q, options: PRE_QUESTION.options, get: function () { return state.pre; }, set: function (v) { state.pre = v; } }
-      : { q: m.predict ? m.predict.q : '', options: m.predict ? m.predict.options : [], get: function () { return state.predicts[m.id]; }, set: function (v) { state.predicts[m.id] = v; } };
+      : (function () { var pd = askOf(m); return { q: pd ? pd.q : '', options: pd ? pd.options : [], get: function () { return state.predicts[m.id]; }, set: function (v) { state.predicts[m.id] = v; } }; })();
   }
   function missionAsked(m) { var a = missionAsk(m); return !a.options.length || a.get() != null; }
   /* 판정 조건: 기준선을 '실제로 옮겼는가' — 칩만 눌러 통과하지 못하게 (RC-E) */
@@ -1661,6 +1775,10 @@
 
   function autoDemo(m) {
     if (REDUCE) return;
+    /* 학습자가 이미 기준을 옮겼다면 그 값이 판정의 근거다. 자동 시연이 그것을
+       m.thr로 되돌리면 "내가 정한 기준"이라는 이 앱의 핵심 주장이 무너진다.
+       (실측: 30°C 설정 → 봉인 → 27°C로 애니메이션 → 판정문 "'덥다 27°C' 기준으로") */
+    if (state.moved || state.thr !== state.thr0) return;
     var hr = heatRange(), start = Math.min(hr.hi, m.thr + 4), end = m.thr, steps = 10, i = 0;
     state.thr = start; drawHero();
     demoTimer = setInterval(function () {
@@ -1686,6 +1804,7 @@
     if (useCompare) bindCityChips(m.compare); else if (!m.lockCity) bindCityChips();
     if (!m.lockTerm) bindTermStrip();
     if (m.lagMode) bindLagControls(); else bindThreshold();
+    document.body.classList.toggle('lag-mode', !!m.lagMode);
     bindViewTools(); drawHero(); updateKmaRef();
     onTouched = function () { stopTimers(); if (!missionAsked(m)) showPredictOverlay(m); updateGate(m); };
     updateGate(m);
@@ -1712,6 +1831,7 @@
       + '<p class="cerl cerl-l"><span class="t t-l">한계</span> ' + v.l + '</p>';
   }
   function renderVerdict() {
+    document.body.classList.remove('lag-mode');
     var m = MISSIONS[state.mi], n = stat(), v = m.verdict(n);
     state.phase = 'verdict';
     save();
@@ -1720,12 +1840,12 @@
       + '<p class="eyebrow">판정 — 주장 · 근거 · 추론 · 한계(CERL)</p>'
       + cerlHTML(v)
       + sparkBlock(state.city, 'temp')
-      + '<div class="selfcheck" id="selfcheck"><p class="sc-q"><b>자가진단</b> — ' + m.selfCheck.q + '</p><div class="choice-row" id="scChoices"></div><p class="sc-explain" id="scExplain" hidden></p></div>';
+      + '<div class="selfcheck" id="selfcheck"><p class="sc-q"><b>자가진단</b> — ' + checkOf(m).q + '</p><div class="choice-row" id="scChoices"></div><p class="sc-explain" id="scExplain" hidden></p></div>';
     if (m.askPost) html += '<div class="post-box" id="postBox" hidden></div>';
     html += '<div class="mission-audit" id="missionAudit" hidden></div>';
     html += '<div class="verdict-actions" id="verdictActions" hidden></div></section>';
     setStage(html);
-    var sc = m.selfCheck;
+    var sc = checkOf(m);
     $('scChoices').innerHTML = sc.options.map(function (o) { return '<button class="choice" data-v="' + o.v + '"><b>' + o.t + '</b></button>'; }).join('');
     $('scChoices').querySelectorAll('[data-v]').forEach(function (btn) { btn.addEventListener('click', function () { onSelfCheck(btn, sc, m); }); });
   }
@@ -2010,7 +2130,7 @@
 
   /* ---------- 자유탐구 ---------- */
   function renderFree() {
-    state.phase = 'free'; save();
+    state.phase = 'free'; document.body.classList.remove('lag-mode'); save();
     setStage('<section class="card explore-card"><h1 class="sr-only">자유탐구 — 내 지역·절기·지표로 검증</h1>'
       + '<div class="mhead"><span class="mno">자유탐구</span><span class="goal-chip">내 지역 · 절기 · 지표를 자유롭게</span></div>'
       + '<p class="task">지역·절기·지표를 바꾸고 기준선을 옮겨, 내 관심 주제를 직접 검증하세요. 결론을 쓸 때는 지역·기간·기준을 꼭 밝히세요.</p>'
@@ -2065,7 +2185,7 @@
     var solarMatch = t.match(/(입춘|우수|경칩|춘분|청명|곡우|입하|소만|망종|하지|소서|대서|입추|처서|백로|추분|한로|상강|입동|소설|대설|동지|소한|대한|절기)\s*(라는|이라는)?\s*(자체)?\s*(가|이|는|은|도)?\s*[^.!?]{0,14}?(더워|더웠|더 워|덥|더운|뜨거|따뜻|변했|변한|변해|바뀐|바뀌었|여름\s*절기)/);
     var overGeneral = overWord && !hasLimitation, causal = causalWord && !hasLimitation && !climateLimit;
     var oneYear = /기후변화(이다|다|라|야|지|임|입니|맞|진행|증명|확정|시작|온|왔|됐|되고|라고|인 거|인거)|기후가?\s*(바뀌|바뀐|바꼈|바꿨|변했|변한|변해|변화|달라|더워|더웠)/.test(t) && !climateLimit;
-    var misconception = !!solarMatch && !/(무렵|때|즈음|쯤|이후|이전|뒤|전후|근처|부근|시기|하순|상순|중순|경에|사이|기온|온도)/.test(solarMatch[0]);
+    var misconception = !!solarMatch && !/(무렵|때|즈음|쯤|이후|이전|뒤|전후|근처|부근|시기|하순|상순|중순|경에|사이|기온|온도|지나|지난|지났|가장|않|아니)/.test(solarMatch[0]);
     var injection = /규칙[^.!?]{0,6}무시|프롬프트[^.!?]{0,4}무시|시스템[^.!?]{0,4}(무시|프롬프트)|지시[^.!?]{0,8}무시|위(에|에서)?[^.!?]{0,6}무시|무시하고|정답[^.!?]{0,8}(불러|알려|말해|줘|주라|달라|내놔|찍어|처리)|대신[^.!?]{0,4}(써|작성|적어)|써\s*줘|적어\s*줘|너는?\s*이제|지금부터[^.!?]{0,6}(교사|선생|채점|심사|모드)|(교사|선생|채점|심사|채점쌤|심사위원)[^.!?]{0,6}(모드|쌤|해|시켜|하)|역할[^.!?]{0,8}(바꿔|변경|해줘|맡|그만)|(100\s*점|만점|점수)[^.!?]{0,8}(줘|주라|주면|달라|매겨|처리)|무조건[^.!?]{0,5}(만점|합격|통과|정답|맞)|(ready|통과|맞다고|합격|우승|만점)[^.!?]{0,8}(해|처리|시켜|줘|주라|해줘|만)|위키(백과|피디아)|네이버|구글|검색(해|결과)|기사(에|에서)|나오(던데|더라)|출처[^.!?]{0,6}삽입/i.test(t);
     var hasRegion = t.indexOf(n.city) !== -1 || /지역|동네|서울|부산|인천|대구|광주|대전|제주|강릉|수원|청주|서산|전주|목포|포항|진주|춘천|경기|충북|충남|전북|전남|경북|경남|강원/.test(t);
     var hasPeriod = /과거|현재|예전|옛날|요즘|최근|\d{4}|5년|4년|기간|1969|1970|2021|2025/.test(t);

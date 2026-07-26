@@ -42,6 +42,8 @@
 .lg-term { background: repeating-linear-gradient(90deg, var(--sun) 0 4px, transparent 4px 7px); }
 .lg-thr { background: var(--thr); }
 #heroSvg { width: 100%; height: auto; display: block; touch-action: none; cursor: ns-resize; }
+/* 미션5는 가로(날짜) 조작이다 — 커서가 세로를 가리키면 학습자가 그 방향으로 끈다. */
+.lag-mode #heroSvg { cursor: ew-resize; }
 
 .range-row { display: flex; align-items: center; gap: 8px; padding: 8px 6px 4px; flex-wrap: wrap; }
 .range-row > span { font-size: 12.5px; color: var(--muted); }
@@ -728,3 +730,9 @@ small { font-size: max(11.5px, .86em); }
 .live-nums .ln-sep { color: var(--muted); opacity: 1; }
 /* 선택된 절기 알약: b는 --on-sea인데 small만 --muted3라 청록 틴트 위에서 3.35였다 */
 .term-pill.is-on small { color: var(--on-sea); }
+/* 절기 무렵 판독 카드 — 24개 절기 선택이 유일하게 수치와 연결되는 곳 */
+.readout.is-term { border-color: rgba(var(--sun-rgb),.34); background: rgba(var(--sun-rgb),.07); }
+.readout.is-term .ro-k { color: var(--on-sun); }
+/* 주황 배지를 주황 틴트 카드 위에 얹으면 색조가 겹쳐 대비가 4.18로 내려간다(실측).
+   배경을 중립으로 두어 글자색만 강조색을 쓴다. */
+.ro-delta { margin-left: 8px; padding: 2px 8px; border-radius: 999px; background: rgba(var(--line-rgb),.10); border: 1px solid rgba(var(--line-rgb),.20); color: var(--on-coral); font-size: 13px; font-weight: 700; }

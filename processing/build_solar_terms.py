@@ -230,10 +230,28 @@ def seasonal_lag(curve_past, curve_present):
     SUMMER_SOLSTICE = md_to_doy(6, 21)      # 낮이 가장 긴 날
     WINTER_SOLSTICE = md_to_doy(12, 22)     # 밤이 가장 긴 날
 
+    TOL = 0.4   # °C — 이 안에 드는 날은 '사실상 같은 온도'로 본다
+
+    def _circ_center(doys):
+        """연말·연초를 가로지르는 날짜 집합의 중앙. 원형 평균으로 구한다."""
+        ang = np.array(doys, dtype=float) * 2 * np.pi / 365.0
+        x, y = np.cos(ang).mean(), np.sin(ang).mean()
+        d = (np.arctan2(y, x) * 365.0 / (2 * np.pi)) % 365.0
+        return int(round(d)) or 365
+
+    def _plateau(curve, want_max):
+        """극값에서 TOL 안에 드는 날들의 원형 중앙을 돌려준다.
+
+        argmax/argmin 한 점은 평탄한 구간에서 0.2°C 차이로 결정되어 표본에
+        민감하다. 같은 온도로 볼 수 있는 날들의 중앙이 훨씬 안정적이다.
+        """
+        arr = np.asarray(curve, dtype=float)
+        peak = arr.max() if want_max else arr.min()
+        hit = np.where(arr >= peak - TOL)[0] if want_max else np.where(arr <= peak + TOL)[0]
+        return _circ_center((hit + 1).tolist())
+
     def extremes(curve):
-        hot = int(max(range(365), key=lambda i: curve[i])) + 1
-        cold = int(min(range(365), key=lambda i: curve[i])) + 1
-        return hot, cold
+        return _plateau(curve, True), _plateau(curve, False)
 
     ph, pc = extremes(curve_past)
     nh, nc = extremes(curve_present)

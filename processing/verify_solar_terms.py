@@ -208,6 +208,35 @@ def main():
            f"H: 겨울 지연 전국 퍼짐 {min(lag_w)}~{max(lag_w)}일 — '지역마다 다르다' 문장이 거짓이 됨")
         print(f"  계절 지연(현재·16지점): 여름 {min(lag_s)}~{max(lag_s)}일 · 겨울 {min(lag_w)}~{max(lag_w)}일")
 
+    # ── H2. 극값일 안정성 ───────────────────────────────────────
+    # 예전에는 argmin이 평탄한 겨울 곡선에서 0.2°C 차이로 날짜를 정해
+    # 서울 최한일이 12/24로 나왔다(실제 한국 내륙 최한기는 1월 중순).
+    # 지금은 극값 ±0.4°C 안에 드는 날들의 원형 중앙을 쓴다.
+    # 아래 검사는 그 방식이 되돌아가는 것을 막는다.
+    inland = {"서울", "대구", "대전", "경기", "충북", "전북", "경북", "강원", "광주"}
+    for name, c in cities.items():
+        L = c.get("seasonalLag")
+        if not L:
+            continue
+        cur = c["temp"]["present"]
+        for key, doy_key in (("hot", "hotDoy"), ("cold", "coldDoy")):
+            doy = L["present"][doy_key]
+            v = cur[doy - 1]
+            peak = max(cur) if key == "hot" else min(cur)
+            # 고원 중앙이므로 절대 극값과 0.4°C 안쪽이어야 한다
+            ck(abs(v - peak) <= 0.45,
+               f"H2: {name} {key}Doy={doy} 값 {v} 가 극값 {round(peak,1)} 에서 0.45°C 넘게 벗어남 — argmin 회귀 의심")
+        # 내륙의 최한일은 동지 뒤 5~25일 (12/27 ~ 1/16). 12월 하순 argmin 재발 차단
+        if name in inland:
+            ck(5 <= L["present"]["coldLag"] <= 25,
+               f"H2: {name} 내륙 겨울 지연 {L['present']['coldLag']}일 (5~25 기대) — 평탄 구간 argmin 재발 의심")
+    # 해안이 내륙보다 늦게 추워진다는 물리 설명이 데이터로 성립해야 한다
+    coast_lag = [cities[n]["seasonalLag"]["present"]["coldLag"] for n in ("제주", "강릉", "전남") if n in cities]
+    inl_lag = [cities[n]["seasonalLag"]["present"]["coldLag"] for n in inland if n in cities]
+    if coast_lag and inl_lag:
+        ck(sum(coast_lag) / len(coast_lag) > sum(inl_lag) / len(inl_lag) + 5,
+           f"H2: 해안 평균 {round(sum(coast_lag)/len(coast_lag),1)}일 이 내륙 평균 {round(sum(inl_lag)/len(inl_lag),1)}일 보다 충분히 늦지 않음 — 화면의 물리 설명이 거짓이 됨")
+
     # ── I. 이동창 (기간 선택 조작) ───────────────────────────────
     # "어느 5년을 고르든 방향은 같다"를 보이려는 기능. 창이 어긋나면
     # 학습자가 엉뚱한 기간을 비교하게 된다.

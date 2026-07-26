@@ -17,7 +17,19 @@ for (; i < src.length; i++) { if (src[i] === '{') depth++; else if (src[i] === '
 const localAuditSrc = src.slice(start, end);
 
 // 2) 의존성 목킹 후 함수 구성 (localAudit은 stat()의 n.city만 사용 — 지역 감지는 도시명 정규식이 겸함)
-const factory = new Function('stat', localAuditSrc + '\nreturn localAudit;');
+// localAudit이 참조하는 조사 헬퍼도 함께 뽑는다.
+// 본문만 잘라 실행하면 iGa·eunNeun 등이 스코프에 없어 ReferenceError로 죽는다.
+// verify.js에서 추출하므로 헬퍼가 바뀌어도 이 하네스가 자동으로 따라간다.
+function pluck(name) {
+  const at = src.indexOf('function ' + name + '(');
+  if (at < 0) throw new Error('헬퍼를 찾지 못함: ' + name);
+  let j = src.indexOf('{', at), d2 = 0, e2 = -1;
+  for (; j < src.length; j++) { if (src[j] === '{') d2++; else if (src[j] === '}') { d2--; if (d2 === 0) { e2 = j + 1; break; } } }
+  return src.slice(at, e2);
+}
+const HELPERS = ['lastHangul', 'hasJong', 'eunNeun', 'eulReul', 'iGa'].map(pluck).join('\n');
+
+const factory = new Function('stat', HELPERS + '\n' + localAuditSrc + '\nreturn localAudit;');
 const localAudit = factory(() => ({ city: '서울', thr: 25, pd: 0, cd: 0 }));
 
 // 3) doAudit의 12자 미만 가드 재현 + 케이스 실행

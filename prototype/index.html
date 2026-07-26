@@ -7,12 +7,17 @@
   <meta name="theme-color" content="#eef2f5" media="(prefers-color-scheme: light)" />
   <title>Weather24 | 절기의 약속 검증소</title>
   <meta name="description" content="‘덥다’의 기준선을 직접 정해, 내 지역에서 24절기의 약속이 아직 맞는지 기상청 관측 자료로 검증하는 기후 학습 웹앱" />
-  <link rel="icon" type="image/png" href="thumbnail.png" />
+  <!-- 1024×1024·1.71MB짜리 썸네일을 파비콘으로 쓰면 첫 로드마다 그만큼 받는다.
+       탭 아이콘은 32px, iOS 홈화면은 180px, 소셜 카드는 1200×630으로 분리한다. -->
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=1" />
+  <link rel="apple-touch-icon" sizes="180x180" href="favicon-180.png?v=1" />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://weather-24solar-terms.vercel.app/" />
   <meta property="og:title" content="Weather24 | 절기의 약속 검증소" />
   <meta property="og:description" content="기준선 하나로, 내 지역에서 절기의 약속을 실측으로 검증하는 기후 레슨" />
-  <meta property="og:image" content="https://weather-24solar-terms.vercel.app/thumbnail.png" />
+  <meta property="og:image" content="https://weather-24solar-terms.vercel.app/og-image.jpg" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
   <script>
     /* 첫 페인트 전에 테마를 확정한다. 이 스크립트가 없으면 라이트 사용자에게
        다크가 한 프레임 번쩍인다(FOUC). 저장값이 없으면 시스템 설정을 따른다. */
@@ -27,7 +32,7 @@
     })();
   </script>
   <link rel="stylesheet" href="./base.css?v=6" />
-  <link rel="stylesheet" href="./verify.css?v=34" />
+  <link rel="stylesheet" href="./verify.css?v=37" />
 </head>
 <body class="verify-mode">
   <div class="sky-noise" aria-hidden="true"></div>
@@ -69,7 +74,7 @@
   </dialog>
 
   <script src="./korea_geo.js?v=1"></script>
-  <script src="./solar_terms_data.js?v=9"></script>
-  <script src="./verify.js?v=43"></script>
+  <script src="./solar_terms_data.js?v=10"></script>
+  <script src="./verify.js?v=48"></script>
 </body>
 </html>
