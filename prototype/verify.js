@@ -278,7 +278,7 @@
       if (s && typeof s === 'object') {
         var o = Object.assign(base, s);
         /* 저장된 값이 현재 스키마를 벗어나면 기본값으로 되돌린다 (RC-R) */
-        if (['intro', 'tutorial', 'mission', 'verdict', 'complete', 'free'].indexOf(o.phase) === -1) o.phase = 'intro';
+        if (['intro', 'tutorial', 'terms', 'mission', 'verdict', 'complete', 'free'].indexOf(o.phase) === -1) o.phase = 'intro';
         if (CITIES.indexOf(o.city) === -1) o.city = base.city;
         if (!METRICS[o.metric]) o.metric = base.metric;
         if (!(o.ti >= 0 && o.ti < D.terms.length)) o.ti = base.ti;
@@ -406,7 +406,7 @@
       + '<path d="' + path(past) + '" fill="none" stroke="' + COLORS.past + '" stroke-width="2" stroke-dasharray="5 4"/>'
       + '<path d="' + path(pres) + '" fill="none" stroke="' + COLORS.present + '" stroke-width="2.7"/>'
       + '<line x1="' + tx.toFixed(1) + '" y1="' + TP + '" x2="' + tx.toFixed(1) + '" y2="' + (H - BT) + '" stroke="' + COLORS.term + '" stroke-width="1.7" stroke-dasharray="4 3"/>'
-      + '<text x="' + (tx + 5).toFixed(1) + '" y="' + (TP + 11) + '" fill="' + COLORS.term + '" font-size="11.5">' + tm.name + ' ' + tm.date + ' · 고정(천문)</text>'
+      + '<text x="' + (tx + 5).toFixed(1) + '" y="' + (TP + 11) + '" fill="' + COLORS.term + '" font-size="11.5">' + tm.name + '(' + tm.hanja + ') ' + tm.date + ' · ' + tm.meaning + '</text>'
       + '<line x1="' + L + '" y1="' + yT.toFixed(1) + '" x2="' + (W - R) + '" y2="' + yT.toFixed(1) + '" stroke="' + COLORS.threshold + '" stroke-width="2.2"/>'
       /* 잡을 곳을 알려주는 그립 (F-11) */
       + '<circle cx="' + (L + 13) + '" cy="' + yT.toFixed(1) + '" r="8" fill="' + COLORS.threshold + '" stroke="#20143a" stroke-width="1.5"/>'
@@ -810,7 +810,9 @@
     setStage('<section class="card intro-card">'
       + '<p class="intro-badge">기상청 ASOS(전국 종관기상관측) 실측 · 1969–2026 · 16지역 × 24절기</p>'
       + '<h1 class="intro-h">24절기의 약속은<br>아직 유효할까?</h1>'
-      + '<div class="intro-actions"><button class="primary-btn" id="introStart">시작하기 →</button><button class="ghost-btn" id="introGuide"><span aria-hidden="true">✦</span> 가이드로 먼저 해볼게요</button></div>'
+      + '<div class="intro-actions"><button class="primary-btn" id="introStart">시작하기 →</button>'
+      + '<button class="ghost-btn" id="introTerms">🌍 24절기가 뭐예요?</button>'
+      + '<button class="ghost-btn" id="introGuide"><span aria-hidden="true">✦</span> 가이드로 먼저 해볼게요</button></div>'
       + '<div class="intro-preview"><svg id="introChart" viewBox="0 0 560 186" role="img" aria-label="서울 처서 무렵 과거와 현재 기온 미리보기 — 기준을 넘는 더위일이 과거보다 현재에 늘어납니다"></svg><p class="intro-counter" id="introCounter"></p></div>'
       + '<p class="intro-lead">“처서가 지나면 더위가 그친다” 같은 <b>절기의 약속</b>을, 내 지역의 <b>실제 기상 관측</b>으로 직접 검증하는 기후 학습 도구예요. 기준선을 손으로 정해 과거와 현재를 비교하며 <b>절기·날씨·기후</b>를 구분하는 힘을 기릅니다.</p>'
       + '<div class="intro-goals"><span>① 절기와 기후는 어떻게 다를까</span><span>② 이 자료는 어디까지 말할 수 있을까</span><span>③ ‘덥다’는 몇 도부터일까</span><span>④ 근거만큼만 결론 쓰기</span></div>'
@@ -818,6 +820,7 @@
       + '<p class="intro-teacher"><a href="./교사_학습지.html" target="_blank" rel="noopener">📄 교사용 학습지 — 수업 흐름·활동지·오개념 표·평가 루브릭 →</a></p>'
       + '</section>');
     $('introStart').addEventListener('click', function () { startMission(0); });
+    $('introTerms').addEventListener('click', renderTerms);
     $('introGuide').addEventListener('click', renderTutorial);
     introPreview();
   }
@@ -853,6 +856,135 @@
       n++; draw(Math.round(startThr + (end - startThr) * (n / steps)));
       if (n >= steps) { draw(end); clearInterval(introTimer); introTimer = null; }
     }, 80);
+  }
+
+  /* ---------- 24절기 입문: 공전 궤도 시각화 ----------
+     학생 대부분은 24절기를 모른다. 텍스트 설명 대신 '지구가 어디에 있을 때가 그 절기인가'를
+     궤도 위에서 직접 보게 한다. 계절의 원인이 거리가 아니라 자전축 기울기라는 것도 함께 교정한다. */
+  var SEASON_COLOR = { spring: '#8de0a5', summer: '#ff8066', autumn: '#ffbe58', winter: '#77bff7' };
+  var SEASON_KR = { spring: '봄', summer: '여름', autumn: '가을', winter: '겨울' };
+  var orbitSel = 15;   /* 처서 */
+
+  /* 근일점 1월 4일 기준 지구–태양 거리(AU). 계절이 거리 때문이 아님을 수치로 보이기 위한 값. */
+  function sunDistance(doy) {
+    var g = (357.528 + 0.9856003 * (doy - 1)) * Math.PI / 180;
+    return 1.00014 - 0.01671 * Math.cos(g) - 0.00014 * Math.cos(2 * g);
+  }
+  function termLongitude(i) { return ((i * 15) + 285) % 360; }   /* 소한(i=0)=황경 285° */
+
+  function renderTerms() {
+    state.phase = 'terms'; save();
+    setStage('<section class="card orbit-card"><h1 class="stage-h">24절기는 무엇일까?</h1>'
+      + '<p class="sub">조상들이 1년을 <b>24칸</b>으로 나눈 달력이에요. 아래 궤도에서 <b>절기를 눌러</b> 보세요.</p>'
+      + '<div class="orbit-wrap"><svg id="orbitSvg" viewBox="0 0 640 460" role="img" aria-label="지구 공전 궤도 위의 24절기 위치와 자전축 기울기"></svg></div>'
+      + '<div id="termCard" class="term-card" aria-live="polite"></div>'
+      + '<div class="why-box">'
+      + '<h2 class="why-h">왜 조상들은 24절기를 만들었을까?</h2>'
+      + '<p class="why-p">옛날 달력은 <b>달의 모양</b>을 기준으로 삼았어요(음력). 그런데 달 12번이 도는 데는 <b>354일</b>, 지구가 태양을 한 바퀴 도는 데는 <b>365.24일</b>이 걸립니다.</p>'
+      + '<div id="driftViz"></div>'
+      + '<p class="why-p">해마다 <b>약 11일</b>씩 어긋나서, <b>3년이면 한 달</b>이 밀립니다. 달력만 보고 씨를 뿌리면 해마다 시기가 달라져 농사를 망치죠.</p>'
+      + '<p class="why-p">그래서 <b>태양의 위치</b>로 1년을 24칸으로 나눈 <b>24절기</b>를 함께 썼습니다. 절기는 <b>날씨 예보가 아니라 농사 일정표</b>였어요 — “곡우에 못자리”, “망종에 모내기”처럼요.</p>'
+      + '<h2 class="why-h">그럼 절기와 기후는 무슨 관계일까?</h2>'
+      + '<p class="why-p">절기 날짜는 <b>태양의 위치</b>로 정해져 해마다 거의 그대로입니다. 하지만 그 무렵의 <b>실제 날씨</b>는 해마다, 지역마다 다르고 <b>수십 년에 걸쳐 변합니다.</b> '
+      + '이 앱이 하는 일이 바로 그 비교예요 — <b>움직이지 않는 절기</b>와 <b>움직이는 기후</b>를 나란히 놓고 봅니다.</p>'
+      + '</div>'
+      + '<div class="orbit-actions"><button class="primary-btn" id="orbitStart">이제 검증하러 가기 →</button>'
+      + '<button class="ghost-btn" id="orbitBack">← 소개로</button></div>'
+      + '</section>');
+    drawOrbit();
+    drawDrift();
+    $('orbitStart').addEventListener('click', function () { startMission(0); });
+    $('orbitBack').addEventListener('click', renderIntro);
+  }
+
+  function drawOrbit() {
+    var svg = $('orbitSvg'); if (!svg) return;
+    var CX = 320, CY = 214, RX = 250, RY = 158, sunR = 26;
+    function pos(i) {
+      var a = (termLongitude(i) - 90) * Math.PI / 180;
+      return { x: CX + RX * Math.cos(a), y: CY + RY * Math.sin(a) };
+    }
+    var g = '';
+    /* 계절 구간 호 — 색으로 사계절을 먼저 알아보게 */
+    for (var k = 0; k < 24; k++) {
+      var a = pos(k), b = pos((k + 1) % 24), c = D.terms[k];
+      g += '<line x1="' + a.x.toFixed(1) + '" y1="' + a.y.toFixed(1) + '" x2="' + b.x.toFixed(1) + '" y2="' + b.y.toFixed(1)
+        + '" stroke="' + (SEASON_COLOR[c.season] || '#889') + '" stroke-width="5" stroke-linecap="round" opacity="0.5"/>';
+    }
+    /* 태양 */
+    g += '<circle cx="' + CX + '" cy="' + CY + '" r="' + sunR + '" fill="url(#sunG)"/>'
+      + '<text x="' + CX + '" y="' + (CY + 5) + '" text-anchor="middle" font-size="13" font-weight="800" fill="#4a2c00">태양</text>';
+    /* 절기 점 + 이름 */
+    for (var i = 0; i < 24; i++) {
+      var pt = pos(i), t = D.terms[i], on = i === orbitSel;
+      var lr = 1.13, lx = CX + (pt.x - CX) * lr, ly = CY + (pt.y - CY) * lr;
+      g += '<g class="orb-term' + (on ? ' is-on' : '') + '" data-term="' + i + '" tabindex="0" role="button" aria-label="' + t.name + ' ' + t.date + '">'
+        + '<circle cx="' + pt.x.toFixed(1) + '" cy="' + pt.y.toFixed(1) + '" r="' + (on ? 11 : 6.5) + '" fill="' + (SEASON_COLOR[t.season] || '#889') + '"'
+        + (on ? ' stroke="#fff" stroke-width="2.5"' : ' stroke="#0b2231" stroke-width="1"') + '/>'
+        + '<text x="' + lx.toFixed(1) + '" y="' + (ly + 4).toFixed(1) + '" text-anchor="middle" font-size="' + (on ? 13 : 11)
+        + '" font-weight="' + (on ? 800 : 500) + '" fill="' + (on ? '#fff' : '#9fb3ba') + '">' + t.name + '</text></g>';
+    }
+    /* 선택 절기의 지구 — 자전축은 언제나 같은 방향을 가리킨다(계절의 진짜 원인) */
+    var e = pos(orbitSel), tilt = 23.44 * Math.PI / 180, ax = Math.sin(tilt) * 26, ay = Math.cos(tilt) * 26;
+    g += '<line x1="' + CX + '" y1="' + CY + '" x2="' + e.x.toFixed(1) + '" y2="' + e.y.toFixed(1) + '" stroke="#ffbe58" stroke-width="1.2" stroke-dasharray="4 4" opacity="0.6"/>'
+      + '<circle cx="' + e.x.toFixed(1) + '" cy="' + e.y.toFixed(1) + '" r="17" fill="#2f7fbf" stroke="#cfe9ff" stroke-width="1.5"/>'
+      + '<path d="M' + (e.x - 17).toFixed(1) + ' ' + e.y.toFixed(1) + ' a17 17 0 0 1 34 0" fill="#3a9c6a" opacity="0.55"/>'
+      + '<line x1="' + (e.x - ax).toFixed(1) + '" y1="' + (e.y + ay).toFixed(1) + '" x2="' + (e.x + ax).toFixed(1) + '" y2="' + (e.y - ay).toFixed(1)
+      + '" stroke="#fff" stroke-width="2.4"/>'
+      + '<circle cx="' + (e.x + ax).toFixed(1) + '" cy="' + (e.y - ay).toFixed(1) + '" r="3.4" fill="#fff"/>'
+      + '<text x="' + (e.x + ax + 8).toFixed(1) + '" y="' + (e.y - ay - 4).toFixed(1) + '" font-size="10.5" fill="#dfeaee">북극</text>';
+    /* 근일점·원일점 — 거리 오개념 교정의 근거 */
+    var per = pos(0.13), aph = pos(12.13);
+    g += '<text x="' + per.x.toFixed(1) + '" y="' + (per.y + 30).toFixed(1) + '" text-anchor="middle" font-size="10.5" fill="#8fd3f4">1월 초 · 가장 가까움</text>'
+      + '<text x="' + aph.x.toFixed(1) + '" y="' + (aph.y - 22).toFixed(1) + '" text-anchor="middle" font-size="10.5" fill="#ffb0a0">7월 초 · 가장 멂</text>';
+    svg.innerHTML = '<defs><radialGradient id="sunG"><stop offset="0%" stop-color="#fff3c4"/><stop offset="100%" stop-color="#ffbe58"/></radialGradient></defs>'
+      + '<ellipse cx="' + CX + '" cy="' + CY + '" rx="' + RX + '" ry="' + RY + '" fill="none" stroke="rgba(217,238,238,.18)" stroke-width="1.5"/>' + g;
+    svg.querySelectorAll('[data-term]').forEach(function (el) {
+      function pick() { orbitSel = Number(el.dataset.term); drawOrbit(); }
+      el.addEventListener('click', pick);
+      el.addEventListener('keydown', function (ev) { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); pick(); } });
+    });
+    drawTermCard();
+  }
+
+  function drawTermCard() {
+    var el = $('termCard'); if (!el) return;
+    var t = D.terms[orbitSel], C = D.cities['서울'];
+    var i = Math.max(0, Math.min(364, t.doy - 1));
+    var past = C.temp.past[i], now = C.temp.present[i];
+    var dist = sunDistance(t.doy);
+    el.innerHTML = '<div class="tc-head"><span class="tc-season" style="background:' + (SEASON_COLOR[t.season] || '#889') + '">' + (SEASON_KR[t.season] || '') + '</span>'
+      + '<b class="tc-name">' + t.name + '</b><span class="tc-hanja">' + t.hanja + '</span><span class="tc-date">양력 ' + t.date + ' 무렵</span></div>'
+      + '<p class="tc-gloss">' + t.hanja_gloss + ' → <b>' + t.meaning + '</b></p>'
+      + '<p class="tc-desc">' + t.desc + '</p>'
+      + '<div class="tc-facts">'
+      + '<div><small>서울 이 무렵 기온</small><b>' + past.toFixed(1) + '°C <i>→</i> <span class="hot">' + now.toFixed(1) + '°C</span></b>'
+      + '<em>과거 ' + PERIOD_PAST + ' → 현재 ' + PERIOD_NOW + '</em></div>'
+      + '<div><small>지구–태양 거리</small><b>' + dist.toFixed(3) + ' AU</b><em>1월 초 0.983 / 7월 초 1.017</em></div>'
+      + '</div>'
+      + '<p class="tc-myth"><b>흔한 오해</b> “여름은 지구가 태양에 가까워서 덥다”? — 실제로는 <b>가장 추운 1월 초에 가장 가깝습니다.</b> '
+      + '거리 차이는 3.4%뿐이고, 계절을 만드는 것은 <b>자전축이 23.4° 기울어져 있다는 사실</b>이에요. '
+      + '축은 늘 같은 방향을 가리키기 때문에, 지구가 궤도를 돌면 북반구가 태양 쪽으로 기울었다가(여름) 반대로 기울었다가(겨울) 합니다.</p>';
+  }
+
+  /* 음력과 태양년의 어긋남 — 24절기가 필요했던 이유를 막대로 */
+  function drawDrift() {
+    var el = $('driftViz'); if (!el) return;
+    var W = 640, H = 118, L = 92, R = 18, maxD = 400;
+    function w(d) { return (W - L - R) * d / maxD; }
+    var rows = [['태양년 (지구 한 바퀴)', 365.24, '#ffbe58'], ['음력 12달', 354.37, '#77bff7']];
+    var g = '';
+    rows.forEach(function (r, k) {
+      var y = 14 + k * 34;
+      g += '<text x="0" y="' + (y + 14) + '" font-size="11.5" fill="#9fb3ba">' + r[0] + '</text>'
+        + '<rect x="' + L + '" y="' + y + '" width="' + w(r[1]).toFixed(1) + '" height="20" rx="5" fill="' + r[2] + '" opacity="0.8"/>'
+        + '<text x="' + (L + w(r[1]) + 7).toFixed(1) + '" y="' + (y + 15) + '" font-size="11.5" font-weight="700" fill="#dfeaee">' + r[1] + '일</text>';
+    });
+    var gap = 365.24 - 354.37;
+    g += '<rect x="' + (L + w(354.37)).toFixed(1) + '" y="10" width="' + w(gap).toFixed(1) + '" height="58" fill="#ff8066" opacity="0.25"/>'
+      + '<text x="' + (L + w(354.37) + w(gap) / 2).toFixed(1) + '" y="90" text-anchor="middle" font-size="11.5" font-weight="800" fill="#ff8066">해마다 ' + gap.toFixed(1) + '일 어긋남</text>'
+      + '<text x="' + (L + w(354.37) + w(gap) / 2).toFixed(1) + '" y="107" text-anchor="middle" font-size="11" fill="#ffb0a0">3년이면 약 한 달</text>';
+    el.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="태양년 365.24일과 음력 12달 354.37일의 차이 약 11일" class="drift-svg">' + g + '</svg>';
   }
 
   /* ---------- 가이드 ---------- */
@@ -1095,6 +1227,7 @@
       + '<div class="cardmaker-row"><label>지역<select id="cardCity"></select></label><label>태어난 해<input id="cardYear" type="number" min="' + yrs[0] + '" max="' + yrs[yrs.length - 1] + '" value="2008" inputmode="numeric" /></label><button class="primary-btn" id="makeCard">카드 만들기</button></div>'
       + '<p class="card-hint" id="cardHint"></p>'
       + '<div id="cardPreview" class="card-preview" hidden></div><a id="cardSave" class="ghost-btn card-save" download="weather24_기후카드.png" hidden>이미지 저장 ↓</a></div>'
+      + '<details class="global-box" id="globalBox"><summary>🌍 지구 전체는 어떨까? — 이산화탄소와 지구 평균기온</summary><div id="globalMount"></div></details>'
       + '<button class="ghost-btn" id="startFree">내 지역·지표로 자유탐구 →</button>'
       + '<p class="intro-teacher"><a href="./교사_학습지.html" target="_blank" rel="noopener">📄 교사용 학습지 (인쇄용) →</a></p></section>');
     $('cardCity').innerHTML = CITIES.map(function (c) { return '<option value="' + c + '"' + (c === state.city ? ' selected' : '') + '>' + c + ' (' + D.cities[c].station + ')</option>'; }).join('');
@@ -1122,6 +1255,8 @@
     });
     $('printRec').addEventListener('click', function () { window.print(); });
     $('startFree').addEventListener('click', renderFree);
+    var gb = $('globalBox');
+    if (gb) gb.addEventListener('toggle', function () { if (gb.open) renderGlobal(); });
   }
 
   function cardText(g, s, x, y, color, weight, size) {
@@ -1176,6 +1311,106 @@
     if (vs[n - 1] != null) { g.fillStyle = '#ff8066'; g.beginPath(); g.arc(px(n - 1), py(vs[n - 1]), 8, 0, 7); g.fill(); }
     cardText(g, ys[0] + '', x, y + h + 26, '#8ba0a8', '400', 20);
     cardText(g, ys[n - 1] + '', x + w - 40, y + h + 26, '#8ba0a8', '400', 20);
+  }
+
+  /* ---------- 지구 전체 맥락: CO2와 전지구 기온 ----------
+     4개 미션에서 본 것은 '한 지점의 5년 신호'였다. 마지막에 그것이 지구 규모에서
+     어디쯤인지 보여 준다. 상관은 보여 주되 인과로 단정하지 않는 것이 이 앱의 원칙이다. */
+  var globalData = null, globalLoading = false;
+
+  function loadGlobal(done) {
+    if (globalData) return done(globalData);
+    if (globalLoading) return;
+    globalLoading = true;
+    /* 배포는 /web_data/ 로 리라이트되고, 로컬 개발 서버는 prototype/ 만 서빙하므로 상위 경로도 시도한다. */
+    function grab(name) {
+      return fetch('/web_data/' + name).then(function (r) { if (!r.ok) throw 0; return r.json(); })
+        .catch(function () { return fetch('../web_data/' + name).then(function (r) { return r.json(); }); });
+    }
+    Promise.all([grab('co2_keeling_monthly.json'), grab('climate_change.json')]).then(function (arr) {
+      globalData = { keeling: arr[0], combined: arr[1] };
+      globalLoading = false;
+      done(globalData);
+    }).catch(function () {
+      globalLoading = false;
+      var el = $('globalMount');
+      if (el) el.innerHTML = '<p class="global-fail">전지구 자료를 불러오지 못했어요. 인터넷 연결을 확인하고 새로고침해 주세요.</p>';
+    });
+  }
+
+  function keelingSVG(k) {
+    var W = 720, H = 200, L = 46, R = 14, T = 14, B = 26;
+    var v = k.co2_ppm, dates = k.dates, n = v.length;
+    var lo = Math.min.apply(null, v), hi = Math.max.apply(null, v), pad = (hi - lo) * 0.07;
+    lo -= pad; hi += pad;
+    function x(i) { return L + i / (n - 1) * (W - L - R); }
+    function y(c) { return T + (hi - c) / (hi - lo) * (H - T - B); }
+    var d = v.map(function (c, i) { return (i ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(c).toFixed(1); }).join('');
+    var g = '';
+    [lo + pad, (lo + hi) / 2, hi - pad].forEach(function (c) {
+      g += '<line x1="' + L + '" y1="' + y(c).toFixed(1) + '" x2="' + (W - R) + '" y2="' + y(c).toFixed(1) + '" stroke="rgba(217,238,238,.12)"/>'
+        + '<text x="6" y="' + (y(c) + 4).toFixed(1) + '" font-size="11" fill="#9fb3ba">' + Math.round(c) + '</text>';
+    });
+    [0, Math.floor(n * 0.25), Math.floor(n * 0.5), Math.floor(n * 0.75), n - 1].forEach(function (i) {
+      g += '<text x="' + x(i).toFixed(1) + '" y="' + (H - 7) + '" font-size="11" fill="#9fb3ba" text-anchor="middle">' + dates[i].slice(0, 4) + '</text>';
+    });
+    return '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="마우나로아 대기 중 이산화탄소 농도, ' + dates[0] + ' ' + v[0].toFixed(1) + 'ppm에서 ' + dates[n - 1] + ' ' + v[n - 1].toFixed(1) + 'ppm까지 증가. 해마다 오르내리는 톱니 모양이 함께 나타난다." class="gsvg">'
+      + g + '<path d="' + d + '" fill="none" stroke="#8de0a5" stroke-width="1.6"/>'
+      + '<text x="' + (W - R) + '" y="' + (y(v[n - 1]) - 8).toFixed(1) + '" font-size="12.5" font-weight="800" fill="#8de0a5" text-anchor="end">' + v[n - 1].toFixed(1) + ' ppm</text>'
+      + '<text x="' + (L + 6) + '" y="' + (y(v[0]) + 16).toFixed(1) + '" font-size="12" fill="#9fb3ba">' + v[0].toFixed(1) + ' ppm</text></svg>';
+  }
+
+  function dualSVG(c) {
+    var rows = c.series.filter(function (r) { return r.co2_ppm != null && r.temp_anomaly_C != null; });
+    var W = 720, H = 210, L = 46, R = 46, T = 14, B = 26, n = rows.length;
+    var co2 = rows.map(function (r) { return r.co2_ppm; }), tmp = rows.map(function (r) { return r.temp_anomaly_C; });
+    var cLo = Math.min.apply(null, co2), cHi = Math.max.apply(null, co2);
+    var tLo = Math.min.apply(null, tmp), tHi = Math.max.apply(null, tmp);
+    var cPad = (cHi - cLo) * 0.1, tPad = (tHi - tLo) * 0.1;
+    cLo -= cPad; cHi += cPad; tLo -= tPad; tHi += tPad;
+    function x(i) { return L + i / (n - 1) * (W - L - R); }
+    function yc(v) { return T + (cHi - v) / (cHi - cLo) * (H - T - B); }
+    function yt(v) { return T + (tHi - v) / (tHi - tLo) * (H - T - B); }
+    var dc = co2.map(function (v, i) { return (i ? 'L' : 'M') + x(i).toFixed(1) + ' ' + yc(v).toFixed(1); }).join('');
+    var dt = tmp.map(function (v, i) { return (i ? 'L' : 'M') + x(i).toFixed(1) + ' ' + yt(v).toFixed(1); }).join('');
+    var g = '';
+    [0, Math.floor(n / 2), n - 1].forEach(function (i) {
+      g += '<text x="' + x(i).toFixed(1) + '" y="' + (H - 7) + '" font-size="11" fill="#9fb3ba" text-anchor="middle">' + rows[i].year + '</text>';
+    });
+    g += '<text x="6" y="' + (T + 10) + '" font-size="11" fill="#8de0a5">ppm</text>'
+      + '<text x="' + (W - 40) + '" y="' + (T + 10) + '" font-size="11" fill="#ff8066">°C</text>';
+    return '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + rows[0].year + '년부터 ' + rows[n - 1].year + '년까지 이산화탄소 농도와 전지구 기온 이상이 함께 오르는 모습" class="gsvg">'
+      + g + '<path d="' + dc + '" fill="none" stroke="#8de0a5" stroke-width="2"/>'
+      + '<path d="' + dt + '" fill="none" stroke="#ff8066" stroke-width="2"/></svg>';
+  }
+
+  function renderGlobal() {
+    var el = $('globalMount'); if (!el) return;
+    el.innerHTML = '<p class="global-loading">전지구 자료를 불러오는 중…</p>';
+    loadGlobal(function (g) {
+      var el2 = $('globalMount'); if (!el2) return;
+      var k = g.keeling, c = g.combined;
+      var n = k.co2_ppm.length, first = k.co2_ppm[0], last = k.co2_ppm[n - 1];
+      var rows = c.series.filter(function (r) { return r.co2_ppm != null && r.temp_anomaly_C != null; });
+      var r0 = rows[0], r1 = rows[rows.length - 1];
+      var rel = c.relationship || {};
+      el2.innerHTML =
+        '<h3 class="global-h">① 대기 중 이산화탄소 — 마우나로아 관측소</h3>'
+        + '<p class="global-p">1958년부터 하와이 마우나로아에서 한 달도 빠짐없이 재 온 값이에요. <b>' + first.toFixed(1) + ' ppm → ' + last.toFixed(1) + ' ppm</b>으로 올랐습니다.</p>'
+        + keelingSVG(k)
+        + '<p class="global-note"><b>톱니 모양이 보이나요?</b> 해마다 오르내리는 이 주기는 <b>북반구 식물</b> 때문이에요. 봄·여름에 잎이 자라며 이산화탄소를 빨아들이고, 가을·겨울에 잎이 지며 내놓습니다. '
+        + '<b>지구가 1년에 한 번 숨을 쉬는 리듬</b>이고, 조상들이 24절기로 나눈 바로 그 1년의 리듬입니다.</p>'
+        + '<h3 class="global-h">② 이산화탄소와 전지구 기온</h3>'
+        + '<p class="global-p">' + r0.year + '년부터 ' + r1.year + '년까지, 이산화탄소는 <b>' + Math.round(r0.co2_ppm) + ' → ' + Math.round(r1.co2_ppm) + ' ppm</b>, '
+        + '전지구 평균기온 이상은 <b>' + r0.temp_anomaly_C.toFixed(2) + '°C → ' + r1.temp_anomaly_C.toFixed(2) + '°C</b>로 <b>함께</b> 올랐습니다.</p>'
+        + dualSVG(c)
+        + '<div class="global-legend"><span><i style="background:#8de0a5"></i> CO₂ 농도(ppm)</span><span><i style="background:#ff8066"></i> 전지구 기온 이상(°C)</span></div>'
+        + '<p class="global-warn"><b>여기서 멈춰야 하는 지점</b> 두 선이 함께 움직인다는 것(설명력 r² = ' + (rel.r2 != null ? rel.r2 : '—') + ')은 <b>상관</b>입니다. '
+        + '그래프 두 개가 닮았다는 사실만으로는 <b>어느 쪽이 원인인지 증명되지 않습니다.</b> 원인을 말하려면 기체가 열을 가두는 <b>물리 실험</b>과 <b>기후 모델</b> 같은 다른 종류의 증거가 필요해요 — '
+        + '그 증거들까지 합쳐서 IPCC는 인간 활동이 온난화의 주된 원인이라고 결론지었습니다.</p>'
+        + '<p class="global-link">당신이 앞에서 본 <b>' + state.city + '의 기록</b>은 이 큰 흐름 속의 <b>한 점</b>입니다. 한 지점의 5년으로 지구를 말할 수 없고, 지구의 평균으로 우리 동네의 처서를 말할 수도 없어요 — '
+        + '<b>자료마다 말할 수 있는 범위가 다르다</b>는 것, 그게 이 수업의 마지막 배움입니다.</p>';
+    });
   }
 
   /* ---------- 자유탐구 ---------- */
@@ -1317,6 +1552,7 @@
   if (state.phase === 'free') renderFree();
   else if (state.phase === 'complete') renderComplete();
   else if (state.phase === 'verdict') { state.phase = 'mission'; renderExplore(); }
+  else if (state.phase === 'terms') renderTerms();
   else if (state.phase === 'intro' || state.phase === 'tutorial') renderIntro();
   else { state.phase = 'mission'; renderExplore(); }
 })();

@@ -423,3 +423,66 @@ button.pstep:focus-visible { outline: 3px solid var(--sun); outline-offset: 3px;
 .readout.is-locked { border-style: dashed; border-color: rgba(255,190,88,.34); background: rgba(255,190,88,.06); }
 .readout.is-locked .ro-v { color: #ffe1a8; font-size: 15px; }
 .locked-note { margin: 0; padding: 18px 12px; text-align: center; color: #ffe1a8; font-size: 13px; }
+
+/* ── 24절기 입문: 공전 궤도 시각화 ── */
+.orbit-card { animation: cardIn .24s ease; }
+.orbit-wrap { margin: 14px 0 6px; }
+#orbitSvg { width: 100%; height: auto; display: block; }
+.orb-term { cursor: pointer; }
+.orb-term:hover circle { stroke: #fff; stroke-width: 2; }
+.orb-term:focus-visible { outline: 3px solid var(--sun); outline-offset: 2px; }
+
+.term-card { border: 1px solid var(--line); border-radius: 16px; background: var(--panel2); padding: 14px 16px; margin-top: 4px; }
+.tc-head { display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; }
+.tc-season { font-size: 11px; font-weight: 800; color: #0b2231; border-radius: 999px; padding: 2px 9px; }
+.tc-name { font-size: 21px; font-weight: 800; color: #fff; letter-spacing: -.02em; }
+.tc-hanja { font-size: 17px; color: var(--sun); font-family: Georgia, serif; }
+.tc-date { font-size: 12px; color: var(--muted); margin-left: auto; }
+.tc-gloss { margin: 8px 0 0; font-size: 13.5px; color: #cce8ff; }
+.tc-gloss b { color: #fff; }
+.tc-desc { margin: 6px 0 0; font-size: 13.5px; line-height: 1.75; color: #b6c9d0; }
+.tc-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+.tc-facts > div { border: 1px solid var(--line); border-radius: 12px; padding: 9px 11px; background: rgba(255,255,255,.03); }
+.tc-facts small { display: block; font-size: 11px; color: var(--muted); }
+.tc-facts b { display: block; margin-top: 3px; font-size: 16px; color: var(--ink); }
+.tc-facts b i { font-style: normal; color: var(--muted); margin: 0 3px; }
+.tc-facts b .hot { color: var(--coral); }
+.tc-facts em { display: block; margin-top: 3px; font-size: 10.5px; font-style: normal; color: #7f96a0; }
+.tc-myth { margin: 12px 0 0; padding: 10px 12px; border-left: 3px solid var(--sun); background: rgba(255,190,88,.09); border-radius: 0 10px 10px 0; font-size: 13px; line-height: 1.75; color: #ffe1a8; }
+.tc-myth b { color: #fff; }
+
+.why-box { margin-top: 18px; padding: 16px 18px; border: 1px solid var(--line); border-radius: 16px; background: var(--panel2); }
+.why-h { margin: 0 0 8px; font-size: 16px; color: var(--sea); letter-spacing: -.01em; }
+.why-h + .why-p { margin-top: 0; }
+.why-p { margin: 10px 0 0; font-size: 14px; line-height: 1.8; color: #b6c9d0; }
+.why-p b { color: #dfeaee; font-weight: 700; }
+.why-box .why-h:not(:first-child) { margin-top: 20px; }
+.drift-svg { width: 100%; height: auto; display: block; margin: 12px 0 2px; }
+.orbit-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 18px; }
+
+@media (max-width: 560px) {
+  .tc-facts { grid-template-columns: 1fr; }
+  .tc-date { margin-left: 0; width: 100%; }
+  .why-p, .tc-desc, .tc-myth { font-size: 13.5px; }
+  .orbit-actions .primary-btn, .orbit-actions .ghost-btn { width: 100%; min-height: 46px; }
+}
+
+/* ── 지구 전체 맥락 (CO₂ · 전지구 기온) ── */
+.global-box { margin: 18px 0; border: 1px solid rgba(141,224,165,.34); border-radius: 16px; background: rgba(141,224,165,.06); text-align: left; }
+.global-box > summary { cursor: pointer; padding: 14px 16px; font-size: 14.5px; font-weight: 700; color: #b7f1c4; list-style: none; }
+.global-box > summary::-webkit-details-marker { display: none; }
+.global-box > summary::before { content: '▸ '; }
+.global-box[open] > summary::before { content: '▾ '; }
+.global-box > summary:focus-visible { outline: 3px solid var(--sun); outline-offset: 2px; border-radius: 14px; }
+#globalMount { padding: 0 16px 16px; border-top: 1px solid rgba(141,224,165,.22); }
+.global-h { margin: 16px 0 6px; font-size: 14.5px; color: var(--sea); }
+.global-p { margin: 0 0 8px; font-size: 13.5px; line-height: 1.8; color: #b6c9d0; }
+.global-p b, .global-note b, .global-warn b, .global-link b { color: #dfeaee; }
+.gsvg { width: 100%; height: auto; display: block; margin: 4px 0 6px; }
+.global-legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin: 2px 0 8px; }
+.global-legend i { display: inline-block; width: 14px; height: 3px; border-radius: 2px; margin-right: 5px; vertical-align: middle; }
+.global-note { margin: 6px 0 0; padding: 10px 12px; border-left: 3px solid var(--sea); background: rgba(59,208,192,.08); border-radius: 0 10px 10px 0; font-size: 13px; line-height: 1.8; color: #b7f1ef; }
+.global-warn { margin: 10px 0 0; padding: 10px 12px; border-left: 3px solid var(--sun); background: rgba(255,190,88,.09); border-radius: 0 10px 10px 0; font-size: 13px; line-height: 1.8; color: #ffe1a8; }
+.global-link { margin: 10px 0 0; padding: 10px 12px; border-left: 3px solid var(--coral); background: rgba(255,128,102,.08); border-radius: 0 10px 10px 0; font-size: 13px; line-height: 1.8; color: #ffd5cf; }
+.global-loading, .global-fail { padding: 20px 4px; font-size: 13px; color: var(--muted); }
+@media (max-width: 560px) { .global-p, .global-note, .global-warn, .global-link { font-size: 13px; } }
