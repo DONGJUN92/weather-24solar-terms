@@ -256,7 +256,7 @@
         c: isS
           ? '가장 더운 날은 하지가 아니라, 하지보다 <b class="hot">약 ' + lag + '일 뒤</b>입니다.'
           : '가장 추운 날은 동지가 아니라, 동지보다 <b class="hot">약 ' + lag + '일 뒤</b>입니다.',
-        e: n.city + '(' + cityOf(n.city).station + ' 관측소)에서 ' + solName + '은 <b>' + doyStr(solDoy) + '</b>인데, '
+        e: n.city + '(' + cityOf(n.city).station + ' 관측소)에서 ' + solName + eunNeun(solName) + ' <b>' + doyStr(solDoy) + '</b>인데, '
            + '실제로 ' + (isS ? '가장 더운' : '가장 추운') + ' 날은 <b class="hot">' + doyStr(actDoy) + '</b>(' + temp + '°C)입니다.'
            + (off <= 5 ? ' 당신이 찍은 <b>' + doyStr(guess) + '</b>과 ' + off + '일 차이 — 잘 짚었습니다.'
                        : ' 당신은 <b>' + doyStr(guess) + '</b>을 찍었고, 실제와 ' + off + '일 차이가 납니다.'),
@@ -338,8 +338,20 @@
   }
   function fmt1(v) { return (v >= 0 ? '+' : '') + (Math.round(v * 10) / 10); }
   /* 한국어 조사 — '강원은(는)' 같은 표기를 피한다 */
-  function hasJong(w) { var ch = String(w).charCodeAt(String(w).length - 1); return ch >= 0xac00 && ch <= 0xd7a3 && (ch - 0xac00) % 28 !== 0; }
+  /* 조사 선택 — 괄호·따옴표로 끝나는 라벨(예: "기준(‘덥다’의 정의)")은
+     소리 나는 마지막 한글 음절로 판단해야 한다. 안 그러면 "정의)을"이 된다. */
+  function lastHangul(w) {
+    var t = String(w);
+    for (var i = t.length - 1; i >= 0; i--) {
+      var ch = t.charCodeAt(i);
+      if (ch >= 0xac00 && ch <= 0xd7a3) return ch;
+    }
+    return -1;
+  }
+  function hasJong(w) { var ch = lastHangul(w); return ch >= 0 && (ch - 0xac00) % 28 !== 0; }
   function eunNeun(w) { return hasJong(w) ? '은' : '는'; }
+  function eulReul(w) { return hasJong(w) ? '을' : '를'; }
+  function iGa(w) { return hasJong(w) ? '이' : '가'; }
 
   function load() {
     var base = { phase: 'intro', mi: 0, city: '서울', ti: 15, thr: 25, thr0: 25, metric: 'temp', pre: null, post: null,
@@ -2076,11 +2088,11 @@
     if (hasCriterion) have.push('기준');
     fb.overclaim_warning = warns.join(' ');
     if (fb.evidence_status === 'ready') {
-      fb.feedback = '좋아요. ' + (have.length ? have.join('·') + '이 문장에 들어 있어, ' : '') + '이 자료가 말할 수 있는 범위 안에서 판정했습니다.'
+      fb.feedback = '좋아요. ' + (have.length ? have.join('·') + iGa(have.join('·')) + ' 문장에 들어 있어, ' : '') + '이 자료가 말할 수 있는 범위 안에서 판정했습니다.'
         + (hasLimitation || climateLimit ? ' 한계(전국·원인·장기 기후로 넓히지 않음)까지 밝힌 점이 특히 좋습니다.' : ' 한계를 한 절 더 붙이면 더 단단해집니다.');
     } else {
-      fb.feedback = (have.length ? have.join('·') + '은 들어 있어요. ' : '') + '아래를 보완하면 자료가 말하는 범위에 정확히 맞습니다.'
-        + (missing.length && cautious ? ' (신중하게 쓴 문장이라 감점하진 않았지만, ' + missing.join('·') + '을 넣으면 더 분명해집니다.)' : '');
+      fb.feedback = (have.length ? have.join('·') + eunNeun(have.join('·')) + ' 들어 있어요. ' : '') + '아래를 보완하면 자료가 말하는 범위에 정확히 맞습니다.'
+        + (missing.length && cautious ? ' (신중하게 쓴 문장이라 감점하진 않았지만, ' + missing.join('·') + eulReul(missing.join('·')) + ' 넣으면 더 분명해집니다.)' : '');
     }
     fb.socratic_question = injection ? '이 자료(선택한 지역·기간·기준) 안에서, 당신은 무엇을 말할 수 있나요?'
       : oneYear ? '5년 관측과 30년 기후평년은 무엇이 다를까요?'
