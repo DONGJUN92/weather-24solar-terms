@@ -5,31 +5,30 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#081c2d" />
   <title>Weather24 | 절기의 약속 검증소</title>
-  <meta name="description" content="기준선 하나를 드래그해, 내 지역에서 24절기의 약속이 아직 유효한지 기상청 실측으로 검증하는 기후 학습 웹앱" />
+  <meta name="description" content="기준선 하나를 정해, 내 지역에서 24절기의 약속이 아직 유효한지 기상청 실측으로 검증하는 기후 학습 웹앱" />
   <link rel="icon" type="image/png" href="thumbnail.png" />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://weather-24solar-terms.vercel.app/" />
   <meta property="og:title" content="Weather24 | 절기의 약속 검증소" />
-  <meta property="og:description" content="드래그 한 번으로, 내 지역에서 절기의 약속을 실측으로 검증하는 기후 레슨" />
+  <meta property="og:description" content="기준선 하나로, 내 지역에서 절기의 약속을 실측으로 검증하는 기후 레슨" />
   <meta property="og:image" content="https://weather-24solar-terms.vercel.app/thumbnail.png" />
-  <link rel="stylesheet" href="./style.css?v=14" />
-  <link rel="stylesheet" href="./verify.css?v=14" />
+  <link rel="stylesheet" href="./style.css?v=15" />
+  <link rel="stylesheet" href="./verify.css?v=18" />
 </head>
 <body class="verify-mode">
   <div class="sky-noise" aria-hidden="true"></div>
 
   <main class="verify-shell">
     <header class="verify-top">
-      <a class="brand" href="#" id="homeLink" aria-label="Weather24 절기의 약속 검증소"><span class="brand-mark" aria-hidden="true">W</span><span><strong>WEATHER24</strong><small>절기의 약속 검증소</small></span></a>
+      <a class="brand" href="#" id="homeLink" aria-label="Weather24 절기의 약속 검증소 — 소개로"><span class="brand-mark" aria-hidden="true">W</span><span><strong>WEATHER24</strong><small>절기의 약속 검증소</small></span></a>
       <div class="verify-actions">
-        <button class="text-btn" id="resetBtn" title="공용 컴퓨터에서 다음 사람을 위해 기록을 지우고 처음부터 시작">↺ 처음부터</button>
         <button class="text-btn" id="openGuide">사용법</button>
-        <a class="text-btn ghost-link" href="./archive.html">데이터 보관실 →</a>
+        <button class="text-btn" id="resetBtn" title="공용 컴퓨터에서 다음 사람을 위해 기록을 지우고 처음부터 시작">↺ 처음부터</button>
       </div>
     </header>
 
     <nav class="verify-progress" id="progress" aria-label="레슨 진행 단계"></nav>
-    <section class="verify-stage" id="stage" aria-live="polite"></section>
+    <section class="verify-stage" id="stage"></section>
   </main>
 
   <dialog class="modal" id="guideDialog">
@@ -37,13 +36,20 @@
     <h2>세 번의 조작,<br />하나의 발견.</h2>
     <ol class="guide-steps">
       <li><span>1</span><div><strong>예측을 먼저 봉인합니다.</strong><p>데이터를 보고 정답을 고르는 것이 아니라, 내 생각을 검증합니다.</p></div></li>
-      <li><span>2</span><div><strong>‘덥다’ 기준선을 끕니다.</strong><p>몇 도부터 덥다고 할지는 내가 정합니다. 끄는 즉시 더위일수와 ‘더위가 그치는 날’이 바뀝니다.</p></div></li>
-      <li><span>3</span><div><strong>절기의 약속과 실측을 비교합니다.</strong><p>노란 절기선은 움직이지 않습니다(천문 날짜). 움직이는 것은 기후(곡선)입니다.</p></div></li>
+      <li><span>2</span><div><strong>‘덥다’ 기준을 내가 정합니다.</strong><p>기준선의 ⇅ 손잡이를 끌거나, 슬라이더·＋−·프리셋으로 정확한 값을 고를 수 있어요. 정하는 즉시 차트 위의 숫자가 바뀝니다.</p></div></li>
+      <li><span>3</span><div><strong>절기의 약속과 실측을 비교합니다.</strong><p>노란 절기선은 태양 위치로 정한 천문 날짜라 해마다 거의 움직이지 않습니다. 움직이는 것은 기후(곡선)입니다.</p></div></li>
     </ol>
+    <h3 class="guide-h3">알아두면 좋은 말</h3>
+    <ul class="guide-terms">
+      <li><b>ASOS</b> 기상청이 전국에 둔 자동 종관기상관측 장비. 이 앱의 모든 숫자가 여기서 나옵니다.</li>
+      <li><b>관측 신호</b> 몇 해의 관측에서 보이는 변화. 방향은 보여 주지만 장기 결론은 아닙니다.</li>
+      <li><b>기후평년</b> 오랜 기간(국제 표준은 보통 30년)의 평균. 이 앱의 5년 비교는 기후평년이 아닙니다.</li>
+      <li><b>CERL</b> 주장(Claim)·근거(Evidence)·추론(Reasoning)·한계(Limitation). 자료로 말할 때 갖춰야 할 네 가지입니다.</li>
+    </ul>
     <button class="primary-btn" data-close="guideDialog">확인</button>
   </dialog>
 
-  <script src="./solar_terms_data.js?v=5"></script>
-  <script src="./verify.js?v=15"></script>
+  <script src="./solar_terms_data.js?v=6"></script>
+  <script src="./verify.js?v=23"></script>
 </body>
 </html>

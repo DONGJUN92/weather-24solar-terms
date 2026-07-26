@@ -7,7 +7,7 @@
   <title>Weather24 · 데이터 보관실 | 20개 사건 대시보드</title>
   <meta name="description" content="24절기 기후 수사국 — 16지점·장기 관측으로 20개 사건을 직접 조사하는 데이터 보관실" />
   <link rel="icon" type="image/png" href="thumbnail.png" />
-  <link rel="stylesheet" href="./style.css?v=13" />
+  <link rel="stylesheet" href="./style.css?v=15" />
 </head>
 <body>
   <div class="sky-noise" aria-hidden="true"></div>
@@ -15,11 +15,15 @@
   <main class="app-shell" id="productShell">
     <header class="topbar">
       <a class="brand" href="./" aria-label="Weather24 검증소로 돌아가기"><span class="brand-mark" aria-hidden="true">W</span><span><strong>WEATHER24</strong><small>데이터 보관실 · 24절기 기후 수사국</small></span></a>
-      <div class="topbar-actions"><a class="text-btn" href="./" style="text-decoration:none">← 검증소</a><button class="text-btn" id="openGuide">수사 규칙</button></div>
+      <div class="topbar-actions"><a class="text-btn" href="./" style="text-decoration:none">← 검증소(본 제품)로</a><button class="text-btn" id="openGuide">수사 규칙</button></div>
     </header>
 
+  <div class="archive-banner" role="note">
+    <b>개발 아카이브입니다.</b> 이 화면은 20개 사건 구상을 넓게 담아 둔 초기 작업물이고, 본 제품은 <a href="./">절기의 약속 검증소</a>입니다.
+    이 화면의 일수는 <b>평년 곡선에서 센 값</b>이라, 검증소의 <b>연도별 실측 집계</b>와 값이 다릅니다 — 판정은 검증소에서 하세요.
+  </div>
     <section class="mission-strip" aria-label="사건 구역">
-      <div class="mission-strip-copy"><p class="eyebrow">SEASON CASE FILES</p><h1>24절기의 <em>약속</em>은<br />아직 유효할까?</h1><p>예측하고, 실제 관측값을 조작하고, 그것으로 판정하세요.</p></div>
+      <div class="mission-strip-copy"><p class="eyebrow">SEASON CASE FILES</p><h1>24절기의 <em>약속</em>은<br />아직 유효할까?</h1><p>예측하고, 지역·기간·지표를 직접 바꿔 확인하고, 그것으로 판정하세요.</p></div>
       <div class="chapter-track" id="chapterTrack" role="tablist" aria-label="사건 구역"></div>
     </section>
 
@@ -39,8 +43,8 @@
   <dialog class="modal" id="guideDialog"><div class="modal-head"><p class="eyebrow">INVESTIGATION RULES</p><button class="close-btn" data-close="guideDialog" aria-label="닫기">×</button></div><h2>좋은 수사는<br />좋은 비교에서 시작합니다.</h2><ol class="guide-steps"><li><span>1</span><div><strong>예측을 먼저 남깁니다.</strong><p>데이터를 보고 정답을 고르는 것이 아니라, 생각을 검증합니다.</p></div></li><li><span>2</span><div><strong>지역·기간·지표를 직접 바꿉니다.</strong><p>같은 질문도 무엇을 비교하느냐에 따라 다른 답을 냅니다.</p></div></li><li><span>3</span><div><strong>근거와 한계를 함께 기록합니다.</strong><p>반증 카드를 포함한 결론만이 신뢰할 수 있습니다.</p></div></li></ol><button class="primary-btn" data-close="guideDialog">수사 시작하기</button></dialog>
   <dialog class="modal" id="completeDialog"><div class="modal-head"><p class="eyebrow">CASE ARCHIVED</p><button class="close-btn" data-close="completeDialog" aria-label="닫기">×</button></div><div class="seal" aria-hidden="true">✓</div><h2>사건 기록을<br />보관했습니다.</h2><p id="completeText"></p><button class="primary-btn" data-close="completeDialog">다음 사건 열기</button></dialog>
 
-  <script src="./korea_geo.js?v=5"></script>
-  <script src="./solar_terms_data.js?v=5"></script>
-  <script src="./app.js?v=10"></script>
+  <script src="./korea_geo.js?v=6"></script>
+  <script src="./solar_terms_data.js?v=6"></script>
+  <script src="./app.js?v=11"></script>
 </body>
 </html>
