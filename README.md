@@ -139,8 +139,28 @@ python verify_solar_terms.py     # 4,810개 assert
 | **외부 CSS/폰트 CDN** | **0개.** 네트워크에서 불러오는 폰트·아이콘·스크립트가 없습니다 |
 | 폰트 | `Pretendard`(있으면 사용, [OFL 1.1](https://github.com/orioncactus/pretendard)) → `Apple SD Gothic Neo` → `Malgun Gothic` → `system-ui` 순 **시스템 폰트 폴백**. 폰트 파일을 배포에 포함하지 않습니다 |
 | 아이콘 | 유니코드 문자(`✦ ⇅ ◈ 🔒 🌍`)만 사용. 아이콘 폰트·이미지 없음 |
-| 이미지 | `prototype/thumbnail.png` 1개 (SNS 공유용 OG 이미지, 자체 제작) |
+| 이미지 | 4개. 전부 **생성형 AI로 제작한 자체 자산** — 제3자 저작물 없음<br>`thumbnail.png`(1024²·원본) · `og-image.jpg`(1200×630·SNS 카드) · `favicon-32.png` · `favicon-180.png`<br>*오리엔테이션 p.27 “AI로 생성한 이미지 사용 가능” 근거* |
+| 지도 경계 | `prototype/korea_geo.js` — 시·도 행정경계 좌표 1,499점. 공개 행정구역 경계를 좌표만 추출해 경량화한 자체 가공본. 외부 지도 API·타일 미사용 |
 | 소스 코드 | 본 팀 저작. 생성형 AI(Claude) 보조로 작성 — §4 참조 |
+
+### 사용한 AI 모델
+
+| 구분 | 모델 | 용도 | 비고 |
+|---|---|---|---|
+| **제작 과정** | Claude (Claude Code) | 설계·구현·자가 레드팀 감사·검증 스크립트 작성 | 대회 지급 계정 사용(7/23~8/22) |
+| **결과물 내부** | OpenAI Responses API (`gpt-5.4-mini`) | 학습자 판정문의 과장·범위·인과 감사 | 환경변수 `OPENAI_MODEL`로 교체 가능 |
+| **대체 경로** | 없음(규칙 기반) | AI 실패 시 동일 항목을 정규식 규칙으로 점검 | 모델 없이도 학습 100% 완결 |
+
+> **학습·추론용 자체 학습 모델 없음.** 기계학습 모델을 훈련하지 않았으며,
+> 화면의 모든 수치는 기상청 관측 자료의 **집계 결과**입니다(회귀·예측 모델 미사용).
+
+### 제출용 데이터셋
+
+| 파일 | 크기 | 내용 |
+|---|---|---|
+| `prototype/solar_terms_data.js` | 395KB | 배포본이 쓰는 가공 데이터 — 16지점 × 3지표 × 임계값 그리드 + 계절 지연 + 26창 |
+| `web_data/solar_terms_climatology.json` | 395KB | 위와 동일 내용의 JSON |
+| `data_collectors/output/allyears/*.csv` | 약 65MB | 원시 ASOS 일자료 16지점 × 1969–2026 (재빌드용, zip 제출에서는 제외 가능 — §2 재빌드 절차 참조) |
 
 ---
 

@@ -21,7 +21,11 @@ if [ -f .env.local ]; then
 fi
 
 echo "── 2. 제출물 5종 ─────────────────────────────────────────"
-ls 발표자료*.pdf >/dev/null 2>&1 && ok "① 발표자료 PDF" || no "① 발표자료(PPT/PDF)가 없습니다"
+if ls 발표자료*.pdf >/dev/null 2>&1; then
+  pg=$(python -c "import fitz,glob;print(fitz.open(glob.glob('발표자료*.pdf')[0]).page_count)" 2>/dev/null)
+  emb=$(python -c "import fitz,glob;d=fitz.open(glob.glob('발표자료*.pdf')[0]);print(sum(1 for p in range(d.page_count) for f in d[p].get_fonts() if 'Malgun' in f[3]))" 2>/dev/null)
+  if [ "${emb:-0}" -gt 0 ]; then ok "① 발표자료 PDF ${pg}장 · 한글 폰트 임베드"; else no "① 발표자료에 한글 폰트가 임베드되지 않음 — 주최측 PC에서 깨질 수 있음"; fi
+else no "① 발표자료(PPT/PDF)가 없습니다"; fi
 curl -fsS -o /dev/null "$APP/" 2>/dev/null && ok "② 구동 URL 200" || no "② 배포 URL 응답 없음"
 [ -d .git ] && ok "③ 소스코드(git)" || no "③ git 저장소 아님"
 n=$(ls prompt_sessions/*.md 2>/dev/null | grep -v README | wc -l)
@@ -33,7 +37,7 @@ if [ -f prompt_sessions/README.md ]; then
   miss=0
   while read -r f; do
     [ -f "prompt_sessions/$f" ] || { no "prompt_sessions/$f 가 목록에는 있는데 실물이 없습니다"; miss=1; }
-  done < <(grep -oE '[0-9]{2}_[가-힣A-Za-z0-9]+\.md' prompt_sessions/README.md | sort -u)
+  done < <(grep -oE '`[0-9]{2}_[가-힣A-Za-z0-9_]+\.md`' prompt_sessions/README.md | tr -d '`' | sort -u)
   [ "$miss" -eq 0 ] && ok "목록과 실물 일치"
 fi
 

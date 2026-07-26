@@ -1,0 +1,148 @@
+# -*- coding: utf-8 -*-
+"""제출물 ④ 주요 프롬프트 세션 내보내기.
+
+대회 가이드 요건: "AI 활용 근거가 되는 주요 대화 세션을 .md 또는 .txt 포맷으로
+내보내기 후, zip 파일로 압축하여" 제출.
+
+Claude Code 로컬 기록(~/.claude/projects/<프로젝트>/*.jsonl)에서
+사람 지시와 AI 답변 본문만 뽑아 .md로 만든다. 도구 호출 로그와 내부 추론은
+가독성을 해치므로 제외하고, 사람이 무엇을 시켰고 AI가 무엇을 답했는지만 남긴다.
+
+비밀값은 내보내는 시점에 치환한다 — API 키 노출은 실격이다.
+
+실행: python scripts/export_sessions.py
+산출: prompt_sessions/*.md
+"""
+import io, json, os, re, sys, glob
+from datetime import datetime
+
+sys.stdout.reconfigure(encoding="utf-8")
+SRC = os.path.expanduser(r"~\.claude\projects\C----------------------AI----")
+OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "prompt_sessions")
+
+# 세션 파일 → 제출용 파일명·주제. 실제 대화 흐름에 맞춰 붙인다.
+TOPICS = [
+    ("a112eb29-9c4d-447e-98d7-849ff20ac4cc", "01_기획과_초기구현",
+     "주제 확정 · 학습 동선 설계 · 데이터 파이프라인 · 초기 화면 구현"),
+    ("bef6a571-dafd-4a44-94ee-79ba0ae8c78c", "02_레드팀_감사와_전량수정",
+     "자가 레드팀 감사 · 과학적 무결성 결함 적발 · 전량 수정"),
+    ("c0381449-b5b2-448d-a30d-da4ad5fea901", "03_실측전환과_AI안정화",
+     "평활 곡선 → 연도별 실측 집계 전환 · AI 감사관 502 원인 규명"),
+    ("d7325e25-8bee-4a4b-aca4-55bbd0958dd1", "04_기능확장과_최종감사",
+     "미션5 계절 지연 · 16지점 지도 · 비교 기간 26창 · 라이트 테마 · 최종 제출 감사"),
+    ("1fb55ca9-27d8-4e02-b9ec-f40d59ecf0ea", "05_보조작업",
+     "짧은 보조 작업 기록"),
+]
+
+SECRET = re.compile(
+    r"(sk-[A-Za-z0-9_\-]{20,}|sk-proj-[A-Za-z0-9_\-]{20,}"
+    r"|(?:OPENAI_API_KEY|KMA_SERVICE_KEY|SERVICE_KEY|AUTH_KEY)\s*=\s*[\"']?[A-Za-z0-9%_\-\.]{16,}"
+    r"|serviceKey=[A-Za-z0-9%_\-\.]{16,}|authKey=[A-Za-z0-9%_\-\.]{16,})")
+
+
+def txt(content):
+    """message.content에서 사람이 읽을 본문만 뽑는다."""
+    if isinstance(content, str):
+        return content
+    if not isinstance(content, list):
+        return ""
+    out = []
+    for b in content:
+        if not isinstance(b, dict):
+            continue
+        t = b.get("type")
+        if t == "text":
+            out.append(b.get("text", ""))
+        # tool_use / tool_result / thinking 은 제외 — 대화가 아니라 실행 로그다
+    return "\n".join(x for x in out if x)
+
+
+def clean(s):
+    s = SECRET.sub("<REDACTED>", s or "")
+    s = re.sub(r"<system-reminder>.*?</system-reminder>", "", s, flags=re.S)
+    s = re.sub(r"<task-notification>.*?</task-notification>", "[백그라운드 작업 결과 — 생략]", s, flags=re.S)
+    s = re.sub(r"\n{4,}", "\n\n\n", s)
+    return s.strip()
+
+
+def when(o):
+    ts = o.get("timestamp")
+    if not ts:
+        return ""
+    try:
+        return datetime.fromisoformat(ts.replace("Z", "+00:00")).strftime("%Y-%m-%d %H:%M")
+    except Exception:
+        return ""
+
+
+os.makedirs(OUT, exist_ok=True)
+made = []
+for sid, name, desc in TOPICS:
+    path = os.path.join(SRC, sid + ".jsonl")
+    if not os.path.exists(path) or os.path.getsize(path) < 2048:
+        print(f"  건너뜀 {name} (기록 없음/과소)")
+        continue
+
+    turns, first, last = [], "", ""
+    for line in io.open(path, encoding="utf-8", errors="replace"):
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            o = json.loads(line)
+        except Exception:
+            continue
+        m = o.get("message")
+        if not isinstance(m, dict):
+            continue
+        role = m.get("role")
+        if role not in ("user", "assistant"):
+            continue
+        body = clean(txt(m.get("content")))
+        if not body or len(body) < 2:
+            continue
+        # 도구 결과가 사용자 메시지로 되돌아오는 경우 제외
+        if role == "user" and body.startswith("[백그라운드 작업 결과"):
+            continue
+        t = when(o)
+        if t:
+            first = first or t
+            last = t
+        turns.append((role, t, body))
+
+    if not turns:
+        print(f"  건너뜀 {name} (추출 결과 없음)")
+        continue
+
+    nu = sum(1 for r, _, _ in turns if r == "user")
+    na = len(turns) - nu
+    lines = [
+        f"# {name.split('_', 1)[1].replace('_', ' ')}",
+        "",
+        f"> **주제** {desc}  ",
+        f"> **기간** {first} ~ {last}  ",
+        f"> **분량** 사람 지시 {nu}건 · AI 답변 {na}건  ",
+        f"> **원본** Claude Code 세션 `{sid[:8]}`  ",
+        "> **처리** 도구 호출 로그·내부 추론 제외, 대화 본문만 추출. 비밀값은 `<REDACTED>` 치환.",
+        "",
+        "---",
+        "",
+    ]
+    for role, t, body in turns:
+        tag = "사람" if role == "user" else "AI"
+        lines.append(f"## [{tag}] {t}".rstrip())
+        lines.append("")
+        lines.append(body)
+        lines.append("")
+    doc = "\n".join(lines)
+
+    hit = SECRET.findall(doc)
+    if hit:
+        print(f"  ! {name}: 치환 후에도 비밀값 패턴 {len(hit)}건 — 확인 필요")
+
+    fp = os.path.join(OUT, name + ".md")
+    io.open(fp, "w", encoding="utf-8").write(doc)
+    made.append((name, nu, na, os.path.getsize(fp)))
+    print(f"  ✓ {name}.md  지시 {nu} · 답변 {na} · {os.path.getsize(fp)//1024}KB")
+
+print(f"\n총 {len(made)}개 세션, {sum(x[3] for x in made)//1024}KB")
