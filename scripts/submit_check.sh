@@ -47,7 +47,21 @@ for f in index.html base.css verify.css verify.js korea_geo.js solar_terms_data.
   [ "$c" = "200" ] && ok "$f $c" || no "$f $c"
 done
 
-echo "── 5. 검증 스크립트 ──────────────────────────────────────"
+echo "── 5. 제출용 zip 시험 생성 ───────────────────────────────"
+TMP=$(mktemp -d 2>/dev/null || echo /tmp)
+if git archive --format=zip --output="$TMP/src.zip" HEAD 2>/dev/null; then
+  risky=$(python - "$TMP/src.zip" <<'PY'
+import sys, zipfile
+z = zipfile.ZipFile(sys.argv[1])
+bad = [n for n in z.namelist()
+       if '.env' in n or n.startswith('.git/') or 'node_modules' in n or n.endswith('.key')]
+print(' '.join(bad))
+PY
+)
+  if [ -z "$risky" ]; then ok "git archive 결과에 비밀·불필요 파일 없음"; else no "zip에 위험 파일: $risky"; fi
+else no "git archive 실패"; fi
+
+echo "── 6. 검증 스크립트 ──────────────────────────────────────"
 python processing/verify_solar_terms.py >/dev/null 2>&1 && ok "회귀 게이트 통과" || no "회귀 게이트 실패"
 node --check prototype/verify.js 2>/dev/null && ok "verify.js 구문" || no "verify.js 구문 오류"
 node eval_harness.js >/dev/null 2>&1 && ok "평가 하네스 실행" || no "평가 하네스 실패"
