@@ -800,7 +800,6 @@
   function renderVerdict() {
     var m = MISSIONS[state.mi], n = stat(), v = m.verdict(n);
     state.phase = 'verdict';
-    if (state.done.indexOf(m.id) === -1) state.done.push(m.id);
     save();
     var html = '<section class="card verdict-card"><h1 class="sr-only">미션 ' + (state.mi + 1) + ' 판정 — ' + m.title + '</h1>'
       + '<div class="mhead"><span class="mno">미션 ' + (state.mi + 1) + ' / 3 · 판정</span><span class="goal-chip">' + m.goal + '</span></div>'
@@ -849,6 +848,8 @@
 
   function revealVerdictActions() {
     var m = MISSIONS[state.mi], au = $('missionAudit');
+    /* RC-S: 자가진단까지 마친 뒤에 완료(✓)로 표시한다 — 판정 화면 진입만으로 점등하지 않는다 */
+    if (state.done.indexOf(m.id) === -1) { state.done.push(m.id); save(); renderProgress(); }
     if (au && au.hidden) {
       au.hidden = false;
       /* 감사 상자는 비워 둔다 — 앱이 학습자 대신 결론을 쓰지 않는다 (F-2) */
