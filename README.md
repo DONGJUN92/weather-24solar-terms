@@ -28,17 +28,31 @@
 조작 (기준선)  →  즉시 반응 (더위일 · 더위가 그치는 날)  →  판정 (CERL 4요소)  →  재도전
 ```
 
-### 학습 동선 (45~50분)
+### 학습 동선 (핵심 12분 / 전체 45~55분)
 
-| 단계 | 내용 | 시간 |
+미션 하나는 **핵심 2분 + 선택 심화**로 나뉩니다. 핵심만 하면 5미션 약 12분,
+심화와 자유탐구까지 하면 45~55분입니다. 수업 시간에 맞춰 교사가 자를 수 있습니다.
+
+| 단계 | 내용 | 핵심 | 심화 포함 |
+|---|---|---|---|
+| 🌍 24절기 입문 *(선택)* | 지구 공전 궤도 위 24절기 · 한자 풀이 · 왜 조상들이 만들었나 · “여름은 태양에 가까워서 덥다” 오개념 교정 | — | 5분 |
+| 미션 1 · 처서 | 처서의 약속은 아직 유효한가 (서울, 기온) | 2분 | 8분 |
+| 미션 2 · 여름 길이 | ‘여름’을 몇 도로 정의하느냐에 따라 길이가 달라진다 | 2분 | 8분 |
+| 미션 3 · 지역 비교 | 제주 vs 강원(춘천) — 한 지역 결과를 전국으로 넓힐 수 있는가 | 2분 | 8분 |
+| 미션 4 · 강수 강도 | **비 온 날은 줄었는데 큰비는 늘었다** — 같은 자료, 반대 결론 | 2분 | 8분 |
+| 미션 5 · 계절 지연 | **가장 더운 날은 하지가 아니라 40일 뒤** — 절기가 어긋나 보이는 이유는 기후변화 하나가 아니다 | 2분 | 8분 |
+| 완료 | 내 기록(복사·인쇄) · 고향 기후 카드 PNG · 🌍 지구 CO₂ 맥락 | — | 6분 |
+| 자유탐구 | 16지역 × 24절기 × 3지표 조합 · **16지점 지도** · **비교 기간 26창** · 탐구 질문 · 기상청 기준표 · 링크 공유 | — | 자유 |
+
+#### 조작 변수 3축 (Mo1 p.29 “변수 2~3개”)
+
+| 축 | 조작 | 어디서 |
 |---|---|---|
-| 🌍 24절기 입문 *(선택)* | 지구 공전 궤도 위 24절기 · 한자 풀이 · 왜 조상들이 만들었나 · “여름은 태양에 가까워서 덥다” 오개념 교정 | 5분 |
-| 미션 1 · 처서 | 처서의 약속은 아직 유효한가 (서울, 기온) | 8분 |
-| 미션 2 · 여름 길이 | ‘여름’을 몇 도로 정의하느냐에 따라 길이가 달라진다 | 8분 |
-| 미션 3 · 지역 비교 | 제주 vs 강원(춘천) — 한 지역 결과를 전국으로 넓힐 수 있는가 | 8분 |
-| 미션 4 · 강수 강도 | **비 온 날은 줄었는데 큰비는 늘었다** — 같은 자료, 반대 결론 | 8분 |
-| 완료 | 내 기록(복사·인쇄) · 고향 기후 카드 PNG · 🌍 지구 CO₂ 맥락 | 6분 |
-| 자유탐구 | 16지역 × 24절기 × 3지표를 직접 조합 + 링크 공유 | 자유 |
+| **세로 — 기준값** | ‘덥다’를 몇 도로 정할지 슬라이더·드래그 | 미션 1~4 · 자유탐구 |
+| **가로 — 날짜** | 가장 더울 것 같은 날을 직접 찍기 | 미션 5 |
+| **기간 — 비교 창** | ‘현재’로 쓸 5년을 26가지 중에서 선택 | 자유탐구 |
+
+여기에 **지역**(16지점 지도 클릭)과 **지표**(기온·습도·강수) 선택이 더해집니다.
 
 교사용 인쇄물: [`prototype/교사_학습지.html`](prototype/교사_학습지.html) — 수업 흐름 · 활동지 · 오개념표 · 평가 루브릭(6점) · 2022 개정 성취기준 연결
 
@@ -83,7 +97,7 @@ cd data_collectors && python collect_kma_allyears.py
 # 2) 가공 + 회귀 검증 (실패 시 exit 1)
 cd ../processing
 python build_solar_terms.py      # → prototype/solar_terms_data.js, web_data/solar_terms_climatology.json
-python verify_solar_terms.py     # 3,208개 assert
+python verify_solar_terms.py     # 4,810개 assert
 ```
 
 `KMA_SERVICE_KEY`는 [공공데이터포털](https://www.data.go.kr) 또는 [기상청 API 허브](https://apihub.kma.go.kr)에서
@@ -97,7 +111,7 @@ python verify_solar_terms.py     # 3,208개 assert
 
 | 데이터 | 출처 | 기간·범위 | 화면에서의 역할 | 이용 조건 |
 |---|---|---|---|---|
-| **ASOS 종관기상관측 일자료** | 기상청 — [공공데이터포털 `AsosDalyInfoService`](https://www.data.go.kr) / [기상청 API 허브](https://apihub.kma.go.kr) | 16지점 · 1969-01-01 ~ 2026-06-22 · 일평균기온·일평균습도·일강수량 | **주 데이터.** 4개 미션과 자유탐구의 모든 수치 | 공공누리 제1유형(출처표시) |
+| **ASOS 종관기상관측 일자료** | 기상청 — [공공데이터포털 `AsosDalyInfoService`](https://www.data.go.kr) / [기상청 API 허브](https://apihub.kma.go.kr) | 16지점 · 1969-01-01 ~ 2026-06-22 · 일평균기온·일평균습도·일강수량 | **주 데이터.** 5개 미션과 자유탐구의 모든 수치 | 공공누리 제1유형(출처표시) |
 | 대기 중 CO₂ (마우나로아) | [NOAA GML](https://gml.noaa.gov/ccgg/trends/) | 1958-03 ~ 2026-05 월별 | 완료 화면 ‘지구 전체는?’ Keeling 곡선 | Public Domain (U.S. Government work) |
 | 전지구 기온 이상·해수면 | [Our World in Data](https://ourworldindata.org/climate-change) | 연별 | 완료 화면 CO₂–기온 이중 그래프 | CC BY 4.0 (OWID) |
 | ERA5 재분석 | [Copernicus CDS](https://cds.climate.copernicus.eu) / [Open-Meteo](https://open-meteo.com) | 확장 수집분 | *현재 배포본 미사용* | Copernicus 라이선스 / CC BY 4.0 |
@@ -168,15 +182,16 @@ python verify_solar_terms.py     # 3,208개 assert
 .
 ├─ prototype/                     ★ 배포되는 웹앱
 │  ├─ index.html                  진입점
-│  ├─ verify.js                   학습 동선 전체 (4미션·궤도·판정·AI 감사)
+│  ├─ verify.js                   학습 동선 전체 (5미션·궤도·지도·기간창·판정·AI 감사)
 │  ├─ verify.css / base.css       스타일 (다크 테마, 인쇄 스타일 포함)
-│  ├─ solar_terms_data.js         가공 데이터 (16지점 × 3지표 × 임계값 그리드)
+│  ├─ solar_terms_data.js         가공 데이터 (16지점 × 3지표 × 임계값 그리드 + 계절지연 + 26창)
+│  ├─ korea_geo.js                한반도 시·도 경계 (16지점 지도 배경, 1,499점)
 │  ├─ 교사_학습지.html             교사용 인쇄물
 │  └─ archive.html                개발 아카이브 (초기 20개 사건 구상, 본 제품 아님)
 ├─ api/ai-turn.js                 AI 증거 감사관 (Vercel 서버리스)
 ├─ processing/
 │  ├─ build_solar_terms.py        원시 CSV → 배포 데이터
-│  └─ verify_solar_terms.py       회귀 검증 게이트 (3,208 assert)
+│  └─ verify_solar_terms.py       회귀 검증 게이트 (4,810 assert · 9축)
 ├─ data_collectors/               8개 소스 수집기 + API 키 발급 가이드
 ├─ web_data/                      지구 맥락 데이터(CO₂·전지구 기온) 외
 ├─ eval_harness.js / eval_set.json  AI 품질 평가 (100케이스)
@@ -205,4 +220,4 @@ python verify_solar_terms.py     # 3,208개 assert
 6. **모든 화면에 출처·표본 수·계산 방법·한계**를 ‘이 숫자는 어떻게 나왔나’ 서랍으로 제공합니다.
 
 검증: `python processing/verify_solar_terms.py`
-(구조·표본·단조성·실측대조·부호방향·하드코딩 일치 **3,208개 assert**)
+(구조·표본·단조성·실측대조·부호방향·rainFlip·계절지연·이동창·하드코딩 일치 **4,810개 assert**)

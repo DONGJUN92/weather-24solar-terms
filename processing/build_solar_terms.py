@@ -217,6 +217,88 @@ def rain_flip(e):
             "maxThr": hi[0], "diffs": {str(t): d for t, d in usable}}
 
 
+def seasonal_lag(curve_past, curve_present):
+    """계절 지연 — 태양이 가장 높은 날(하지)과 실제로 가장 더운 날의 시차.
+
+    앱의 핵심 오개념 방지 장치다. 절기와 실제 날씨가 어긋나 보이는 이유에는
+    기후변화 신호 말고도 '땅과 바다가 데워지는 데 걸리는 시간'(열관성)이 있다.
+    이 값이 없으면 학습자가 모든 어긋남을 기후변화로 귀인할 수 있다.
+
+    극값일은 개별 연도의 최고기온일이 아니라 '평년 곡선의 최고점'이다.
+    (연도별 최고일은 해마다 크게 흔들려 계절 지연을 보이는 데 적합하지 않다.)
+    """
+    SUMMER_SOLSTICE = md_to_doy(6, 21)      # 낮이 가장 긴 날
+    WINTER_SOLSTICE = md_to_doy(12, 22)     # 밤이 가장 긴 날
+
+    def extremes(curve):
+        hot = int(max(range(365), key=lambda i: curve[i])) + 1
+        cold = int(min(range(365), key=lambda i: curve[i])) + 1
+        return hot, cold
+
+    ph, pc = extremes(curve_past)
+    nh, nc = extremes(curve_present)
+
+    def lag(doy, solstice):
+        return (doy - solstice) % 365
+
+    return {
+        "solstice": {"summer": SUMMER_SOLSTICE, "winter": WINTER_SOLSTICE},
+        "past":    {"hotDoy": ph, "coldDoy": pc,
+                     "hotLag": lag(ph, SUMMER_SOLSTICE), "coldLag": lag(pc, WINTER_SOLSTICE),
+                     "hotT": round(float(curve_past[ph - 1]), 1), "coldT": round(float(curve_past[pc - 1]), 1)},
+        "present": {"hotDoy": nh, "coldDoy": nc,
+                     "hotLag": lag(nh, SUMMER_SOLSTICE), "coldLag": lag(nc, WINTER_SOLSTICE),
+                     "hotT": round(float(curve_present[nh - 1]), 1), "coldT": round(float(curve_present[nc - 1]), 1)},
+    }
+
+
+def sliding_windows(df, thresholds, span=5, start=1996):
+    """5년 창을 한 해씩 옮겨 가며 기준별 통계를 낸다 (기간 창 조작 변수용).
+
+    '왜 하필 이 5년인가'를 문장이 아니라 조작으로 배우게 하기 위한 데이터.
+    과거(PAST)는 고정하고 현재 창만 움직인다.
+    """
+    comp = set(complete_years(df, 1969, PRESENT[1]))
+    g = _series(df, "avgTa", sorted(comp), False)
+    doy = g["date"].dt.dayofyear.to_numpy()
+    leap = g["date"].dt.is_leap_year.to_numpy() & (g["date"].dt.month.to_numpy() > 2)
+    doy = np.where(leap, doy - 1, doy)
+    yr, val = g["year"].to_numpy(), g["_v"].to_numpy(dtype=float)
+
+    def stats(years, thr):
+        hit = val >= thr
+        cnt, last = [], []
+        for y in years:
+            h = hit & (yr == y)
+            cnt.append(int(h.sum()))
+            if h.any():
+                last.append(int(doy[h].max()))
+        return (round(float(np.mean(cnt)), 1),
+                int(round(float(np.mean(last)))) if last else None)
+
+    out = []
+    for y0 in range(start, PRESENT[1] - span + 2):
+        ys = [y for y in range(y0, y0 + span) if y in comp]
+        if len(ys) < span:
+            continue
+        row = {"y0": y0, "y1": y0 + span - 1, "days": {}, "last": {}}
+        for thr in thresholds:
+            d, l = stats(ys, thr)
+            row["days"][str(thr)] = d
+            row["last"][str(thr)] = l
+        out.append(row)
+    # 장기 창(가장 최근 30년) — 5년 창과 비교할 기준선
+    long_years = [y for y in range(PRESENT[1] - 29, PRESENT[1] + 1) if y in comp]
+    long_row = None
+    if len(long_years) >= 25:
+        long_row = {"y0": long_years[0], "y1": long_years[-1], "n": len(long_years), "days": {}, "last": {}}
+        for thr in thresholds:
+            d, l = stats(long_years, thr)
+            long_row["days"][str(thr)] = d
+            long_row["last"][str(thr)] = l
+    return {"span": span, "list": out, "long": long_row}
+
+
 def annual_series(df, col, agg):
     s = pd.to_numeric(df[col], errors="coerce")
     if agg == "sum":
@@ -261,12 +343,16 @@ def main():
         e["timeline"] = tl
         e["sensitivity"] = window_sensitivity(df)
         e["rainFlip"] = rain_flip(e)
+        e["seasonalLag"] = seasonal_lag(e["temp"]["past"], e["temp"]["present"])
+        e["windows"] = sliding_windows(df, range(20, 35))
         cities[name] = e
         d25 = e["temp"]["exceedDays"]
         l25 = e["temp"]["lastDoy"]
-        print(f"  {name}({station} {sid}): 과거 {len(py)}년{py} 현재 {len(cy)}년{cy} · "
-              f"25℃ 이상 연평균 {d25['past']['25']}일→{d25['present']['25']}일 · "
-              f"마지막초과 {l25['past']['25']}→{l25['present']['25']}")
+        sl = e["seasonalLag"]
+        print(f"  {name}({station} {sid}): 과거 {len(py)}년 현재 {len(cy)}년 · "
+              f"25℃ {d25['past']['25']}→{d25['present']['25']}일 · "
+              f"계절지연 하지+{sl['present']['hotLag']}일(최고 {sl['present']['hotT']}℃) "
+              f"동지+{sl['present']['coldLag']}일 · 창 {len(e['windows']['list'])}개")
 
     allyears = sorted(set().union(*[set(cities[n]["timeline"]["years"]) for n in cities]))
     nat = {"years": allyears}

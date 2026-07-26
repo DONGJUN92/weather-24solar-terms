@@ -486,3 +486,114 @@ button.pstep:focus-visible { outline: 3px solid var(--sun); outline-offset: 3px;
 .global-link { margin: 10px 0 0; padding: 10px 12px; border-left: 3px solid var(--coral); background: rgba(255,128,102,.08); border-radius: 0 10px 10px 0; font-size: 13px; line-height: 1.8; color: #ffd5cf; }
 .global-loading, .global-fail { padding: 20px 4px; font-size: 13px; color: var(--muted); }
 @media (max-width: 560px) { .global-p, .global-note, .global-warn, .global-link { font-size: 13px; } }
+
+/* ── 미션 5: 계절 지연 (가로 드래그 조작) ── */
+.lag-controls { display: flex; flex-direction: column; gap: 9px; padding: 8px 4px 4px; }
+.lag-pick { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.lag-pick output { flex: 1; min-width: 150px; font-size: 14px; font-weight: 700; color: #e6d8ff; padding: 0 4px; }
+.lag-controls .seg { align-self: flex-start; }
+.lag-controls .small-btn { padding: 9px 14px; font-size: 13px; }
+
+/* ── 16지점 지도 (세 번째 보기) ─────────────────────────────────
+   '전국이 같은 방향인가'를 한 화면에서 눈으로 확인시키는 보기.
+   색만으로 읽히지 않도록 ▲▼ 기호와 숫자를 함께 붙인다(WCAG 1.4.1). */
+#mapMount { padding: 2px 0 4px; }
+.map-verdict { margin: 2px 2px 10px; padding: 9px 11px; border-radius: 12px; background: rgba(119,191,247,.09); border: 1px solid rgba(119,191,247,.22); font-size: 13.5px; line-height: 1.6; color: var(--ink); }
+.map-verdict b.hot { color: var(--coral); }
+.korea-map { display: block; width: 100%; max-width: 520px; margin: 0 auto; height: auto; }
+.mapdot { cursor: pointer; }
+.mapdot circle { transition: stroke-width .12s ease, opacity .12s ease; }
+.mapdot:hover circle { stroke: var(--sun); stroke-width: 2.4; }
+.mapdot:focus { outline: none; }
+.mapdot:focus-visible circle { stroke: #fff; stroke-width: 3; }
+.mapdot-city { font-size: 13px; font-weight: 700; fill: var(--ink); paint-order: stroke; stroke: rgba(8,28,45,.85); stroke-width: 3.5px; stroke-linejoin: round; }
+.mapdot-val { font-size: 12px; font-weight: 700; fill: var(--muted); paint-order: stroke; stroke: rgba(8,28,45,.85); stroke-width: 3.5px; stroke-linejoin: round; }
+.mapdot.is-on .mapdot-city, .mapdot.is-on .mapdot-val { fill: var(--sun); }
+.map-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; justify-content: center; margin: 8px 2px 0; font-size: 11.5px; color: var(--muted); }
+.mlg { display: inline-block; width: 11px; height: 11px; border-radius: 50%; vertical-align: -1px; margin-right: 4px; }
+.mlg-up { background: rgba(255,128,102,.78); }
+.mlg-dn { background: rgba(119,191,247,.78); }
+.map-note { margin: 8px 4px 0; font-size: 11.5px; line-height: 1.65; color: var(--muted); }
+@media (max-width: 620px) {
+  .mapdot-city { font-size: 15px; }
+  .mapdot-val { font-size: 14px; }
+}
+@media (prefers-reduced-motion: reduce) { .mapdot circle { transition: none; } }
+
+/* ── 비교 기간(창) 조작 ─────────────────────────────────────────
+   '왜 하필 이 5년인가'를 문장이 아니라 조작으로 확인시키는 패널. */
+.win-panel { margin: 16px 0 4px; padding: 13px 14px 11px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel2); }
+.win-panel .picker-block { margin: 0 0 6px; }
+.win-row { display: flex; align-items: center; gap: 9px; }
+.win-row input[type="range"] { flex: 1 1 auto; min-width: 0; }
+.win-out { flex: 0 0 auto; min-width: 92px; text-align: right; font-size: 14.5px; font-weight: 700; color: var(--sun); font-variant-numeric: tabular-nums; }
+.win-read { margin: 10px 2px 4px; font-size: 15px; color: var(--ink); }
+.win-read b { font-weight: 700; }
+.win-read b.hot { color: var(--coral); }
+.win-read i { font-style: normal; color: var(--muted); margin: 0 5px; }
+.win-delta { margin-left: 8px; padding: 2px 8px; border-radius: 999px; background: rgba(255,128,102,.16); color: var(--coral); font-size: 13px; font-weight: 700; }
+.win-chart { display: block; width: 100%; height: auto; margin: 4px 0 2px; }
+.wa-lab { font-size: 11.5px; font-weight: 700; fill: var(--muted); }
+.wa-tick { font-size: 11px; fill: var(--muted); }
+.win-verdict { margin: 6px 2px 0; font-size: 13.5px; line-height: 1.7; color: var(--ink); }
+.win-verdict b.hot { color: var(--coral); }
+.win-verdict small { display: block; margin-top: 5px; font-size: 12.5px; color: var(--muted); }
+.win-note { margin: 8px 2px 0; font-size: 11.5px; line-height: 1.65; color: var(--muted); }
+.win-off { margin: 0; font-size: 12.5px; line-height: 1.7; color: var(--muted); }
+
+/* ── 기상청 공식 기준표 (Mo1 p.31) ─────────────────────────────
+   '내가 정한 기준'과 '사회가 합의한 기준'을 나란히 놓아,
+   이 화면이 계산할 수 있는 것과 없는 것의 경계를 정직하게 드러낸다. */
+.kma-ref { margin: 12px 0 2px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel2); }
+.kma-ref > summary { cursor: pointer; padding: 10px 13px; font-size: 13.5px; font-weight: 600; color: var(--ink); list-style: none; }
+.kma-ref > summary::-webkit-details-marker { display: none; }
+.kma-ref > summary::after { content: '▾'; float: right; color: var(--muted); transition: transform .15s ease; }
+.kma-ref[open] > summary::after { transform: rotate(180deg); }
+.kma-ref > summary small { color: var(--muted); font-weight: 500; margin-left: 4px; }
+.kma-ref > summary:focus-visible { outline: 2px solid var(--sun); outline-offset: 2px; border-radius: 14px; }
+.kma-body { padding: 2px 13px 12px; border-top: 1px solid var(--line); }
+.kma-title { margin: 10px 0 8px; font-size: 13px; font-weight: 700; color: var(--sun); }
+.kma-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.kma-table th, .kma-table td { padding: 7px 8px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
+.kma-table thead th { font-size: 11.5px; color: var(--muted); font-weight: 600; }
+.kma-table tbody th { font-weight: 700; color: var(--ink); white-space: nowrap; }
+.kma-table td { color: var(--muted); line-height: 1.6; }
+.kma-table td b { color: var(--ink); }
+.kma-can { white-space: nowrap; }
+.kma-table tr.is-ours { background: rgba(255,190,88,.09); }
+.kma-table tr.is-ours th, .kma-table tr.is-ours .kma-can b { color: var(--sun); }
+.kma-note { margin: 10px 0 0; font-size: 12.5px; line-height: 1.7; color: var(--ink); }
+.kma-note b { color: var(--sun); }
+.kma-src { margin: 8px 0 0; font-size: 11px; line-height: 1.6; color: var(--muted); }
+
+/* ── 탐구 질문 패널 (Mo1 p.32) ─────────────────────────────────
+   관찰 → 설명 → 검증 세 층을 접어서 준다. 한꺼번에 펼치면 안 읽는다. */
+.inq-panel { margin: 14px 0 2px; padding: 12px 13px 10px; border: 1px solid rgba(255,190,88,.26); border-radius: var(--radius); background: rgba(255,190,88,.06); }
+.inq-head { margin: 0 0 8px; font-size: 13.5px; font-weight: 700; color: var(--sun); }
+.inq-head small { display: block; margin-top: 2px; font-size: 11.5px; font-weight: 500; color: var(--muted); }
+.inq-g { border-top: 1px solid var(--line); }
+.inq-g:first-of-type { border-top: none; }
+.inq-g > summary { cursor: pointer; padding: 9px 2px; font-size: 13px; color: var(--ink); list-style: none; }
+.inq-g > summary::-webkit-details-marker { display: none; }
+.inq-g > summary::after { content: '＋'; float: right; color: var(--muted); }
+.inq-g[open] > summary::after { content: '−'; }
+.inq-g > summary small { color: var(--muted); font-weight: 500; margin-left: 6px; font-size: 11.5px; }
+.inq-g > summary:focus-visible { outline: 2px solid var(--sun); outline-offset: 2px; border-radius: 8px; }
+.inq-list { margin: 0 0 10px; padding-left: 20px; }
+.inq-list li { margin: 7px 0; font-size: 13px; line-height: 1.75; color: var(--muted); }
+.inq-list li b { color: var(--ink); font-weight: 700; }
+
+/* ── 핵심 2분 + 선택 심화 (Mo1 p.33) ───────────────────────── */
+.time-chip { flex: 0 0 auto; padding: 3px 9px; border-radius: 999px; border: 1px solid rgba(141,224,165,.34); background: rgba(141,224,165,.12); color: var(--green); font-size: 11.5px; font-weight: 600; }
+.time-chip b { font-weight: 800; }
+.step-tag { display: inline-block; padding: 2px 8px; margin-right: 5px; border-radius: 999px; background: rgba(141,224,165,.16); color: var(--green); font-size: 11px; font-weight: 700; vertical-align: 2px; }
+.step-tag.is-opt { background: rgba(167,189,197,.14); color: var(--muted); }
+.deep-hint { margin: 8px 2px 0; font-size: 12.5px; line-height: 1.7; color: var(--muted); }
+.deep-hint b { color: var(--ink); }
+
+/* ── 터치 타깃 최소 크기 (WCAG 2.2 AA 2.5.8) ───────────────────
+   측정값: 사용법 48×20 · 처음부터 73×20 · 기간 슬라이더 114×16.
+   모두 24×24 미만이었다. 시각 크기를 키우지 않고 히트 영역만 넓힌다. */
+.verify-actions .text-btn { min-height: 32px; padding: 6px 4px; }
+.win-row input[type="range"] { height: 30px; accent-color: var(--sun); }
+.win-row input[type="range"]:focus-visible { outline: 3px solid var(--sun); outline-offset: 3px; border-radius: 6px; }

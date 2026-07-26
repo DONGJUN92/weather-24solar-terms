@@ -178,6 +178,58 @@ def main():
         ck(abs(f["low"][1] - round(lo1, 1)) < 0.05, f"G: {name} rainFlip low 값 불일치")
         ck(f["flip"] is None or 1 <= f["flip"] <= 80, f"G: {name} flip 범위 밖 {f['flip']}")
 
+    # ── H. 계절 지연 (미션 5) ───────────────────────────────────
+    # 미션 5의 모든 문장이 이 값에서 나온다. 부호가 뒤집히면
+    # "하지가 가장 덥다"는 반대 결론을 그대로 화면에 출력하게 된다.
+    lag_s, lag_w = [], []
+    for name, c in cities.items():
+        L = c.get("seasonalLag")
+        ck(L is not None, f"H: {name} seasonalLag 누락 (미션 5가 참조)")
+        if not L:
+            continue
+        ck(L["solstice"]["summer"] == 172, f"H: {name} 하지 doy={L['solstice']['summer']} (172 기대)")
+        ck(L["solstice"]["winter"] == 356, f"H: {name} 동지 doy={L['solstice']['winter']} (356 기대)")
+        for pk in ("past", "present"):
+            P = L[pk]
+            ck(1 <= P["hotDoy"] <= 365, f"H: {name}.{pk} hotDoy 범위 밖 {P['hotDoy']}")
+            ck(1 <= P["coldDoy"] <= 365, f"H: {name}.{pk} coldDoy 범위 밖 {P['coldDoy']}")
+            ck(20 <= P["hotLag"] <= 70, f"H: {name}.{pk} 여름 지연 {P['hotLag']}일 (20~70 기대) — 열관성 결론이 깨짐")
+            ck(0 <= P["coldLag"] <= 70, f"H: {name}.{pk} 겨울 지연 {P['coldLag']}일 (0~70 기대)")
+            ck(P["hotT"] > P["coldT"], f"H: {name}.{pk} 최고({P['hotT']}) <= 최저({P['coldT']}) — 극값 탐색 오류")
+            ck(15 <= P["hotT"] <= 35, f"H: {name}.{pk} hotT {P['hotT']}°C 비현실")
+            ck(-25 <= P["coldT"] <= 15, f"H: {name}.{pk} coldT {P['coldT']}°C 비현실")
+        lag_s.append(L["present"]["hotLag"])
+        lag_w.append(L["present"]["coldLag"])
+    if lag_s:
+        # "전국 어디서나 거의 같다"(여름) / "지역마다 다르다"(겨울) — 두 결론문의 근거
+        ck(max(lag_s) - min(lag_s) <= 12,
+           f"H: 여름 지연 전국 퍼짐 {min(lag_s)}~{max(lag_s)}일 — '어디서나 같다' 문장이 거짓이 됨")
+        ck(max(lag_w) - min(lag_w) >= 10,
+           f"H: 겨울 지연 전국 퍼짐 {min(lag_w)}~{max(lag_w)}일 — '지역마다 다르다' 문장이 거짓이 됨")
+        print(f"  계절 지연(현재·16지점): 여름 {min(lag_s)}~{max(lag_s)}일 · 겨울 {min(lag_w)}~{max(lag_w)}일")
+
+    # ── I. 이동창 (기간 선택 조작) ───────────────────────────────
+    # "어느 5년을 고르든 방향은 같다"를 보이려는 기능. 창이 어긋나면
+    # 학습자가 엉뚱한 기간을 비교하게 된다.
+    for name, c in cities.items():
+        W = c.get("windows")
+        ck(W is not None, f"I: {name} windows 누락 (기간 조작이 참조)")
+        if not W:
+            continue
+        ck(W["span"] == 5, f"I: {name} windows.span={W['span']} (5 기대)")
+        lst = W["list"]
+        ck(len(lst) >= 20, f"I: {name} 창 {len(lst)}개 (20개 이상 기대)")
+        prev = None
+        for w in lst:
+            ck(w["y1"] - w["y0"] == 4, f"I: {name} 창 {w['y0']}~{w['y1']} 폭이 5년이 아님")
+            ck(prev is None or w["y0"] > prev, f"I: {name} 창 시작연도 역순 ({prev} → {w['y0']})")
+            prev = w["y0"]
+            bad = [(t, v) for t, v in w["days"].items() if not (0 <= v <= 366)]
+            ck(not bad, f"I: {name} 창 {w['y0']} 일수 범위 밖 {bad[:3]}")
+        ck(lst[-1]["y1"] == c["years"]["present"][-1],
+           f"I: {name} 마지막 창 끝 {lst[-1]['y1']} != 현재 구간 끝 {c['years']['present'][-1]}")
+        ck(W["long"]["y1"] - W["long"]["y0"] >= 20, f"I: {name} 장기창이 20년 미만")
+
     # ── F. 하드코딩 수치 일치 ───────────────────────────────────
     s = cities["서울"]["temp"]
     d_past, d_now = s["exceedDays"]["past"]["25"], s["exceedDays"]["present"]["25"]
