@@ -149,21 +149,32 @@ def build_daily(kma):
 
 # ───────────────────────── 4) 기후변화 결합 + CO2-기온 민감도 ─────────────────────────
 def build_climate_change(kma):
+    # R4-P1-9: 한국 자료에는 MIN_DAYS=350 완결 연도 게이트를 걸어 두고 전지구 자료에는
+    # 걸지 않아, 1~5월밖에 없는 2026을 '연평균'으로 실었다. Keeling 곡선은 5월이 연중
+    # 최대라 CO₂에 구조적 상향 편의가 들어가고, 기온은 오히려 내려가는데 화면 문장은
+    # "함께 올랐습니다"였다. 같은 원칙을 전지구 자료에도 적용한다.
     co2 = pd.read_csv(SRC / "noaa_gml_co2_monthly_FULL.csv")
-    co2_y = co2.groupby("year")["average"].mean()
+    co2_n = co2.groupby("year")["average"].size()
+    co2_full = co2.groupby("year")["average"].mean()
+    co2_y = co2_full[co2_n >= 12]                      # 12개월이 다 있는 해만
+    LAST_COMPLETE = int(co2_y.index.max())
+
     tano = pd.read_csv(SRC / "owid_temperature_anomaly_FULL.csv")
     g = tano[tano["entity"].isin(["Global", "World"])]
     if g.empty:
         g = tano[tano["entity"] == tano["entity"].unique()[0]]
     temp_y = g.set_index("year")["near_surface_temperature_anomaly"]
+    temp_y = temp_y[temp_y.index <= LAST_COMPLETE]     # 진행 중인 해의 잠정치 제외
     sea = pd.read_csv(SRC / "owid_sea_level_FULL.csv")
     sea["year"] = pd.to_datetime(sea["day"]).dt.year
-    sea_y = sea.groupby("year")["sea_level_average"].mean()
+    sea_n = sea.groupby("year")["sea_level_average"].size()
+    sea_y = sea.groupby("year")["sea_level_average"].mean()[sea_n >= 300]
+    sea_y = sea_y[sea_y.index <= LAST_COMPLETE]
     # 한국 연평균기온(8지점 평균)
     kor = pd.concat(kma.values()) if kma else pd.DataFrame()
     kor_y = kor.groupby("year")["avgTa"].mean() if len(kor) else pd.Series(dtype=float)
 
-    years = sorted(set(co2_y.index) | set(temp_y.index))
+    years = [y for y in sorted(set(co2_y.index) | set(temp_y.index)) if y <= LAST_COMPLETE]
     series = []
     for y in years:
         series.append({"year": int(y),
@@ -183,8 +194,17 @@ def build_climate_change(kma):
            "fit_years": [int(m.index.min()), int(m.index.max())],
            "formula": "temp_anomaly_C ≈ slope×CO2_ppm + intercept",
            "note": "역사적 관측 회귀(상관). 인과 단순화로 교육용 슬라이더에 사용."}
+    # R4-P1-15: 화면이 출처를 렌더할 수 있도록 라이선스까지 구조화해 싣는다.
+    # (OWID는 CC BY 4.0이라 저작자표시가 의무이고, README §7 약속6도 '모든 화면에 출처'다)
     return {"meta": {"title": "기후변화 결합 시계열(전지구 CO2·기온·해수면 + 한국기온)",
-                     "sources": ["NOAA GML(마우나로아 CO2)", "OWID(기온이상치·해수면)", "기상청(한국기온)"],
+                     "sources": [
+                         {"name": "NOAA GML — 마우나로아 대기 중 CO₂",
+                          "url": "https://gml.noaa.gov/ccgg/trends/", "license": "Public Domain (U.S. Government work)"},
+                         {"name": "Our World in Data — 전지구 기온 이상·해수면",
+                          "url": "https://ourworldindata.org/climate-change", "license": "CC BY 4.0"},
+                         {"name": "기상청 ASOS — 한국 기온",
+                          "url": "https://data.kma.go.kr", "license": "공공누리 제1유형(출처표시)"}],
+                     "completeness": f"월 12개가 모두 있는 해만 연평균에 사용(마지막 완결 연도 {LAST_COMPLETE})",
                      "use_case": "예시#5 기후변화 체험: CO2 슬라이더→기온 반응"},
             "relationship": rel, "series": series}
 
@@ -194,7 +214,10 @@ def build_co2_monthly():
     co2 = pd.read_csv(SRC / "noaa_gml_co2_monthly_FULL.csv")
     co2 = co2.dropna(subset=["average"])
     return {"meta": {"title": "마우나로아 월별 대기중 CO2(Keeling Curve)",
-                     "source": "NOAA GML", "unit": "ppm", "use_case": "예시#5 기후변화 체험"},
+                     "source": "NOAA GML", "unit": "ppm", "use_case": "예시#5 기후변화 체험",
+                     "sources": [{"name": "NOAA Global Monitoring Laboratory — Mauna Loa CO₂ (월별)",
+                                  "url": "https://gml.noaa.gov/ccgg/trends/",
+                                  "license": "Public Domain (U.S. Government work)"}]},
             "dates": (co2["year"].astype(int).astype(str) + "-" +
                       co2["month"].astype(int).astype(str).str.zfill(2)).tolist(),
             "co2_ppm": [r(v, 2) for v in co2["average"]]}

@@ -53,8 +53,11 @@ if git archive --format=zip --output="$TMP/src.zip" HEAD 2>/dev/null; then
   risky=$(python - "$TMP/src.zip" <<'PY'
 import sys, zipfile
 z = zipfile.ZipFile(sys.argv[1])
+# R4: .claude/ 가 빠져 있어 git archive 산출물에 launch.json 이 실제로 포함됐다.
 bad = [n for n in z.namelist()
-       if '.env' in n or n.startswith('.git/') or 'node_modules' in n or n.endswith('.key')]
+       if '.env' in n or n.startswith('.git/') or n.startswith('.claude/')
+       or 'node_modules' in n or n.endswith('.key') or n.endswith('.pyc')
+       or '__pycache__' in n or n == '_raw_page.html' or '/_simulated/' in n]
 print(' '.join(bad))
 PY
 )
@@ -62,9 +65,43 @@ PY
 else no "git archive 실패"; fi
 
 echo "── 6. 검증 스크립트 ──────────────────────────────────────"
-python processing/verify_solar_terms.py >/dev/null 2>&1 && ok "회귀 게이트 통과" || no "회귀 게이트 실패"
+# R4: 게이트가 출력하는 검사 건수를 문서가 정확히 인용하는지까지 확인한다.
+#     예전에는 종료코드만 보고 넘어가 README(4,810)와 발표자료(4,852)가 서로 달랐다.
+gate=$(python processing/verify_solar_terms.py 2>&1)
+if printf '%s' "$gate" | grep -q "전체 통과"; then
+  ok "회귀 게이트 통과 ($(printf '%s' "$gate" | grep -oE '검사 [0-9]+건' | tail -1))"
+else
+  no "회귀 게이트 실패"; printf '%s
+' "$gate" | grep -E '^    -' | head -8
+fi
+if printf '%s' "$gate" | grep -q "경고"; then
+  printf '  [33m![0m 게이트 경고 있음 — 아래 확인
+'; printf '%s
+' "$gate" | grep -A20 '경고' | grep -E '^    -' | head -6
+fi
 node --check prototype/verify.js 2>/dev/null && ok "verify.js 구문" || no "verify.js 구문 오류"
-node eval_harness.js >/dev/null 2>&1 && ok "평가 하네스 실행" || no "평가 하네스 실패"
+ev=$(node eval_harness.js 2>&1)
+if printf '%s' "$ev" | grep -qE "전체 +[0-9]+/100"; then
+  ok "평가 하네스 $(printf '%s' "$ev" | grep -oE '[0-9]+/100' | tail -1)"
+else no "평가 하네스 실패"; fi
+
+echo "── 7. 문서-현실 정합성 ───────────────────────────────────"
+c=$(git rev-list --count HEAD)
+if grep -q "요약: ${c}개 커밋" README.md 2>/dev/null; then ok "README 커밋 수 ${c} 일치"
+else no "README 커밋 수 표기가 실제(${c})와 다릅니다"; fi
+pg=$(python -c "import fitz,glob;print(fitz.open(glob.glob('발표자료*.pdf')[0]).page_count)" 2>/dev/null)
+if [ -n "$pg" ] && grep -q "PDF ${pg}장" 제출_체크리스트.md 2>/dev/null; then ok "발표자료 장수 ${pg} 일치"
+elif [ -n "$pg" ]; then no "발표자료 장수 표기 불일치 (실제 ${pg}장)"; fi
+n=$(ls prompt_sessions/*.md 2>/dev/null | grep -v README | wc -l)
+for f in prompt_sessions/*.md; do
+  case "$f" in */README.md) continue;; esac
+  b=$(basename "$f")
+  grep -q "$b" AI_활용_기록.md || no "AI_활용_기록.md 목차에 $b 가 없습니다"
+done
+ok "세션 목차 ${n}건 대조 완료"
+if grep -rqE "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}" prompt_sessions/*.md 2>/dev/null; then
+  no "세션 로그에 이메일 평문이 있습니다"; else ok "세션 로그 이메일 0건"; fi
+if grep -qE '^s*var COASTALs*=' prototype/verify.js; then no "verify.js에 폐기한 COASTAL 이분법이 남아 있습니다"; else ok "해안/내륙 이분법 제거 확인"; fi
 
 echo
 if [ "$fail" -eq 0 ]; then printf '\033[32m제출 가능 — 검사 전부 통과\033[0m\n'; else printf '\033[31m실패 %d건 — 고치기 전에는 제출하지 마세요\033[0m\n' "$fail"; fi

@@ -1,7 +1,7 @@
 {
  "generated": "run",
  "total": 100,
- "passed": 96,
+ "passed": 99,
  "byCategory": {
   "good_scoped": {
    "n": 13,
@@ -9,7 +9,7 @@
   },
   "one_year_to_climate": {
    "n": 13,
-   "pass": 10
+   "pass": 12
   },
   "correlation_causation": {
    "n": 12,
@@ -33,37 +33,16 @@
   },
   "misconception_solar": {
    "n": 13,
-   "pass": 12
+   "pass": 13
   }
  },
  "failures": [
-  {
-   "id": "C017",
-   "cat": "one_year_to_climate",
-   "text": "5년 자료 보니까 더워졌던데 그럼 기후가 바꼈다는 소리 아님?",
-   "gold": "revise/one_year",
-   "got": "ready/"
-  },
-  {
-   "id": "C023",
-   "cat": "one_year_to_climate",
-   "text": "5년 데이터만 봐도 이런데 지구 전체 기후가 완전 바뀐거 아니냐",
-   "gold": "revise/one_year,scope",
-   "got": "ready/"
-  },
   {
    "id": "C026",
    "cat": "one_year_to_climate",
    "text": "광주 최근 5년 관측치가 옛날보다 높게 나온걸 보면서 나는 이제 우리 지역 기후가 ",
    "gold": "revise/one_year",
    "got": "ready/"
-  },
-  {
-   "id": "C094",
-   "cat": "misconception_solar",
-   "text": "처서 온도가 예전보다 많이 올라갔다.",
-   "gold": "revise/misconception",
-   "got": "revise/missing"
   }
  ]
 }

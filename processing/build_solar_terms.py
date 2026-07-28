@@ -56,7 +56,11 @@ METRICS = [("temp",     "avgTa",   "기온",   "℃",    1, False, range(20, 35)
 LAST_DOY_METRICS = {"temp"}     # '마지막 기준초과일'을 쓰는 지표 (화면 showLast와 일치)
 
 # 24절기 — 이름/한자/양력 대표날짜/뜻/계절/字풀이/특징
-# 날짜는 태양황경 기준 1969~2026년 최빈 그레고리력 날짜(RC-H: 상강 10/24 → 10/23 정정)
+# 날짜는 태양황경 기준 1969~2026년 최빈 그레고리력 날짜.
+#   RC-H : 상강 10/24 → 10/23 정정
+#   R4-1 : 입하 5/6 → 5/5(31회 vs 27회), 입추 8/8 → 8/7(31회 vs 27회) 정정.
+#          겉보기 태양황경(Meeus, 장동·광행차·ΔT 보정) 교차시각을 KST로 1969~2026 전수
+#          계산해 최빈 날짜를 다시 구했다. verify_solar_terms.py J축이 24개 전부를 검사한다.
 TERMS = [
     ("소한","小寒",1,6,"본격 추위 시작","winter","작을 소(小)+찰 한(寒)","‘작은 추위’라는 이름과 달리 실제로는 한 해 중 가장 추운 시기. ‘대한이 소한 집에 놀러 갔다 얼어 죽는다’는 속담이 있다."),
     ("대한","大寒",1,20,"가장 추운 때","winter","클 대(大)+찰 한(寒)","‘큰 추위’. 겨울 추위의 매듭을 짓는 마지막 절기로, 이 무렵을 지나면 추위가 누그러진다."),
@@ -66,13 +70,13 @@ TERMS = [
     ("춘분","春分",3,21,"낮과 밤이 같음(봄)","spring","봄 춘(春)+나눌 분(分)","봄의 한가운데로 낮과 밤의 길이가 같아진다. 이후로 낮이 점점 길어진다."),
     ("청명","淸明",4,5,"맑고 밝음","spring","맑을 청(淸)+밝을 명(明)","하늘이 맑고 밝아 농사 준비(논밭갈이)를 시작하는 때. 한식과 시기가 겹친다."),
     ("곡우","穀雨",4,20,"농사를 돕는 봄비","spring","곡식 곡(穀)+비 우(雨)","곡식을 윤택하게 하는 봄비가 내린다. 못자리를 마련하며 본격 농사철이 시작된다."),
-    ("입하","立夏",5,6,"여름의 시작","summer","설 립(立)+여름 하(夏)","여름이 시작되는 절기. 초목이 무성해지고 농작물이 빠르게 자란다."),
+    ("입하","立夏",5,5,"여름의 시작","summer","설 립(立)+여름 하(夏)","여름이 시작되는 절기. 초목이 무성해지고 농작물이 빠르게 자란다."),
     ("소만","小滿",5,21,"만물이 차오름","summer","작을 소(小)+찰 만(滿)","햇볕이 풍부해 만물이 점차 자라 가득 차기 시작한다. 보리가 익고 모내기를 준비한다."),
     ("망종","芒種",6,6,"씨 뿌리는 때","summer","까끄라기 망(芒)+씨 종(種)","보리처럼 까끄라기 있는 곡식을 거두고 벼를 심는 때. 농가가 일 년 중 가장 바쁘다."),
     ("하지","夏至",6,21,"낮이 가장 긴 날","summer","여름 하(夏)+이를 지(至)","여름의 절정에 ‘이른다’는 뜻. 낮이 일 년 중 가장 길다."),
     ("소서","小暑",7,7,"작은 더위","summer","작을 소(小)+더울 서(暑)","‘작은 더위’. 본격적인 더위가 시작되며 장마가 이어진다."),
     ("대서","大暑",7,23,"가장 더운 때","summer","클 대(大)+더울 서(暑)","‘큰 더위’. 장마가 끝나고 일 년 중 가장 무더운 시기로 폭염이 절정에 이른다."),
-    ("입추","立秋",8,8,"가을의 시작","autumn","설 립(立)+가을 추(秋)","가을이 시작되는 절기. 한낮은 덥지만 아침저녁으로 서늘한 기운이 돌기 시작한다."),
+    ("입추","立秋",8,7,"가을의 시작","autumn","설 립(立)+가을 추(秋)","가을이 시작되는 절기. 한낮은 덥지만 아침저녁으로 서늘한 기운이 돌기 시작한다."),
     ("처서","處暑",8,23,"더위가 그침","autumn","곳·그칠 처(處)+더울 서(暑)","더위가 한풀 꺾여 ‘그치는’ 때. ‘처서가 지나면 모기 입이 비뚤어진다’는 말이 있다."),
     ("백로","白露",9,8,"흰 이슬이 맺힘","autumn","흰 백(白)+이슬 로(露)","밤 기온이 내려가 풀잎에 흰 이슬이 맺힌다. 가을 기운이 완연해진다."),
     ("추분","秋分",9,23,"낮과 밤이 같음(가을)","autumn","가을 추(秋)+나눌 분(分)","가을의 한가운데로 낮과 밤의 길이가 같아진다. 이후로 밤이 점점 길어진다."),
@@ -270,6 +274,89 @@ def seasonal_lag(curve_past, curve_present):
     }
 
 
+def lag_stability(df, years):
+    """R4-P0-4: 계절 지연이 '표본을 바꿔도 남는 신호'인지 '흔들리는 숫자'인지 잰다.
+
+    5년 중 한 해를 빼고 다시 계산하는 잭나이프(leave-one-year-out)를 돌려
+    지연 값이 얼마나 움직이는지 기록한다. 이 앱은 학습자에게 '흔들리는 숫자와
+    남는 방향을 구별하라'고 가르치므로, 자기 숫자에 같은 잣대를 먼저 대야 한다.
+
+    실측 결과: 여름 지연은 잭나이프에서 ±2~3일로 견고하고, 겨울 지연은
+    지점에 따라 20~30일씩 흔들린다. 화면은 이 차이를 그대로 말해야 한다.
+    """
+    if len(years) < 3:
+        return None
+    hot, cold = [], []
+    for drop in years:
+        ys = [y for y in years if y != drop]
+        cur = climatology(df, "avgTa", ys, False)
+        L = seasonal_lag(cur, cur)["present"]
+        hot.append(L["hotLag"])
+        cold.append(L["coldLag"])
+    return {"n": len(years),
+            "hot": {"min": int(min(hot)), "max": int(max(hot)), "span": int(max(hot) - min(hot))},
+            "cold": {"min": int(min(cold)), "max": int(max(cold)), "span": int(max(cold) - min(cold))}}
+
+
+# 폭염·열대야는 일 최고/최저기온이 필요하다. allyears 통합본(일평균 3종)에는 없고,
+# 별도 수집분(data_collectors/output/kma_asos_daily_*.csv, 8지점)에 minTa·maxTa가 있다.
+# 자료가 있는데 "계산할 수 없다"고 말하지 않기 위해 이 블록을 따로 만든다.
+# 기간이 통합본과 다르므로(현재 2022–2025, 4년) 화면이 그 사실을 함께 표기한다.
+DAILY_SRC = BASE / "data_collectors" / "output"
+EXTREME_PAST = (1969, 1973)
+EXTREME_NOW = (2022, 2025)
+EXTREME_DEFS = [
+    ("heatwave", "폭염일", "maxTa", 33.0, "ge", "일 최고기온 33℃ 이상", "기상청 폭염주의보 기준온도"),
+    ("hot35", "35℃ 이상 폭염일", "maxTa", 35.0, "ge", "일 최고기온 35℃ 이상", "기상청 폭염경보 기준온도"),
+    ("tropicalNight", "열대야", "minTa", 25.0, "ge", "일 최저기온 25℃ 이상", "기상청 열대야 정의(밤 최저 25℃↑)"),
+    ("iceDay", "결빙일", "maxTa", 0.0, "lt", "일 최고기온 0℃ 미만", "하루 종일 영하"),
+]
+
+
+def extreme_index(name):
+    """일 최고/최저기온 기반 지수. 자료가 없으면 None을 돌려 화면이 조용히 퇴화한다."""
+    frames = []
+    for span in (f"{EXTREME_PAST[0]}_{EXTREME_PAST[1]}", "2022_2026"):
+        f = DAILY_SRC / f"kma_asos_daily_{name}_{span}.csv"
+        if not f.exists():
+            return None
+        d = pd.read_csv(f, usecols=lambda c: c in ("date", "avgTa", "minTa", "maxTa"))
+        frames.append(d)
+    df = pd.concat(frames, ignore_index=True)
+    df["date"] = pd.to_datetime(df["date"])
+    df["year"] = df["date"].dt.year
+    if not {"minTa", "maxTa"} <= set(df.columns):
+        return None
+
+    def years_of(lo, hi):
+        c = df[(df["year"] >= lo) & (df["year"] <= hi)].groupby("year").size()
+        return [int(y) for y, n in c.items() if n >= MIN_DAYS]
+
+    py, ny = years_of(*EXTREME_PAST), years_of(*EXTREME_NOW)
+    if len(py) < 3 or len(ny) < 3:
+        return None
+    out = {"periods": {"past": f"{EXTREME_PAST[0]}–{EXTREME_PAST[1]}", "present": f"{EXTREME_NOW[0]}–{EXTREME_NOW[1]}"},
+           "years": {"past": py, "present": ny}, "idx": {}}
+    for key, label, col, thr, op, defn, src in EXTREME_DEFS:
+        v = pd.to_numeric(df[col], errors="coerce")
+        hit = (v >= thr) if op == "ge" else (v < thr)
+        row = {"label": label, "def": defn, "src": src, "thr": thr, "col": col}
+        for pk, ys in (("past", py), ("present", ny)):
+            # 결측일은 '해당 없음'이 아니라 '셀 수 없음'이다 — 유효 관측일수로 정규화한다.
+            counts = []
+            for y in ys:
+                m = df["year"].to_numpy() == y
+                valid = m & v.notna().to_numpy()
+                if valid.sum() < MIN_DAYS:
+                    continue
+                counts.append(float((hit.to_numpy() & valid).sum()) * 365.0 / float(valid.sum()))
+            row[pk] = round(float(np.mean(counts)), 1) if counts else None
+        if row["past"] is not None and row["present"] is not None:
+            row["diff"] = round(row["present"] - row["past"], 1)
+        out["idx"][key] = row
+    return out
+
+
 def sliding_windows(df, thresholds, span=5, start=1996):
     """5년 창을 한 해씩 옮겨 가며 기준별 통계를 낸다 (기간 창 조작 변수용).
 
@@ -362,6 +449,10 @@ def main():
         e["sensitivity"] = window_sensitivity(df)
         e["rainFlip"] = rain_flip(e)
         e["seasonalLag"] = seasonal_lag(e["temp"]["past"], e["temp"]["present"])
+        e["lagStability"] = lag_stability(df, cy)          # R4-P0-4 잭나이프
+        ex = extreme_index(name)                            # R4-P1-1 폭염·열대야
+        if ex:
+            e["extremes"] = ex
         e["windows"] = sliding_windows(df, range(20, 35))
         cities[name] = e
         d25 = e["temp"]["exceedDays"]
@@ -387,6 +478,41 @@ def main():
             vals.append(round(sum(xs) / len(xs), 2) if xs else None)
         nat[mk] = vals
 
+    # ── R4-P0-4: 계절 지연 전국 요약 ──────────────────────────────
+    # 예전에는 화면이 COASTAL 이분법(해안 7 vs 내륙 9)으로 "바다가 천천히 식으니
+    # 해안이 늦다"고 단정했다. 그러나 그 '해안' 7곳 중 인천·포항은 내륙 분포
+    # 안에 그대로 들어가고, 5년 중 한 해만 빼면 격차가 11일 → 2일로 사라진다.
+    # 이분법을 버리고 '데이터가 실제로 말하는 것'만 싣는다 — 뚜렷하게 늦은
+    # 지점의 목록과, 그 결론이 표본에 얼마나 흔들리는지(잭나이프)를 함께.
+    def _lag_summary(season):
+        hk = "hotLag" if season == "summer" else "coldLag"
+        jk = "hot" if season == "summer" else "cold"
+        vals, jspan, late = {}, [], []
+        for n, c in cities.items():
+            L = c.get("seasonalLag")
+            if not L:
+                continue
+            vals[n] = L["present"][hk]
+            st = c.get("lagStability")
+            if st:
+                jspan.append(st[jk]["span"])
+        if not vals:
+            return None
+        arr = sorted(vals.values())
+        # '뚜렷하게 늦다'의 기준을 임의로 정하지 않는다 — 중앙값 + 사분위범위 1.5배(상자그림 이상치)
+        q1, q3 = arr[len(arr) // 4], arr[(3 * len(arr)) // 4]
+        fence = q3 + 1.5 * (q3 - q1)
+        late = sorted([n for n, v in vals.items() if v > fence], key=lambda n: -vals[n])
+        return {"min": min(arr), "max": max(arr), "median": arr[len(arr) // 2],
+                "spread": max(arr) - min(arr),
+                "jackMaxSpan": max(jspan) if jspan else None,
+                "jackMedianSpan": sorted(jspan)[len(jspan) // 2] if jspan else None,
+                "outliers": late, "outlierVals": {n: vals[n] for n in late},
+                "typical": [q1, q3],
+                # 잭나이프 흔들림이 지점 간 퍼짐만큼 크면 '지역 차이'라고 말할 수 없다
+                "robust": bool(jspan) and (max(jspan) * 2 <= (max(arr) - min(arr)))}
+    lag_summary = {"summer": _lag_summary("summer"), "winter": _lag_summary("winter")}
+
     terms = [{"name": n, "hanja": h, "date": f"{m}/{d}", "doy": md_to_doy(m, d), "meaning": mean,
               "season": s, "hanja_gloss": hg, "desc": ds} for (n, h, m, d, mean, s, hg, ds) in TERMS]
 
@@ -398,13 +524,21 @@ def main():
             "periods": {"past": f"{PAST[0]}–{PAST[1]}", "present": f"{PRESENT[0]}–{PRESENT[1]}"},
             "periodYears": {"past": list(PAST), "present": list(PRESENT)},
             "metrics": [{"key": k, "label": l, "unit": u, "promise": (k == "temp")} for (k, _, l, u, *_) in METRICS],
-            "cities": cities, "nationwide": nat, "terms": terms}
+            "cities": cities, "nationwide": nat, "terms": terms, "lagSummary": lag_summary}
     OUT_JSON.parent.mkdir(parents=True, exist_ok=True)
     json.dump(data, open(OUT_JSON, "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
     with open(OUT_JS, "w", encoding="utf-8") as f:
         f.write("window.SOLAR_DATA = ")
         json.dump(data, f, ensure_ascii=False, separators=(",", ":"))
         f.write(";\n")
+    for s in ("summer", "winter"):
+        g = lag_summary[s]
+        if g:
+            print(f"  계절지연 {s}: {g['min']}~{g['max']}일 · 중앙 {g['median']}일 · "
+                  f"잭나이프 최대흔들림 {g['jackMaxSpan']}일 · 뚜렷이 늦은 지점 {g['outliers'] or '없음'} · "
+                  f"robust={g['robust']}")
+    nex = sum(1 for c in cities.values() if c.get("extremes"))
+    print(f"  폭염·열대야 지수: {nex}지점 ({EXTREME_PAST[0]}–{EXTREME_PAST[1]} vs {EXTREME_NOW[0]}–{EXTREME_NOW[1]})")
     print(f"\n  ✓ {OUT_JSON.name} ({OUT_JSON.stat().st_size // 1024} KB) · "
           f"{OUT_JS.name} ({OUT_JS.stat().st_size // 1024} KB) · nationwide {nat['years'][0]}~{nat['years'][-1]}")
 

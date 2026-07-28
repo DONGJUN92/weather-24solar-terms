@@ -41,7 +41,13 @@
 .lg-now { background: var(--coral); }
 .lg-term { background: repeating-linear-gradient(90deg, var(--sun) 0 4px, transparent 4px 7px); }
 .lg-thr { background: var(--thr); }
-#heroSvg { width: 100%; height: auto; display: block; touch-action: none; cursor: ns-resize; }
+/* R4-P2: touch-action:none이 차트 전체에서 브라우저 제스처를 껐는데, JS는 기준선 ±22px
+   밴드에서만 반응한다 — 그 밖에서 세로로 스와이프하면 브라우저도 JS도 아무 반응이 없어
+   화면이 멈춘 것처럼 보였다(375px에서 차트가 화면의 31.6%를 차지한다).
+   pan-y로 세로 스크롤은 브라우저에 돌려주고, 드래그를 실제로 잡은 순간에만 JS가 막는다.
+   계절 지연 미션은 가로 드래그가 조작이므로 pan-y가 그대로 맞는다. */
+#heroSvg { width: 100%; height: auto; display: block; touch-action: pan-y; cursor: ns-resize; }
+#heroSvg.is-dragging { touch-action: none; }
 /* 미션5는 가로(날짜) 조작이다 — 커서가 세로를 가리키면 학습자가 그 방향으로 끈다. */
 .lag-mode #heroSvg { cursor: ew-resize; }
 
@@ -204,7 +210,7 @@
 .intro-h { font-size: clamp(26px, 4.4vw, 40px); line-height: 1.22; letter-spacing: -.015em; color: var(--ink-max); margin: 0 0 14px; }
 .intro-preview { max-width: 540px; margin: 2px auto 16px; }
 #introChart { width: 100%; height: auto; display: block; border: 1px solid var(--line); border-radius: 12px; background: var(--panel2); padding: 6px 8px; }
-.intro-counter { font-size: 13px; color: var(--muted); margin: 9px 0 0; line-height: 1.5; }
+.intro-counter { font-size: clamp(17px, 2.6vw, 24px); font-weight: 600; color: var(--muted); margin: 9px 0 0; line-height: 1.5; }
 .intro-counter .ip-pill { color: var(--on-thr); font-weight: 700; }
 .intro-counter .past { color: var(--muted); }
 .intro-counter .now { color: var(--coral); font-weight: 700; }
@@ -736,3 +742,104 @@ small { font-size: max(11.5px, .86em); }
 /* 주황 배지를 주황 틴트 카드 위에 얹으면 색조가 겹쳐 대비가 4.18로 내려간다(실측).
    배경을 중립으로 두어 글자색만 강조색을 쓴다. */
 .ro-delta { margin-left: 8px; padding: 2px 8px; border-radius: 999px; background: rgba(var(--line-rgb),.10); border: 1px solid rgba(var(--line-rgb),.20); color: var(--on-coral); font-size: 13px; font-weight: 700; }
+
+/* ══════════════════════════════════════════════════════════════
+   R4 — 열관성 실험실 · 궤도 모바일 표적 · 인쇄 대비 · 판정 순서
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── 열관성 실험실 ─────────────────────────────────────────── */
+.lab-card .lab-warn {
+  margin: 10px 2px 14px; padding: 11px 14px; border-radius: 12px;
+  border: 1px solid rgba(var(--sky-rgb), .34); background: rgba(var(--sky-rgb), .09);
+  font-size: 13.5px; line-height: 1.75; color: var(--ink2); word-break: keep-all;
+}
+.eqn-card { margin: 0 2px 14px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel2); }
+.eqn-h { margin: 0 0 6px; font-size: 11.5px; letter-spacing: .05em; color: var(--muted2); }
+.eqn { margin: 0; font-size: 14.5px; line-height: 1.9; color: var(--ink); word-break: keep-all; }
+.eqn small { color: var(--muted2); font-size: 11.5px; font-weight: 400; margin-left: 3px; }
+.eq-c { color: var(--on-thr); } .eq-q { color: var(--on-sun); } .eq-o { color: var(--on-coral); }
+.eqn-s { margin: 7px 0 0; font-size: 12.5px; line-height: 1.7; color: var(--muted); }
+#labSvg { width: 100%; height: auto; display: block; touch-action: pan-y; }
+.lg-sim { background: var(--sky); }
+.lab-ghg { border-top: 1px dashed rgba(var(--line-rgb), .28); margin-top: 4px; padding-top: 10px; }
+.lab-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 2px 12px; }
+
+.lab-findings { margin: 14px 2px 4px; }
+.lf-head { margin: 0 0 10px; font-size: 12.5px; letter-spacing: .04em; color: var(--muted2); }
+.lf-head small { color: var(--muted3); font-size: 11.5px; }
+.lf-grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); }
+.lf-item { padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel2); }
+.lf-item > b { display: block; margin-bottom: 5px; font-size: 13.5px; color: var(--ink); }
+.lf-item p { margin: 0 0 8px; font-size: 13px; line-height: 1.75; color: var(--muted); word-break: keep-all; }
+.lf-item.is-key { border-color: rgba(var(--coral-rgb), .42); background: rgba(var(--coral-rgb), .08); }
+.lf-item.is-key > b { color: var(--on-coral); }
+.lf-foot { margin: 12px 0 0; padding: 11px 14px; border-radius: 12px; background: rgba(var(--line-rgb), .07);
+  font-size: 12.5px; line-height: 1.8; color: var(--muted); word-break: keep-all; }
+
+/* ── 24절기 궤도: 모바일 표적·글자 (WCAG 2.5.8) ────────────── */
+.orb-term { cursor: pointer; }
+.orb-term:focus-visible { outline: none; }
+.orb-term:focus-visible .orb-dot { stroke: var(--sun); stroke-width: 3.5px; }
+/* 375px에서 SVG가 0.555배로 줄어든다 — 화면에 11.5px 이상으로 찍히려면 viewBox 기준 21px이 필요하다.
+   (기본 11px은 6.1px로 렌더돼 사실상 읽을 수 없었다) */
+@media (max-width: 620px) {
+  .orb-name { font-size: 21px !important; font-weight: 700 !important; }
+  .orb-dot { r: 10; }
+  .orb-term.is-on .orb-dot { r: 15; }
+  .orb-hit { r: 26; }
+}
+
+/* ── 판정: 자가진단 → 판정문 순서 ──────────────────────────── */
+.sc-lead { margin: 0 0 8px; font-size: 12.5px; color: var(--muted2); }
+#verdictReveal.is-revealed { animation: reveal .28s ease-out both; }
+@keyframes reveal { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { #verdictReveal.is-revealed { animation: none; } }
+.done-next { display: flex; flex-wrap: wrap; gap: 10px; margin: 4px 0 10px; }
+
+/* ── 지구 맥락 패널 출처 (CC BY 4.0 저작자표시) ───────────── */
+.global-src { margin: 14px 0 0; padding: 11px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel2); }
+.gs-h { margin: 0 0 6px; font-size: 11.5px; letter-spacing: .05em; color: var(--muted2); }
+.global-src ul { margin: 0; padding-left: 18px; }
+.global-src li { margin: 3px 0; font-size: 12.5px; line-height: 1.7; color: var(--muted); }
+.global-src a { color: var(--on-sky); }
+.gs-note { margin: 8px 0 0; font-size: 12px; line-height: 1.7; color: var(--muted3); }
+
+/* ── 인쇄: 다크 테마에서도 흰 종이에 검은 글자로 ───────────
+   예전에는 색 강제가 한 줄뿐이라 제목(#ffffff)이 흰 종이에 흰 글자로 나왔다(대비 1.00:1). */
+@media print {
+  :root, [data-theme="dark"], [data-theme="light"] {
+    --ink: #14202b; --ink2: #26313d; --ink-max: #000; --muted: #3d4a57; --muted2: #4a5866; --muted3: #5c6a78;
+    --panel: #fff; --panel2: #fafafa; --line: #c8ccd2; --line-rgb: 200,204,210;
+    --coral: #b03a1e; --on-coral: #8f2f18; --sky: #14527f; --on-sky: #103f62;
+    --sun: #8a6100; --on-sun: #6f4e00; --thr: #4b2f86; --on-thr: #3c2570; --green: #1c6b3a;
+    --shade-rgb: 255,255,255; --sun-rgb: 138,97,0; --coral-rgb: 176,58,30; --sky-rgb: 20,82,127;
+  }
+  .stage-h, .intro-h, .hero-headline, .sub, .eyebrow, .skill-row span, .goal-chip, .mno { color: #14202b !important; }
+  .burst, .lab-actions, .done-next, .cardmaker, .share-row, .verdict-actions, .lf-item button { display: none !important; }
+  .lab-findings, .global-src { break-inside: avoid; }
+}
+
+/* ── 개념 분류 관문 (목표① 수행 증거) ─────────────────────── */
+.lens-inner { max-width: 620px; }
+.lens-lead { font-size: 14px !important; font-weight: 500 !important; line-height: 1.8; margin-bottom: 14px !important; }
+.lens-row { margin: 0 0 14px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel2); }
+.lens-row.is-done { border-color: rgba(var(--line-rgb), .18); }
+.lens-t { margin: 0 0 9px; font-size: 14px; line-height: 1.7; color: var(--ink); word-break: keep-all; }
+.lens-btns { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
+.lens-btn { display: flex; flex-direction: column; gap: 2px; align-items: flex-start; min-height: 46px;
+  padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel);
+  color: var(--muted); font-size: 13px; text-align: left; cursor: pointer; }
+.lens-btn b { color: var(--ink); font-size: 13.5px; }
+.lens-btn small { font-size: 11px; color: var(--muted3); line-height: 1.4; }
+.lens-btn:not([disabled]):hover { border-color: var(--sea); }
+.lens-btn.is-right { border-color: var(--green); background: rgba(var(--green-rgb, 28,107,58), .12); }
+.lens-btn.is-right b { color: var(--green); }
+.lens-btn.is-wrong { border-color: var(--coral); background: rgba(var(--coral-rgb), .12); }
+.lens-btn.is-wrong b { color: var(--on-coral); }
+.lens-btn[disabled] { cursor: default; opacity: .95; }
+.lens-why { margin: 9px 0 0; font-size: 12.5px; line-height: 1.75; color: var(--muted); word-break: keep-all; }
+@media (max-width: 620px) { .lens-btns { grid-template-columns: 1fr; } }
+
+/* 미션5 날짜 슬라이더·프리셋 */
+#markRange { flex: 1; }
+#markPresets { margin-top: 6px; }

@@ -37,7 +37,17 @@ TOPICS = [
 SECRET = re.compile(
     r"(sk-[A-Za-z0-9_\-]{20,}|sk-proj-[A-Za-z0-9_\-]{20,}"
     r"|(?:OPENAI_API_KEY|KMA_SERVICE_KEY|SERVICE_KEY|AUTH_KEY)\s*=\s*[\"']?[A-Za-z0-9%_\-\.]{16,}"
-    r"|serviceKey=[A-Za-z0-9%_\-\.]{16,}|authKey=[A-Za-z0-9%_\-\.]{16,})")
+    r"|serviceKey=[A-Za-z0-9%_\-\.]{16,}|authKey=[A-Za-z0-9%_\-\.]{16,}"
+    # R4: 이메일 평문도 마스킹한다. 제출자 본인 계정이라 위해는 낮지만
+    # '개인정보 없음'을 README에 적어 두고 로그에 남겨 두면 그 문장이 거짓이 된다.
+    r"|[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,})")
+
+# R4: 제출 목적과 무관하고 타 팀 실명이 등장하는 구간은 내보내지 않는다.
+# (이 제출물은 사무국이 보관·회람하며 중복·표절 심사를 거친다)
+DROP_PATTERNS = [
+    re.compile(r"본선.{0,6}(진출|합격).{0,4}(팀|명단).{0,40}(평가|분석|비교)"),
+    re.compile(r"(합격팀|경쟁팀|타\s*팀).{0,20}(공유하는|3대|코드|밀린)"),
+]
 
 
 def txt(content):
@@ -75,8 +85,17 @@ def when(o):
         return ""
 
 
+def turn_key(role, body):
+    """중복 판정용 지문 — 공백·기호를 지운 본문 앞부분."""
+    import hashlib
+    norm = re.sub(r"\s+", "", body)[:400]
+    return hashlib.sha1((role + "|" + norm).encode("utf-8")).hexdigest()
+
+
 os.makedirs(OUT, exist_ok=True)
 made = []
+seen_turns = set()      # R4: 세션 간 중복 턴 제거 (03이 04의 97%를 중복 포함하고 있었다)
+dropped_dup, dropped_offtopic = 0, 0
 for sid, name, desc in TOPICS:
     path = os.path.join(SRC, sid + ".jsonl")
     if not os.path.exists(path) or os.path.getsize(path) < 2048:
@@ -104,6 +123,17 @@ for sid, name, desc in TOPICS:
         # 도구 결과가 사용자 메시지로 되돌아오는 경우 제외
         if role == "user" and body.startswith("[백그라운드 작업 결과"):
             continue
+        # 제출 목적과 무관한 경쟁팀 분석 구간은 싣지 않는다
+        if any(p.search(body) for p in DROP_PATTERNS):
+            dropped_offtopic += 1
+            turns.append((role, when(o), "*(경쟁 상황 분석 구간 — 제출 목적과 무관하여 제외)*"))
+            continue
+        # 이전 세션에 이미 실린 턴은 다시 싣지 않는다
+        k = turn_key(role, body)
+        if k in seen_turns:
+            dropped_dup += 1
+            continue
+        seen_turns.add(k)
         t = when(o)
         if t:
             first = first or t
@@ -145,4 +175,17 @@ for sid, name, desc in TOPICS:
     made.append((name, nu, na, os.path.getsize(fp)))
     print(f"  ✓ {name}.md  지시 {nu} · 답변 {na} · {os.path.getsize(fp)//1024}KB")
 
-print(f"\n총 {len(made)}개 세션, {sum(x[3] for x in made)//1024}KB")
+print(f"\n총 {len(made)}개 세션, {sum(x[3] for x in made)//1024}KB "
+      f"· 중복 턴 {dropped_dup}건 제거 · 경쟁분석 구간 {dropped_offtopic}건 제외")
+
+# 목차를 실물과 항상 일치시킨다 (예전에는 AI_활용_기록.md의 목록 7개가 실물과 0건 일치했다)
+idx = ["# 프롬프트 세션 로그", "",
+       "> 제출물 ④. Claude Code 세션 원문에서 대화 본문만 추출했습니다.",
+       "> 도구 호출 로그·내부 추론 제외 · 비밀값과 이메일은 `<REDACTED>` 치환 ·",
+       "> 세션 간 중복 턴 제거(고유 턴만 집계) · 경쟁 상황 분석 구간 제외.", "",
+       "| 파일 | 주제 | 사람 지시 | AI 답변 | 크기 |", "|---|---|---|---|---|"]
+for (name, nu, na, sz), (_, _, desc) in zip(made, [t for t in TOPICS if any(m[0] == t[1] for m in made)]):
+    idx.append(f"| `{name}.md` | {desc} | {nu} | {na} | {sz // 1024}KB |")
+idx += ["", f"**합계 — 사람 지시 {sum(x[1] for x in made)}건 · AI 답변 {sum(x[2] for x in made)}건** (중복 제거 후 고유 턴 기준)", ""]
+io.open(os.path.join(OUT, "README.md"), "w", encoding="utf-8").write("\n".join(idx))
+print("  ✓ prompt_sessions/README.md 목차 갱신")
