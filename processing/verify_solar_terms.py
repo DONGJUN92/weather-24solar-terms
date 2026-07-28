@@ -502,9 +502,13 @@ def main():
     pred0 = vjs_txt.find("function renderPrediction")
     pred1 = vjs_txt.find("function showLensGate", pred0)
     pred_src = vjs_txt[pred0:pred1] if pred0 >= 0 and pred1 > pred0 else ""
+    cerl0 = vjs_txt.find("function studentCerlHTML")
     verdict0 = vjs_txt.find("function renderVerdict")
-    verdict1 = vjs_txt.find("function onSelfCheck", verdict0)
-    verdict_src = vjs_txt[verdict0:verdict1] if verdict0 >= 0 and verdict1 > verdict0 else ""
+    check0 = vjs_txt.find("function renderSelfCheckStep")
+    expert0 = vjs_txt.find("function renderExpertStep")
+    flow0 = vjs_txt.find("function renderMissionFlow")
+    flow1 = vjs_txt.find("function renderPrediction", flow0)
+    flow_src = vjs_txt[flow0:flow1] if flow0 >= 0 and flow1 > flow0 else ""
 
     ck(pred0 >= 0 and "introChart" not in vjs_txt,
        "N: 관측 자료와 분리된 renderPrediction 화면이 없거나 소개 화면이 결과를 미리 노출한다")
@@ -516,14 +520,21 @@ def main():
        "N: 현재 마지막초과일 마커가 예측 봉인 중 노출될 수 있다")
     ck("방금 만져 봤죠" not in vjs_txt, "N: 조작 뒤 예측을 유도하는 낡은 문구가 남아 있다")
     ck("o.s" not in pred_src, "N: 예측 선택지에 정답 성격을 암시하는 보조문구를 렌더한다")
-    ck(verdict_src.find("studentCerlHTML(m)") < verdict_src.find('class="selfcheck"') < verdict_src.find('id="verdictReveal"'),
+    ck(0 <= cerl0 < verdict0 < check0 < expert0
+       and "studentCerlHTML(m, n)" in vjs_txt[verdict0:check0]
+       and "renderSelfCheckStep(m)" in vjs_txt[verdict0:check0]
+       and "renderExpertStep(m, v)" in vjs_txt[verdict0:check0],
        "N: 학생 CERL → 자가진단 → 전문가 예시 순서가 아니다")
-    ck('class="selfcheck" id="selfcheck" hidden' in verdict_src,
+    ck("['check', 'expert', 'transfer', 'audit'].indexOf(step) !== -1"
+       in flow_src and "!state.cerlSubmitted[m.id] || cerlErrors(m).length" in flow_src,
        "N: 학생 CERL 제출 전에 자가진단이 열려 있다")
     ck(all(f"k: '{k}'" in vjs_txt for k in ("c", "e", "r", "l")),
        "N: 학생 CERL의 주장·근거·추론·한계 네 필드가 모두 있지 않다")
-    ck("!state.cerlSubmitted[m.id] || cerlErrors(m).length" in vjs_txt,
-       "N: CERL 없이 완료·다음 미션으로 갈 수 있는 경로가 있다")
+    ck("!state.cerlSubmitted[m.id] || cerlErrors(m).length" in vjs_txt
+       and "증거 조건 변경 감지" in vjs_txt
+       and "state.evidenceById[m.id] = currentCfg" in vjs_txt
+       and "state.cerlSubmitted[m.id] = false" in vjs_txt,
+       "N: CERL 없이 진행하거나, 작성 뒤 바뀐 증거를 기존 CERL과 조용히 섞을 수 있다")
     ck('id="localAudit"' in vjs_txt, "N: 외부 전송 없는 기기 안 규칙 점검 버튼이 없다")
     ck('id="aiConsent"' in vjs_txt and "OpenAI API로 전송" in vjs_txt,
        "N: 외부 AI 전송 고지와 명시적 동의가 없다")

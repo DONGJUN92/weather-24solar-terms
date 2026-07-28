@@ -550,6 +550,8 @@
     var base = { phase: 'intro', mi: 0, city: '서울', ti: 15, thr: 25, thr0: 25, metric: 'temp', pre: null, post: null,
                  predicts: {}, done: [], touched: false, moved: false, missionDraft: {}, missionCerl: {}, cerlSubmitted: {},
                  selfChecks: {}, freeDraft: '', zoom: false, view: 'chart',
+                 missionStep: null, cerlStepById: {}, evidenceById: {}, introStep: 'landing', termIntroStep: 0,
+                 completeStep: 0, freeTab: 0, labTab: 0,
                  markDoy: null, lagRevealed: false, lagSeason: 'summer', winI: null, lab: null };
     try {
       /* v4는 ‘자료를 보기 전 예측’과 학생 CERL 필수 제출을 상태 스키마에 포함한다.
@@ -569,6 +571,16 @@
         if (!o.missionCerl || typeof o.missionCerl !== 'object') o.missionCerl = {};
         if (!o.cerlSubmitted || typeof o.cerlSubmitted !== 'object') o.cerlSubmitted = {};
         if (!o.selfChecks || typeof o.selfChecks !== 'object') o.selfChecks = {};
+        if (!o.cerlStepById || typeof o.cerlStepById !== 'object') o.cerlStepById = {};
+        if (!o.evidenceById || typeof o.evidenceById !== 'object') o.evidenceById = {};
+        if (['predict', 'lens', 'orient', 'explore', 'evidence', 'write', 'check', 'expert', 'transfer', 'audit'].indexOf(o.missionStep) === -1) o.missionStep = null;
+        if (o.introStep !== 'method') o.introStep = 'landing';
+        o.termIntroStep = Math.min(4, Math.max(0, Number(o.termIntroStep) || 0));
+        o.completeStep = Math.min(3, Math.max(0, Number(o.completeStep) || 0));
+        if (typeof o.freeTab === 'string') o.freeTab = ['workspace', 'evidence', 'verdict'].indexOf(o.freeTab);
+        if (typeof o.labTab === 'string') o.labTab = ['model', 'experiment', 'findings', 'limits'].indexOf(o.labTab);
+        o.freeTab = Math.min(2, Math.max(0, Number(o.freeTab) || 0));
+        o.labTab = Math.min(3, Math.max(0, Number(o.labTab) || 0));
         if (o.view !== 'table' && o.view !== 'map') o.view = 'chart';
         if (o.lagSeason !== 'winter') o.lagSeason = 'summer';
         if (!(o.markDoy >= 1 && o.markDoy <= 365)) o.markDoy = null;
@@ -592,7 +604,7 @@
   function stateHash() {
     return '#c=' + encodeURIComponent(state.city) + '&m=' + state.metric + '&t=' + state.thr + '&s=' + state.ti
       + (state.phase === 'free' ? '&v=free' : state.phase === 'lab' ? '&v=lab'
-         : (state.phase === 'mission' ? '&v=m' + state.mi : ''));
+         : (state.phase === 'mission' ? '&v=m' + state.mi + (state.missionStep ? '&p=' + state.missionStep : '') : ''));
   }
   function applyHash() {
     var h = (location.hash || '').replace(/^#/, '');
@@ -611,6 +623,8 @@
         state.phase = 'mission'; state.mi = i;
         state.city = mm.city; state.metric = mm.metric; state.thr = mm.thr; state.thr0 = mm.thr;
         state.ti = mm.ti; state.view = 'chart'; state.touched = false; state.moved = false;
+        var deepSteps = ['predict', 'lens', 'orient', 'explore', 'evidence', 'write', 'check', 'expert', 'transfer', 'audit'];
+        state.missionStep = deepSteps.indexOf(q.p) !== -1 ? q.p : 'predict';
         if (mm.lagMode) { state.markDoy = null; state.lagRevealed = false; state.lagSeason = 'summer'; state.ti = 11; }
         touched = true;
       }
@@ -1590,14 +1604,14 @@
       /* R4-P2: 한 조작에 라이브 영역 4~5개가 동시에 갱신돼 같은 값을 여러 번 낭독했다.
          이 한 곳만 라이브로 두고(조작 결과의 요약), 나머지는 슬라이더의 aria-valuetext가 맡는다. */
       + '<p class="live-nums" id="liveNums" aria-live="polite" aria-atomic="true"></p>'
-      + '<div class="view-tools">'
+      + (opts.viewTools === false ? '' : '<div class="view-tools">'
       + '<div class="seg" role="group" aria-label="보기 방식">'
       + '<button type="button" class="seg-btn" id="viewChart" aria-pressed="true">그래프</button>'
       + (hasMap() && !opts.lagMode ? '<button type="button" class="seg-btn" id="viewMap" aria-pressed="false">지도 <small>16지점</small></button>' : '')
       + '<button type="button" class="seg-btn" id="viewTable" aria-pressed="false">표</button>'
       + '</div>'
       + '<label class="zoom-toggle"><input type="checkbox" id="zoomChk" /> 기준 구간 확대 <small>(조금씩 조절할 때)</small></label>'
-      + '</div>'
+      + '</div>')
       + '<div id="mapMount" hidden></div>'
       + '<div id="tableMount" hidden></div>'
       + '<svg id="heroSvg" viewBox="0 0 720 340" role="img" aria-label="관측 곡선"></svg>'
@@ -1610,10 +1624,10 @@
       + '<div class="presets" id="presets" aria-label="자주 쓰는 기준"' + (opts.lagMode ? ' hidden' : '') + '></div>'
       + legend
       + '</div>'
-      + '<div class="readouts" id="readouts"></div>'
+      + (opts.includeReadouts === false ? '' : '<div class="readouts" id="readouts"></div>')
       + '<p class="heat-note" id="heatNote" role="note" hidden></p>'
-      + '<p class="integrity"><span aria-hidden="true">◈</span> 기상청 ASOS 실측 · 과거 <b>' + y.past.length + '년</b>(' + PERIOD_PAST + ') vs 현재 <b>' + y.present.length + '년</b>(' + PERIOD_NOW + ') — <b>관측 신호</b>이고 30년 <b>기후평년</b>이 아닙니다 · 절기는 태양 위치로 정한 <b>천문 날짜</b>라 해마다 거의 움직이지 않습니다</p>'
-      + '<div id="methodMount"></div>';
+      + '<p class="integrity' + (opts.compactIntegrity ? ' is-compact' : '') + '"><span aria-hidden="true">◈</span> 기상청 ASOS 실측 · 과거 <b>' + y.past.length + '년</b>(' + PERIOD_PAST + ') vs 현재 <b>' + y.present.length + '년</b>(' + PERIOD_NOW + ') — <b>관측 신호</b>이고 30년 <b>기후평년</b>이 아닙니다 · 절기는 태양 위치로 정한 <b>천문 날짜</b>라 해마다 거의 움직이지 않습니다</p>'
+      + (opts.includeMethod === false ? '' : '<div id="methodMount"></div>');
   }
 
   /* 계절 지연 모드 전용 조작 패널 — 여름/겨울 전환 + 날짜 스테퍼 + 확인 버튼 */
@@ -1693,10 +1707,10 @@
       delete state.predicts['lag']; delete state.selfChecks['lag'];
       state.ti = kind === 'winter' ? 23 : 11;
       var mm = MISSIONS[state.mi];
-      save();
+      state.missionStep = 'predict'; save();
       /* 질문이 달라졌는데 기존 그래프를 그대로 보여 주면 다시 ‘자료 → 예측’이 된다.
          계절 전환 즉시 무자료 예측 화면으로 이동한다. */
-      renderPrediction(mm);
+      renderMissionFlow();
     }
     if ($('lagSummer')) $('lagSummer').addEventListener('click', function () { season('summer'); });
     if ($('lagWinter')) $('lagWinter').addEventListener('click', function () { season('winter'); });
@@ -1864,7 +1878,7 @@
 
   /* ---------- 소개 화면 ---------- */
   function renderIntro() {
-    state.phase = 'intro'; save();
+    state.phase = 'intro'; state.introStep = 'landing'; save();
     setStage('<section class="card intro-card">'
       + '<p class="intro-badge">기상청 ASOS(전국 종관기상관측) 실측 · 1969–2026 · 16지역 × 24절기</p>'
       + '<h1 class="intro-h">24절기의 약속은<br>아직 유효할까?</h1>'
@@ -1872,19 +1886,31 @@
       + '<button class="ghost-btn" id="introTerms">🌍 24절기가 뭐예요?</button>'
       + '<button class="ghost-btn" id="introLab">🔬 열관성 실험실</button>'
       + '<button class="ghost-btn" id="introGuide"><span aria-hidden="true">✦</span> 가이드로 먼저 해볼게요</button></div>'
+      + '<p class="intro-lead intro-lead-compact">절기의 약속을 <b>실제 관측 자료</b>로 직접 검증하고, 내 근거로 결론을 만드는 기후 학습 도구입니다.</p>'
+      + '<p class="intro-teacher"><a href="./교사_학습지.html" target="_blank" rel="noopener">📄 교사용 학습지 — 수업 흐름·활동지·오개념 표·평가 루브릭 →</a></p>'
+      + '</section>');
+    $('introStart').addEventListener('click', renderIntroMethod);
+    $('introTerms').addEventListener('click', renderTerms);
+    $('introLab').addEventListener('click', renderLab);
+    $('introGuide').addEventListener('click', renderTutorial);
+  }
+
+  function renderIntroMethod() {
+    state.phase = 'intro'; state.introStep = 'method'; save();
+    setStage('<section class="card intro-card intro-method-card">'
+      + '<p class="intro-badge">시작 전 20초 · 학습 방법</p>'
+      + '<h1 class="stage-h">정답을 읽지 않고, 내 생각을 검증합니다.</h1>'
       + '<div class="intro-preview intro-seal" role="img" aria-label="1단계 자료 없이 예측, 2단계 관측 자료 조작, 3단계 내 CERL 작성">'
       + '<div class="seal-step is-first"><small>1 · 먼저</small><b>내 생각 예측</b><span>그래프·표 없음</span></div>'
       + '<i aria-hidden="true">→</i><div class="seal-step"><small>2 · 다음</small><b>관측 자료 조작</b><span>기준·지역·기간</span></div>'
       + '<i aria-hidden="true">→</i><div class="seal-step"><small>3 · 마지막</small><b>내 CERL 작성</b><span>주장·근거·추론·한계</span></div></div>'
       + '<p class="intro-lead">“처서가 지나면 더위가 그친다” 같은 <b>절기의 약속</b>을, 내 지역의 <b>실제 기상 관측</b>으로 직접 검증하는 기후 학습 도구예요. 기준선을 손으로 정해 과거와 현재를 비교하며 <b>절기·날씨·기후</b>를 구분하는 힘을 기릅니다.</p>'
-      + '<div class="intro-goals"><span>① 절기와 기후는 어떻게 다를까</span><span>② 이 자료는 어디까지 말할 수 있을까</span><span>③ ‘덥다’는 몇 도부터일까</span><span>④ 근거만큼만 결론 쓰기</span><span>⑤ 물리 법칙으로 계절을 다시 만들어 보기</span></div>'
+      + '<details class="intro-goal-details"><summary>이번 학습에서 기를 힘 5가지</summary><div class="intro-goals"><span>① 절기와 기후는 어떻게 다를까</span><span>② 이 자료는 어디까지 말할 수 있을까</span><span>③ ‘덥다’는 몇 도부터일까</span><span>④ 근거만큼만 결론 쓰기</span><span>⑤ 물리 법칙으로 계절을 다시 만들어 보기</span></div></details>'
       + '<p class="intro-foot">미션 하나에 <b>핵심 2~3분</b>(예측·조작·내 CERL) · ' + MISSIONS.length + '미션 핵심 예상 <b>15~20분</b> · 심화·자유탐구까지 55~70분 · 학생 파일럿 전 추정치 · 설치·로그인 없이 · 모바일 지원</p>'
-      + '<p class="intro-teacher"><a href="./교사_학습지.html" target="_blank" rel="noopener">📄 교사용 학습지 — 수업 흐름·활동지·오개념 표·평가 루브릭 →</a></p>'
+      + '<div class="step-actions"><button class="ghost-btn" id="introBack">← 처음 화면</button><button class="primary-btn" id="introMission">첫 예측 시작 →</button></div>'
       + '</section>');
-    $('introStart').addEventListener('click', function () { startMission(0); });
-    $('introTerms').addEventListener('click', renderTerms);
-    $('introLab').addEventListener('click', renderLab);
-    $('introGuide').addEventListener('click', renderTutorial);
+    $('introBack').addEventListener('click', renderIntro);
+    $('introMission').addEventListener('click', function () { startMission(0); });
   }
 
   /* ---------- 24절기 입문: 공전 궤도 시각화 ----------
@@ -1904,26 +1930,44 @@
   function renderTerms() {
     state.phase = 'terms'; save();
     setStage('<section class="card orbit-card"><h1 class="stage-h">24절기는 무엇일까?</h1>'
-      + '<p class="sub">조상들이 1년을 <b>24칸</b>으로 나눈 달력이에요. 아래 궤도에서 <b>절기를 눌러</b> 보세요.</p>'
-      + '<div class="orbit-wrap"><svg id="orbitSvg" viewBox="0 0 640 460" role="img" aria-label="지구 공전 궤도 위의 24절기 위치와 자전축 기울기"></svg></div>'
-      + '<div id="termCard" class="term-card" aria-live="polite"></div>'
-      + '<div class="why-box">'
+      + '<div class="micro-progress" aria-label="24절기 입문 진행"><b id="termStepLabel"></b><span><i id="termStepBar"></i></span></div>'
+      + '<section class="micro-panel" data-term-panel="0"><p class="sub">조상들은 태양의 위치를 기준으로 1년을 <b>24칸</b>으로 나눴어요. 궤도에서 절기를 하나 골라 보세요.</p>'
+      + '<div class="orbit-wrap"><svg id="orbitSvg" viewBox="0 0 640 460" role="img" aria-label="지구 공전 궤도 위의 24절기 위치와 자전축 기울기"></svg></div></section>'
+      + '<section class="micro-panel" data-term-panel="1"><p class="sub">방금 고른 절기의 날짜·이름·천문 기준을 읽어 보세요.</p>'
+      + '<div id="termCard" class="term-card" aria-live="polite"></div></section>'
+      + '<section class="micro-panel why-box" data-term-panel="2">'
       + '<h2 class="why-h">왜 조상들은 24절기를 만들었을까?</h2>'
       + '<p class="why-p">옛날 달력은 <b>달의 모양</b>을 기준으로 삼았어요(음력). 그런데 달 12번이 도는 데는 <b>354일</b>, 지구가 태양을 한 바퀴 도는 데는 <b>365.24일</b>이 걸립니다.</p>'
       + '<div id="driftViz"></div>'
       + '<p class="why-p">해마다 <b>약 11일</b>씩 어긋나서, <b>3년이면 한 달</b>이 밀립니다. 달력만 보고 씨를 뿌리면 해마다 시기가 달라져 농사를 망치죠.</p>'
-      + '<p class="why-p">그래서 <b>태양의 위치</b>로 1년을 24칸으로 나눈 <b>24절기</b>를 함께 썼습니다. 절기는 <b>날씨 예보가 아니라 농사 일정표</b>였어요 — “곡우에 못자리”, “망종에 모내기”처럼요.</p>'
-      + '<h2 class="why-h">그럼 절기와 기후는 무슨 관계일까?</h2>'
-      + '<p class="why-p">절기 날짜는 <b>태양의 위치</b>로 정해져 해마다 거의 그대로입니다. 하지만 그 무렵의 <b>실제 날씨</b>는 해마다, 지역마다 다르고 <b>수십 년에 걸쳐 변합니다.</b> '
-      + '이 앱이 하는 일이 바로 그 비교예요 — <b>움직이지 않는 절기</b>와 <b>움직이는 기후</b>를 나란히 놓고 봅니다.</p>'
-      + '</div>'
-      + '<div class="orbit-actions"><button class="primary-btn" id="orbitStart">이제 검증하러 가기 →</button>'
-      + '<button class="ghost-btn" id="orbitBack">← 소개로</button></div>'
+      + '<p class="why-p">그래서 <b>태양의 위치</b>로 1년을 24칸으로 나눈 <b>24절기</b>를 함께 썼습니다. 절기는 <b>날씨 예보가 아니라 농사 일정표</b>였어요 — “곡우에 못자리”, “망종에 모내기”처럼요.</p></section>'
+      + '<section class="micro-panel why-box" data-term-panel="3"><h2 class="why-h">여름은 태양에 가까워서 더울까?</h2>'
+      + '<p class="why-p">실제로 지구는 <b>가장 추운 1월 초에 태양과 가장 가깝고(0.983 AU)</b>, 7월 초에 가장 멉니다(1.017 AU). 거리 차이는 약 <b>3.4%</b>입니다.</p>'
+      + '<p class="why-p">계절을 만드는 핵심은 거리가 아니라 <b>자전축이 23.4° 기울어져 있다는 사실</b>입니다. 축은 늘 같은 방향을 가리켜 북반구가 태양 쪽으로 기울 때 여름, 반대일 때 겨울이 됩니다.</p></section>'
+      + '<section class="micro-panel why-box" data-term-panel="4"><h2 class="why-h">그럼 절기와 기후는 무슨 관계일까?</h2>'
+      + '<p class="why-p">절기 날짜는 <b>태양의 위치</b>로 정해져 해마다 거의 그대로입니다. 하지만 그 무렵의 <b>실제 날씨</b>는 해마다, 지역마다 다르고 <b>수십 년에 걸쳐 변합니다.</b></p>'
+      + '<p class="why-p">이 앱은 <b>움직이지 않는 절기</b>와 <b>움직이는 기후</b>를 나란히 놓고 비교합니다.</p></section>'
+      + '<div class="orbit-actions"><button class="ghost-btn" id="termPrev">← 이전</button>'
+      + '<button class="primary-btn" id="termNext">다음 →</button><button class="primary-btn" id="orbitStart" hidden>이제 검증하러 가기 →</button>'
+      + '<button class="ghost-btn" id="orbitBack">소개로</button></div>'
       + '</section>');
     drawOrbit();
     drawDrift();
+    function syncTermStep() {
+      var labels = ['1/5 · 궤도에서 고르기', '2/5 · 절기 읽기', '3/5 · 절기가 필요했던 이유', '4/5 · 계절 오개념 확인', '5/5 · 기후와 연결'];
+      stage.querySelectorAll('[data-term-panel]').forEach(function (p) { p.hidden = Number(p.dataset.termPanel) !== state.termIntroStep; });
+      $('termStepLabel').textContent = labels[state.termIntroStep];
+      $('termStepBar').style.width = ((state.termIntroStep + 1) / labels.length * 100) + '%';
+      $('termPrev').hidden = state.termIntroStep === 0;
+      $('termNext').hidden = state.termIntroStep === labels.length - 1;
+      $('orbitStart').hidden = state.termIntroStep !== labels.length - 1;
+      save();
+    }
+    $('termPrev').addEventListener('click', function () { state.termIntroStep = Math.max(0, state.termIntroStep - 1); syncTermStep(); });
+    $('termNext').addEventListener('click', function () { state.termIntroStep = Math.min(4, state.termIntroStep + 1); syncTermStep(); });
     $('orbitStart').addEventListener('click', function () { startMission(0); });
     $('orbitBack').addEventListener('click', renderIntro);
+    syncTermStep();
   }
 
   function drawOrbit() {
@@ -2007,10 +2051,7 @@
       + '<div><small>태양 황경</small><b>' + termLongitude(orbitSel) + '°</b>'
       + '<em>15° 간격 · 날씨와 무관한 천문 기준</em></div>'
       + '<div><small>지구–태양 거리</small><b>' + dist.toFixed(3) + ' AU</b><em>1월 초 0.983 / 7월 초 1.017</em></div>'
-      + '</div>'
-      + '<p class="tc-myth"><b>흔한 오해</b> “여름은 지구가 태양에 가까워서 덥다”? — 실제로는 <b>가장 추운 1월 초에 가장 가깝습니다.</b> '
-      + '거리 차이는 3.4%뿐이고, 계절을 만드는 것은 <b>자전축이 23.4° 기울어져 있다는 사실</b>이에요. '
-      + '축은 늘 같은 방향을 가리키기 때문에, 지구가 궤도를 돌면 북반구가 태양 쪽으로 기울었다가(여름) 반대로 기울었다가(겨울) 합니다.</p>';
+      + '</div>';
   }
 
   /* 음력과 태양년의 어긋남 — 24절기가 필요했던 이유를 막대로 */
@@ -2119,9 +2160,9 @@
       state.markDoy = null; state.lagRevealed = false; state.lagSeason = 'summer'; state.ti = 11;
       delete state.predicts['lag']; delete state.selfChecks['lag'];
     }
+    state.missionStep = missionAsked(m) ? 'orient' : 'predict';
     save();
-    if (missionAsked(m)) renderExplore();
-    else renderPrediction(m);
+    renderMissionFlow();
   }
 
   function missionAsk(m) {
@@ -2188,15 +2229,55 @@
   }
   function flash(el) { if (!el) return; el.classList.remove('is-flash'); void el.offsetWidth; el.classList.add('is-flash'); }
 
+  var STEP_LABELS = {
+    predict: '예측', lens: '개념 준비', orient: '탐구 방향', explore: '직접 조작', evidence: '증거 확보',
+    write: '내 CERL', check: '자가진단', expert: '전문가 비교', transfer: '다른 절기에 적용', audit: '감사·완료'
+  };
+  function missionSequence(m) {
+    var seq = ['predict'];
+    if (m.id === 'chuseo') seq.push('lens');
+    seq = seq.concat(['orient', 'explore', 'evidence', 'write', 'check', 'expert']);
+    if (m.askPost) seq.push('transfer');
+    seq.push('audit');
+    return seq;
+  }
+  function missionStepHeader(m, step) {
+    var seq = missionSequence(m), at = Math.max(0, seq.indexOf(step));
+    return '<div class="mission-step-head"><div class="mhead"><span class="mno">미션 ' + (state.mi + 1) + ' / ' + MISSIONS.length
+      + '</span><span class="goal-chip">' + m.goal + '</span></div>'
+      + '<div class="micro-progress" aria-label="미션 세부 단계"><b>' + (at + 1) + '/' + seq.length + ' · ' + STEP_LABELS[step]
+      + '</b><span><i style="width:' + ((at + 1) / seq.length * 100) + '%"></i></span></div></div>';
+  }
+  function setMissionStep(step) {
+    state.phase = 'mission'; state.missionStep = step; save(); renderMissionFlow();
+  }
+  function renderMissionFlow() {
+    var m = MISSIONS[state.mi];
+    if (!missionAsked(m)) { state.missionStep = 'predict'; renderPrediction(m); return; }
+    if (m.id === 'chuseo' && !lensDone()) { state.missionStep = 'lens'; renderLensStep(m); return; }
+    var step = state.missionStep || 'orient';
+    if (step === 'predict' || step === 'lens') step = 'orient';
+    if ((step === 'evidence' || ['write', 'check', 'expert', 'transfer', 'audit'].indexOf(step) !== -1) && !canJudge(m)) step = 'explore';
+    if (['check', 'expert', 'transfer', 'audit'].indexOf(step) !== -1 && (!state.cerlSubmitted[m.id] || cerlErrors(m).length)) step = 'write';
+    if (['expert', 'transfer', 'audit'].indexOf(step) !== -1 && !state.selfChecks[m.id]) step = 'check';
+    if (step === 'transfer' && !m.askPost) step = 'audit';
+    if (step === 'audit' && m.askPost && state.post == null) step = 'transfer';
+    state.missionStep = step; state.phase = 'mission'; save();
+    if (step === 'orient') renderMissionOrient(m);
+    else if (step === 'explore') renderExplore();
+    else if (step === 'evidence') renderEvidence();
+    else renderVerdict();
+  }
+
   /* P0 교육 계약: 예측 화면에는 그래프·표·숫자·정답 성격을 암시하는 보조문구를
      한 글자도 싣지 않는다. 딥링크나 저장 상태로 mission에 진입해도 renderExplore의
      가드가 이 화면으로 되돌리므로 ‘자료 → 예측’ 순서가 다시 생기지 않는다. */
   function renderPrediction(m) {
     var a = missionAsk(m);
-    if (!a.options.length || a.get() != null) { renderExplore(); return; }
+    if (!a.options.length || a.get() != null) { state.missionStep = 'orient'; renderMissionFlow(); return; }
     state.phase = 'mission'; overlayOpen = false; document.body.classList.remove('lag-mode'); save();
     setStage('<section class="card predict-card" aria-labelledby="predictTitle">'
-      + '<div class="mhead"><span class="mno">미션 ' + (state.mi + 1) + ' / ' + MISSIONS.length + ' · 1단계</span><span class="goal-chip">자료를 보기 전 예측</span></div>'
+      + missionStepHeader(m, 'predict')
       + '<p class="po-eyebrow">🔒 아직 이 미션의 관측 자료를 열지 않았습니다</p>'
       + '<h1 class="stage-h" id="predictTitle">먼저 내 생각을 봉인하세요.</h1>'
       + '<p class="predict-contract">다음 화면에서 그래프를 조작해 이 생각을 검증합니다. 지금은 정답을 맞히려 하지 말고, <b>현재 생각</b>을 고르세요.</p>'
@@ -2209,9 +2290,59 @@
     stage.querySelectorAll('[data-v]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         a.set(btn.dataset.v); save();
-        renderExplore();
+        state.missionStep = (m.id === 'chuseo' && !lensDone()) ? 'lens' : 'orient';
+        renderMissionFlow();
       });
     });
+  }
+
+  function renderLensStep(m) {
+    if (m.id !== 'chuseo' || lensDone() && state.lensCursor > 2) { setMissionStep('orient'); return; }
+    if (!state.lens || typeof state.lens !== 'object') state.lens = {};
+    var firstMissing = 0;
+    while (firstMissing < LENS.items.length && state.lens[LENS.items[firstMissing].id]) firstMissing++;
+    var idx = typeof state.lensCursor === 'number' ? state.lensCursor : Math.min(firstMissing, LENS.items.length - 1);
+    idx = Math.min(LENS.items.length - 1, Math.max(0, idx));
+    var it = LENS.items[idx], picked = state.lens[it.id];
+    setStage('<section class="card lens-step-card">'
+      + missionStepHeader(m, 'lens')
+      + '<p class="po-eyebrow">' + LENS.title + '</p>'
+      + '<h1 class="stage-h">한 문장씩 분류해 볼까요?</h1>'
+      + '<p class="lens-counter">문장 ' + (idx + 1) + ' / ' + LENS.items.length + '</p>'
+      + '<p class="po-q lens-one-q">' + it.t + '</p>'
+      + '<div class="lens-btns">' + LENS.kinds.map(function (kd) {
+          var on = picked === kd.k, right = kd.k === it.k;
+          return '<button class="lens-btn' + (picked ? (on ? (right ? ' is-right' : ' is-wrong') : (right ? ' is-right' : '')) : '')
+            + '" type="button" data-lens-one="' + kd.k + '"' + (picked ? ' disabled' : '') + '><b>' + kd.t + '</b><small>' + kd.s + '</small></button>';
+        }).join('') + '</div>'
+      + (picked ? '<p class="lens-why">' + (picked === it.k ? '<b class="ok">맞아요.</b> ' : '<b class="no">다시 볼까요.</b> ') + it.why + '</p>'
+        + '<button class="primary-btn" id="lensOneNext">' + (idx === LENS.items.length - 1 ? '검증 준비 완료 →' : '다음 문장 →') + '</button>'
+        : '<p class="po-note">지금은 이 한 문장만 판단하세요. 선택하면 바로 이유를 확인합니다.</p>')
+      + '</section>');
+    stage.querySelectorAll('[data-lens-one]').forEach(function (b) {
+      b.addEventListener('click', function () { state.lens[it.id] = b.dataset.lensOne; state.lensCursor = idx; save(); renderLensStep(m); });
+    });
+    if ($('lensOneNext')) $('lensOneNext').addEventListener('click', function () {
+      if (idx < LENS.items.length - 1) { state.lensCursor = idx + 1; save(); renderLensStep(m); }
+      else { state.lensCursor = LENS.items.length; setMissionStep('orient'); }
+    });
+  }
+
+  function renderMissionOrient(m) {
+    document.body.classList.remove('lag-mode');
+    var ask = missionAsk(m), picked = ask.get(), pickedText = '';
+    ask.options.forEach(function (o) { if (o.v === picked) pickedText = o.t; });
+    setStage('<section class="card mission-orient-card">'
+      + missionStepHeader(m, 'orient')
+      + '<p class="eyebrow">이번 미션의 질문</p>'
+      + '<h1 class="hero-headline">' + headlineOf(m) + '</h1>'
+      + (pickedText ? '<p class="sealed-answer"><span aria-hidden="true">🔒</span> 내 첫 생각: “' + pickedText + '”</p>' : '')
+      + '<p class="orient-brief">' + briefOf(m) + '</p>'
+      + '<div class="orient-action"><span class="step-tag">직접 할 일</span><p>' + taskOf(m) + '</p></div>'
+      + '<p class="orient-contract">다음 화면에서는 <b>한 가지 조작</b>에 집중합니다. 자세한 출처·계산·심화 자료는 증거를 확보한 뒤 확인할 수 있습니다.</p>'
+      + '<div class="step-actions"><button class="primary-btn" id="orientGo">직접 조작하기 →</button></div>'
+      + '</section>');
+    $('orientGo').addEventListener('click', function () { setMissionStep('explore'); });
   }
 
   /* R4-P2(L-16①): 개발계획서가 목표①의 증거로 지목한 '개념 렌즈 분류'가 없었다.
@@ -2278,6 +2409,9 @@
     var hr = heatRange(), start = Math.min(hr.hi, m.thr + 4), end = m.thr, steps = 10, i = 0;
     state.thr = start; drawHero();
     demoTimer = setInterval(function () {
+      /* 시연이 시작된 뒤라도 학습자가 손을 대는 순간 즉시 양보한다.
+         그렇지 않으면 애니메이션의 다음 틱이 방금 고른 값을 다시 덮어쓴다. */
+      if (state.moved || !$('heroSvg')) { stopTimers(); return; }
       i++; state.thr = Math.round(start + (end - start) * (i / steps)); drawHero();
       if (i >= steps) { state.thr = end; drawHero(); stopTimers(); }
     }, 80);
@@ -2287,20 +2421,16 @@
     var m = MISSIONS[state.mi], useCompare = !!m.compare;
     /* 저장 상태·딥링크·계절 전환 어느 경로에서도 관측 자료가 예측보다 먼저 나오지 않는다. */
     if (!missionAsked(m)) { renderPrediction(m); return; }
-    state.phase = 'mission'; overlayOpen = false; save();
+    if (m.id === 'chuseo' && !lensDone()) { renderLensStep(m); return; }
+    state.phase = 'mission'; state.missionStep = 'explore'; overlayOpen = false; save();
     setStage('<section class="card explore-card">'
+      + missionStepHeader(m, 'explore')
       + '<h1 class="hero-headline" id="missionH1">' + headlineOf(m) + '</h1>'
-      + '<div class="mhead"><span class="mno">미션 ' + (state.mi + 1) + ' / ' + MISSIONS.length + '</span><span class="goal-chip">' + m.goal + '</span><span class="time-chip">핵심 <b>2~3분</b></span></div>'
-      + '<p class="hero-sub"><span class="step-tag">핵심</span> <b>지금 할 일</b> <span id="missionTask">' + taskOf(m) + '</span></p>'
-      + '<details class="brief-box"><summary>이 미션은 무엇을 확인하나요?</summary><p id="missionBrief">' + briefOf(m) + '</p></details>'
-      + deepHintOf(m)
-      + heroShell({ cityChips: !m.lockCity || useCompare, termStrip: !m.lockTerm, lagMode: !!m.lagMode })
-      + '<div id="kmaRefMount"></div>'
-      /* R4-P2(SCORE-7): '왜 하필 이 5년이냐'는 미션1에서 가장 먼저 떠오르는 질문인데
-         26창 조작은 자유탐구에만 있었다. 미션1 심화에서도 열어 준다. */
-      + (m.id === 'chuseo' ? '<details class="brief-box"><summary>선택 심화 — 왜 하필 이 5년일까? (비교 기간 26창)</summary><div id="winMount"></div></details>' : '')
-      + '<div class="explore-actions"><button class="primary-btn is-muted" id="toVerdict">이 결과로 판정하기 →</button><small id="touchHint"></small></div>'
-      + '<div class="predict-overlay" id="predictOverlay" hidden></div>'
+      + '<div class="focus-task"><span class="step-tag">지금 한 가지만</span><p id="missionTask">' + taskOf(m) + '</p></div>'
+      + heroShell({ cityChips: !m.lockCity || useCompare, termStrip: !m.lockTerm, lagMode: !!m.lagMode,
+                    includeReadouts: false, includeMethod: false, compactIntegrity: true })
+      + '<div class="explore-actions"><small id="touchHint"></small><div class="step-actions">'
+      + '<button class="ghost-btn" id="backOrient">← 탐구 방향</button><button class="primary-btn is-muted" id="toVerdict">증거 정리하기 →</button></div></div>'
       + '</section>');
     if (useCompare) bindCityChips(m.compare); else if (!m.lockCity) bindCityChips();
     if (!m.lockTerm) bindTermStrip();
@@ -2310,6 +2440,7 @@
     if ($('deepLab')) $('deepLab').addEventListener('click', renderLab);
     onTouched = function () { stopTimers(); updateGate(m); };
     updateGate(m);
+    $('backOrient').addEventListener('click', function () { setMissionStep('orient'); });
     $('toVerdict').addEventListener('click', function () {
       if (m.lagMode ? (!state.markDoy || !state.lagRevealed) : !state.moved) {
         var h = $('touchHint');
@@ -2320,16 +2451,97 @@
       }
       var todo2 = missionTodo(m);
       if (todo2) { var h3 = $('touchHint'); h3.innerHTML = todo2; h3.classList.add('hint-urge'); flash(h3); return; }
-      renderVerdict();
+      setMissionStep('evidence');
     });
-    /* 미션1의 개념 분류도 예측 뒤에만 연다. 관문을 닫기 전 자동 시연이 뒤에서
-       정답 수치를 흔들지 않도록 콜백 이후에만 실행한다. */
-    function afterLens() {
-      drawHero(); updateGate(m);
-      if (!demoPlayed && state.mi === 0) { demoPlayed = true; setTimeout(function () { autoDemo(m); }, 250); }
+    if (!demoPlayed && state.mi === 0) { demoPlayed = true; setTimeout(function () { autoDemo(m); }, 250); }
+  }
+
+  function evidenceConfig(m) {
+    return {
+      city: state.city, ti: state.ti, metric: state.metric, thr: state.thr,
+      lagSeason: m.lagMode ? state.lagSeason : null,
+      markDoy: m.lagMode ? state.markDoy : null
+    };
+  }
+  function evidenceConfigLabel(cfg) {
+    var metric = METRICS[cfg.metric] || METRICS.temp;
+    var selectedTerm = D.terms[cfg.ti] || D.terms[0];
+    var text = cfg.city + ' · ' + selectedTerm.name + ' · ' + metric.label;
+    if (cfg.markDoy) text += ' · 내가 찍은 날 ' + doyStr(cfg.markDoy);
+    else text += ' · 기준 ' + cfg.thr + metric.unit;
+    return text;
+  }
+  function sameEvidenceConfig(a, b) {
+    return !!a && !!b && a.city === b.city && Number(a.ti) === Number(b.ti)
+      && a.metric === b.metric && Number(a.thr) === Number(b.thr)
+      && a.lagSeason === b.lagSeason && Number(a.markDoy || 0) === Number(b.markDoy || 0);
+  }
+  function hasMissionWriting(m) {
+    var d = state.missionCerl && state.missionCerl[m.id];
+    return !!(d && ['c', 'e', 'r', 'l'].some(function (k) { return String(d[k] || '').trim(); }));
+  }
+  function restoreEvidenceConfig(m, cfg) {
+    state.city = cfg.city; state.ti = Number(cfg.ti); state.metric = cfg.metric;
+    state.thr = Number(cfg.thr); state.thr0 = state.thr; state.moved = true; state.touched = true;
+    if (m.lagMode) {
+      state.lagSeason = cfg.lagSeason === 'winter' ? 'winter' : 'summer';
+      state.markDoy = Number(cfg.markDoy) || null;
+      state.lagRevealed = !!state.markDoy;
     }
-    if (m.id === 'chuseo' && !lensDone()) showLensGate(m, afterLens);
-    else afterLens();
+  }
+  function renderEvidenceChange(m, savedCfg, currentCfg) {
+    state.phase = 'mission'; state.missionStep = 'evidence'; save();
+    setStage('<section class="card evidence-step-card evidence-change-card">'
+      + missionStepHeader(m, 'evidence')
+      + '<p class="eyebrow">증거 조건 변경 감지</p>'
+      + '<h1 class="stage-h">이전 글과 새 숫자를 조용히 섞지 않을게요.</h1>'
+      + '<p class="sub">CERL을 쓴 뒤 조작 조건이 바뀌었습니다. 어느 증거를 사용할지 먼저 정하세요. 작성한 글은 어느 쪽을 골라도 지우지 않습니다.</p>'
+      + '<div class="evidence-change-grid"><div><b>이 글을 쓸 때의 조건</b><p>' + escapeHTML(evidenceConfigLabel(savedCfg)) + '</p></div>'
+      + '<div><b>방금 바꾼 조건</b><p>' + escapeHTML(evidenceConfigLabel(currentCfg)) + '</p></div></div>'
+      + '<div class="step-actions"><button class="ghost-btn" id="restoreEvidence">이전 조건 복원</button>'
+      + '<button class="primary-btn" id="refreshEvidence">새 조건으로 증거 갱신</button></div>'
+      + '<p class="orient-contract">새 조건을 고르면 기존 CERL은 초안으로 보존되며, 숫자와 문장을 다시 맞춘 뒤 재제출해야 합니다.</p>'
+      + '</section>');
+    $('restoreEvidence').addEventListener('click', function () {
+      restoreEvidenceConfig(m, savedCfg); save(); renderEvidence();
+    });
+    $('refreshEvidence').addEventListener('click', function () {
+      state.evidenceById[m.id] = currentCfg;
+      state.cerlSubmitted[m.id] = false;
+      delete state.selfChecks[m.id];
+      state.cerlStepById[m.id] = 0;
+      save(); renderEvidence();
+    });
+  }
+
+  function renderEvidence() {
+    var m = MISSIONS[state.mi], n = stat();
+    if (!canJudge(m)) { setMissionStep('explore'); return; }
+    var currentCfg = evidenceConfig(m);
+    var savedCfg = state.evidenceById[m.id];
+    if (savedCfg && !sameEvidenceConfig(savedCfg, currentCfg) && (hasMissionWriting(m) || state.cerlSubmitted[m.id])) {
+      renderEvidenceChange(m, savedCfg, currentCfg); return;
+    }
+    state.evidenceById[m.id] = currentCfg;
+    state.phase = 'mission'; state.missionStep = 'evidence'; save();
+    setStage('<section class="card evidence-step-card">'
+      + missionStepHeader(m, 'evidence')
+      + '<p class="eyebrow">내가 방금 확보한 관측 증거</p>'
+      + '<h1 class="stage-h">숫자를 먼저 읽고, 그다음 설명하세요.</h1>'
+      + studentEvidenceHTML(m, n)
+      + '<details class="evidence-detail"><summary>추가 관측값 확인</summary><div class="readouts" id="readouts"></div></details>'
+      + '<div class="evidence-depth"><p class="eyebrow">선택 심화 · 필요한 정보만 열기</p>'
+      + deepHintOf(m)
+      + '<div id="kmaRefMount"></div><div id="methodMount"></div>'
+      + (m.id === 'chuseo' ? '<details class="brief-box"><summary>결론은 다른 5년에도 남을까? · 비교 기간 26창</summary><div id="winMount"></div></details>' : '')
+      + '</div>'
+      + '<div class="step-actions"><button class="ghost-btn" id="evidenceBack">← 다시 조작하기</button>'
+      + '<button class="primary-btn" id="evidenceWrite">이 증거로 CERL 쓰기 →</button></div>'
+      + '</section>');
+    renderReadouts(); updateKmaRef(); updateMethod(); updateWindow();
+    if ($('deepLab')) $('deepLab').addEventListener('click', renderLab);
+    $('evidenceBack').addEventListener('click', function () { setMissionStep('explore'); });
+    $('evidenceWrite').addEventListener('click', function () { setMissionStep('write'); });
   }
 
   /* ---------- 판정 ---------- */
@@ -2363,6 +2575,10 @@
     });
     return missing;
   }
+  function cerlStepIndex(m) {
+    var i = Number(state.cerlStepById[m.id]);
+    return isFinite(i) ? Math.min(CERL_FIELDS.length - 1, Math.max(0, i)) : 0;
+  }
   function studentEvidenceHTML(m, n) {
     var rows = [], mc = metricOf();
     if (m.id === 'region') {
@@ -2394,23 +2610,25 @@
       + '<dl>' + rows.map(function (r) { return '<div><dt>' + r[0] + '</dt><dd>' + r[1] + '</dd></div>'; }).join('') + '</dl></div>';
   }
   function studentCerlHTML(m, n) {
-    var d = missionCerl(m);
+    var d = missionCerl(m), ci = cerlStepIndex(m), current = CERL_FIELDS[ci];
     return studentEvidenceHTML(m, n) + '<div class="student-cerl" id="studentCerl">'
       + '<p class="eyebrow">내 CERL 먼저 쓰기 · 필수</p>'
-      + '<h2 class="cerl-title">전문가 판정문을 보기 전에, 내 근거로 결론을 만드세요.</h2>'
-      + '<p class="cerl-intro">정답 문장을 따라 쓰는 활동이 아닙니다. 방금 조작한 화면을 다시 떠올려 네 칸을 채우면 자가진단과 전문가 예시가 열립니다.</p>'
+      + '<h2 class="cerl-title">한 번에 한 요소씩, 내 근거로 설명하세요.</h2>'
+      + '<p class="cerl-intro">전문가 문장을 보기 전에 <b>주장 → 근거 → 추론 → 한계</b> 순서로 완성합니다. 이전 단계의 내용은 그대로 저장됩니다.</p>'
+      + '<div class="cerl-mini-progress"><b>' + (ci + 1) + ' / ' + CERL_FIELDS.length + ' · ' + current.label + '</b><span><i style="width:' + ((ci + 1) / CERL_FIELDS.length * 100) + '%"></i></span></div>'
       + '<div class="cerl-form">'
       + CERL_FIELDS.map(function (f) {
-          return '<label class="cerl-field"><span><b>' + f.label + '</b><small>' + f.prompt + '</small></span>'
+          var fi = CERL_FIELDS.indexOf(f);
+          return '<label class="cerl-field cerl-step-field"' + (fi === ci ? '' : ' hidden') + '><span><b>' + f.label + '</b><small>' + f.prompt + '</small></span>'
             + '<textarea data-cerl="' + f.k + '" maxlength="220" rows="2" placeholder="' + f.placeholder + '">' + escapeHTML(d[f.k] || '') + '</textarea></label>';
         }).join('')
       + '</div><p class="cerl-error" id="cerlError" role="alert"></p>'
-      + '<button class="primary-btn" id="submitCerl" type="button">내 CERL 봉인하고 자가진단 →</button>'
-      + '<p class="cerl-saved" id="cerlSaved"' + (state.cerlSubmitted[m.id] ? '' : ' hidden') + '>✓ 내 CERL이 먼저 기록되었습니다. 아래에서 이해를 확인하세요.</p>'
+      + '<div class="step-actions"><button class="ghost-btn" id="cerlPrev" type="button"' + (ci === 0 ? ' hidden' : '') + '>← 이전 요소</button>'
+      + '<button class="primary-btn" id="cerlNext" type="button">' + (ci === CERL_FIELDS.length - 1 ? '내 CERL 봉인하고 자가진단 →' : '다음 요소 →') + '</button></div>'
       + '</div>';
   }
   function bindStudentCerl(m) {
-    var box = $('studentCerl'), submit = $('submitCerl'); if (!box || !submit) return;
+    var box = $('studentCerl'), next = $('cerlNext'); if (!box || !next) return;
     box.querySelectorAll('[data-cerl]').forEach(function (ta) {
       ta.addEventListener('input', function () {
         missionCerl(m)[ta.dataset.cerl] = ta.value.slice(0, 220);
@@ -2419,138 +2637,160 @@
         var err = $('cerlError'); if (err) err.textContent = '';
       });
     });
-    function unlock() {
-      var scBox = $('selfcheck');
-      if (scBox) {
-        scBox.hidden = false;
-        var first = scBox.querySelector('[data-v]'); if (first) try { first.focus(); } catch (e) {}
-      }
-      submit.hidden = true;
-      var saved = $('cerlSaved'); if (saved) saved.hidden = false;
-      box.classList.add('is-submitted');
-    }
-    submit.addEventListener('click', function () {
-      var missing = cerlErrors(m), err = $('cerlError');
-      if (missing.length) {
-        err.textContent = '아직 필요한 내용: ' + missing.join(' · ') + '. 짧아도 좋지만 네 요소를 내 말로 써 주세요.';
-        var firstBad = CERL_FIELDS.map(function (f) { return box.querySelector('[data-cerl="' + f.k + '"]'); })
-          .find(function (ta, i) { return (ta.value || '').trim().replace(/\s/g, '').length < CERL_FIELDS[i].min; });
-        if (firstBad) firstBad.focus();
-        return;
-      }
-      state.missionDraft[m.id] = cerlText(m);
-      state.cerlSubmitted[m.id] = true;
-      save(); unlock();
+    if ($('cerlPrev')) $('cerlPrev').addEventListener('click', function () {
+      state.cerlStepById[m.id] = Math.max(0, cerlStepIndex(m) - 1); save(); renderVerdict();
     });
-    if (state.cerlSubmitted[m.id] && !cerlErrors(m).length) unlock();
+    next.addEventListener('click', function () {
+      var ci = cerlStepIndex(m), f = CERL_FIELDS[ci], ta = box.querySelector('[data-cerl="' + f.k + '"]');
+      var err = $('cerlError'), len = (ta.value || '').trim().replace(/\s/g, '').length;
+      if (len < f.min) {
+        err.textContent = f.label + '을 ' + f.min + '자 이상 내 말로 써 주세요.';
+        ta.focus(); return;
+      }
+      if (ci < CERL_FIELDS.length - 1) {
+        state.cerlStepById[m.id] = ci + 1; save(); renderVerdict(); return;
+      }
+      var missing = cerlErrors(m);
+      if (missing.length) { err.textContent = '아직 필요한 내용: ' + missing.join(' · ') + '.'; return; }
+      state.missionDraft[m.id] = cerlText(m); state.cerlSubmitted[m.id] = true;
+      state.missionStep = 'check'; save(); renderMissionFlow();
+    });
+    var active = box.querySelector('.cerl-step-field:not([hidden]) textarea');
+    if (active) try { active.focus({ preventScroll: true }); } catch (e) {}
   }
   function renderVerdict() {
     document.body.classList.remove('lag-mode');
     var m = MISSIONS[state.mi], n = stat(), v = m.verdict(n);
-    state.phase = 'verdict';
-    save();
-    /* R4-P1-13: 예전에는 CERL → 자가진단 순서였다. 미션 2·3·4·5의 자가진단 정답이
-       바로 위 판정문에 축자로 들어 있어, 문항이 재는 것은 이해가 아니라 읽기였다.
-       예측 봉인과 같은 논리를 판정 단계에도 적용한다 — 먼저 답하고, 그다음 판정문을 본다. */
-    var html = '<section class="card verdict-card"><h1 class="sr-only">미션 ' + (state.mi + 1) + ' 판정 — ' + m.title + '</h1>'
-      + '<div class="mhead"><span class="mno">미션 ' + (state.mi + 1) + ' / ' + MISSIONS.length + ' · 판정</span><span class="goal-chip">' + m.goal + '</span></div>'
-      + studentCerlHTML(m, n)
-      + '<div class="selfcheck" id="selfcheck" hidden><p class="sc-lead">내 CERL을 봉인했습니다. 이제 방금 조작으로 알게 된 것을 확인합니다.</p>'
-      + '<p class="sc-q"><b>자가진단</b> — ' + checkOf(m).q + '</p><div class="choice-row" id="scChoices"></div><p class="sc-explain" id="scExplain" hidden></p></div>'
-      + '<div id="verdictReveal" hidden>'
-      + '<p class="eyebrow">내 글과 비교할 전문가 예시 · 주장 · 근거 · 추론 · 한계(CERL)</p>'
-      + cerlHTML(v)
-      /* R4: 강수 미션 판정 아래에 기온 스파크라인이 붙어 "당신이 비교한 5년"이라 말했다 */
-      + sparkBlock(state.city, state.metric)
-      + '</div>';
-    if (m.askPost) html += '<div class="post-box" id="postBox" hidden></div>';
-    html += '<div class="mission-audit" id="missionAudit" hidden></div>';
-    html += '<div class="verdict-actions" id="verdictActions" hidden></div></section>';
-    setStage(html);
-    bindStudentCerl(m);
-    var sc = checkOf(m);
-    $('scChoices').innerHTML = sc.options.map(function (o) { return '<button class="choice" data-v="' + o.v + '"><b>' + o.t + '</b></button>'; }).join('');
-    $('scChoices').querySelectorAll('[data-v]').forEach(function (btn) { btn.addEventListener('click', function () { onSelfCheck(btn, sc, m); }); });
+    state.phase = 'mission'; save();
+    var step = state.missionStep || 'write';
+    if (step === 'write') {
+      setStage('<section class="card verdict-card cerl-step-card">'
+        + missionStepHeader(m, 'write')
+        + '<h1 class="sr-only">미션 ' + (state.mi + 1) + ' 내 CERL 작성 — ' + m.title + '</h1>'
+        + studentCerlHTML(m, n)
+        + '<div class="step-actions step-actions-sub"><button class="ghost-btn" id="writeBackEvidence">← 증거 다시 보기</button></div>'
+        + '</section>');
+      bindStudentCerl(m);
+      $('writeBackEvidence').addEventListener('click', function () { setMissionStep('evidence'); });
+      return;
+    }
+    if (step === 'check') { renderSelfCheckStep(m); return; }
+    if (step === 'expert') { renderExpertStep(m, v); return; }
+    if (step === 'transfer') { renderTransferStep(m); return; }
+    renderAuditStep(m);
   }
 
   function onSelfCheck(btn, sc, m) {
     var right = btn.dataset.v === sc.correct;
     state.selfChecks[m.id] = { picked: btn.dataset.v, correct: right }; save();
-    $('scChoices').querySelectorAll('[data-v]').forEach(function (b) { b.disabled = true; if (b.dataset.v === sc.correct) b.classList.add('is-right'); else if (b === btn) b.classList.add('is-wrong'); });
-    var ex = $('scExplain'); ex.hidden = false;
-    ex.innerHTML = (right ? '<b class="ok">맞아요.</b> ' : '<b class="no">다시 볼까요.</b> ') + sc.explain
-      + (right ? '' : ' <button class="inline-btn" id="backToChart">기준선을 직접 옮겨 확인하기 →</button>');
-    if ($('backToChart')) $('backToChart').addEventListener('click', renderExplore);
-    var rv = $('verdictReveal');
-    if (rv) { rv.hidden = false; rv.classList.add('is-revealed'); }
-    if (m.askPost) renderPost(); else revealVerdictActions();
+    renderSelfCheckStep(m);
   }
 
-  function renderPost() {
-    var box = $('postBox'); box.hidden = false;
-    box.innerHTML = '<p class="eyebrow">한 번 더 · 다른 절기로 확인</p><p class="sc-q">' + POST_QUESTION.q + '</p>'
-      + '<div class="choice-col" id="postChoices"></div><p class="post-growth" id="postGrowth" hidden></p>';
-    $('postChoices').innerHTML = POST_QUESTION.options.map(function (o) { return '<button class="choice-lg" data-v="' + o.v + '"><b>' + o.t + '</b></button>'; }).join('');
+  function studentCerlReviewHTML(m) {
+    var d = missionCerl(m);
+    return '<div class="student-review"><p class="eyebrow">내가 먼저 쓴 CERL</p><div class="cerl-compare-grid">'
+      + CERL_FIELDS.map(function (f) { return '<div><b class="t t-' + f.k + '">' + f.label + '</b><p>' + escapeHTML(d[f.k] || '') + '</p></div>'; }).join('')
+      + '</div></div>';
+  }
+
+  function renderSelfCheckStep(m) {
+    var sc = checkOf(m), ans = state.selfChecks[m.id];
+    setStage('<section class="card verdict-card check-step-card">'
+      + missionStepHeader(m, 'check')
+      + '<p class="eyebrow">내 CERL을 봉인했습니다</p><h1 class="stage-h">설명하기 전에, 이해를 한 번 꺼내 보세요.</h1>'
+      + '<p class="sc-q"><b>자가진단</b> — ' + sc.q + '</p><div class="choice-row" id="scChoices">'
+      + sc.options.map(function (o) {
+          var cls = ans ? (o.v === sc.correct ? ' is-right' : (o.v === ans.picked ? ' is-wrong' : '')) : '';
+          return '<button class="choice' + cls + '" data-v="' + o.v + '"' + (ans ? ' disabled' : '') + '><b>' + o.t + '</b></button>';
+        }).join('') + '</div>'
+      + (ans ? '<p class="sc-explain">' + (ans.correct ? '<b class="ok">맞아요.</b> ' : '<b class="no">다시 볼까요.</b> ') + sc.explain + '</p>' : '')
+      + '<div class="step-actions"><button class="ghost-btn" id="checkBack">← CERL 수정</button>'
+      + (ans && !ans.correct ? '<button class="ghost-btn" id="checkRevisit">그래프에서 다시 확인</button>' : '')
+      + (ans ? '<button class="primary-btn" id="checkNext">전문가 예시와 비교 →</button>' : '') + '</div></section>');
+    $('scChoices').querySelectorAll('[data-v]').forEach(function (btn) { btn.addEventListener('click', function () { onSelfCheck(btn, sc, m); }); });
+    $('checkBack').addEventListener('click', function () { state.cerlSubmitted[m.id] = false; state.missionStep = 'write'; save(); renderMissionFlow(); });
+    if ($('checkRevisit')) $('checkRevisit').addEventListener('click', function () { setMissionStep('explore'); });
+    if ($('checkNext')) $('checkNext').addEventListener('click', function () { setMissionStep('expert'); });
+  }
+
+  function renderExpertStep(m, v) {
+    setStage('<section class="card verdict-card expert-step-card">'
+      + missionStepHeader(m, 'expert')
+      + '<h1 class="stage-h">내 설명과 전문가 예시를 요소별로 비교하세요.</h1>'
+      + studentCerlReviewHTML(m)
+      + '<details class="expert-example" open><summary>전문가 CERL 전체 보기</summary><div class="expert-cerl">'
+      + cerlHTML(v) + '</div></details>'
+      + '<details class="expert-long"><summary>이 5년은 긴 흐름에서 어디일까?</summary>' + sparkBlock(state.city, state.metric) + '</details>'
+      + '<div class="step-actions"><button class="ghost-btn" id="expertBack">← 자가진단</button>'
+      + '<button class="primary-btn" id="expertNext">' + (m.askPost ? '다른 절기에 적용 →' : '감사하고 완료하기 →') + '</button></div></section>');
+    $('expertBack').addEventListener('click', function () { setMissionStep('check'); });
+    $('expertNext').addEventListener('click', function () { setMissionStep(m.askPost ? 'transfer' : 'audit'); });
+  }
+
+  function postGrowthHTML() {
+    var preRight = state.pre === PRE_QUESTION.correct, postRight = state.post === POST_QUESTION.correct, preUnsure = state.pre === 'c';
+    var xfer = ' <small>(처서로 배운 것을 <b>입동</b>이라는 처음 보는 절기에 적용했는지를 본 문항입니다.)</small>';
+    if (preUnsure && postRight) return '<b class="ok">확인했어요.</b> 처음엔 “잘 모르겠다”였는데, 이제 <b>다른 절기</b>에서도 절기(천문 날짜)와 기후(관측)를 구분해 설명했습니다.' + xfer;
+    if (!preRight && postRight) return '<b class="ok">생각이 자랐어요.</b> 처음엔 다른 답을 골랐는데, 이제 <b>처음 보는 절기</b>에도 같은 구분을 적용했습니다.' + xfer;
+    if (postRight) return '<b class="ok">정확합니다.</b> 절기 날짜는 그대로, 달라진 것은 그 무렵 관측된 기온 — 절기가 바뀌어도 일관되게 구분했습니다.' + xfer;
+    return '핵심은 이것이에요: <b>절기 날짜는 그대로인데</b>, 같은 절기 무렵 관측된 기온이 달라진 것입니다. 절기 자체가 변한 것도, 날짜를 옮겨야 하는 것도 아닙니다.' + xfer;
+  }
+
+  function renderTransferStep(m) {
+    var answered = state.post != null;
+    setStage('<section class="card verdict-card transfer-step-card">'
+      + missionStepHeader(m, 'transfer')
+      + '<p class="eyebrow">한 번 더 · 다른 절기로 확인</p><h1 class="stage-h">처서에서 배운 구분을 입동에도 적용해 보세요.</h1>'
+      + '<p class="sc-q">' + POST_QUESTION.q + '</p><div class="choice-col" id="postChoices">'
+      + POST_QUESTION.options.map(function (o) {
+          var cls = answered ? (o.v === POST_QUESTION.correct ? ' is-right' : (o.v === state.post ? ' is-wrong' : '')) : '';
+          return '<button class="choice-lg' + cls + '" data-v="' + o.v + '"' + (answered ? ' disabled' : '') + '><b>' + o.t + '</b></button>';
+        }).join('') + '</div>'
+      + (answered ? '<p class="post-growth">' + postGrowthHTML() + '</p>' : '')
+      + '<div class="step-actions"><button class="ghost-btn" id="transferBack">← 전문가 비교</button>'
+      + (answered ? '<button class="primary-btn" id="transferNext">감사하고 완료하기 →</button>' : '') + '</div></section>');
     $('postChoices').querySelectorAll('[data-v]').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        state.post = btn.dataset.v; save();
-        $('postChoices').querySelectorAll('[data-v]').forEach(function (b) { b.disabled = true; if (b.dataset.v === POST_QUESTION.correct) b.classList.add('is-right'); else if (b === btn) b.classList.add('is-wrong'); });
-        var g = $('postGrowth'); g.hidden = false;
-        var preRight = state.pre === PRE_QUESTION.correct, postRight = state.post === POST_QUESTION.correct, preUnsure = state.pre === 'c';
-        var xfer = ' <small>(처서로 배운 것을 <b>입동</b>이라는 처음 보는 절기에 적용했는지를 본 문항입니다.)</small>';
-        if (preUnsure && postRight) g.innerHTML = '<b class="ok">확인했어요.</b> 처음엔 “잘 모르겠다”였는데, 이제 <b>다른 절기</b>에서도 절기(천문 날짜)와 기후(관측)를 구분해 설명했습니다.' + xfer;
-        else if (!preRight && postRight) g.innerHTML = '<b class="ok">생각이 자랐어요.</b> 처음엔 다른 답을 골랐는데, 이제 <b>처음 보는 절기</b>에도 같은 구분을 적용했습니다.' + xfer;
-        else if (postRight) g.innerHTML = '<b class="ok">정확합니다.</b> 절기 날짜는 그대로, 달라진 것은 그 무렵 관측된 기온 — 절기가 바뀌어도 일관되게 구분했습니다.' + xfer;
-        else g.innerHTML = '핵심은 이것이에요: <b>절기 날짜는 그대로인데</b>, 같은 절기 무렵 관측된 기온이 달라진 것입니다. 절기 자체가 변한 것도, 날짜를 옮겨야 하는 것도 아닙니다.' + xfer;
-        revealVerdictActions();
-      });
+      btn.addEventListener('click', function () { state.post = btn.dataset.v; save(); renderTransferStep(m); });
     });
+    $('transferBack').addEventListener('click', function () { setMissionStep('expert'); });
+    if ($('transferNext')) $('transferNext').addEventListener('click', function () { setMissionStep('audit'); });
   }
 
-  function revealVerdictActions() {
-    var m = MISSIONS[state.mi], au = $('missionAudit');
-    /* 완료는 학생 CERL 제출 이후에만 가능하다. 저장 상태가 손상된 경우에도
-       완료 체크와 다음 버튼을 열지 않고 쓰기 단계로 되돌린다. */
-    if (!state.cerlSubmitted[m.id] || cerlErrors(m).length) {
-      var ce = $('cerlError'); if (ce) ce.textContent = '미션을 완료하려면 내 CERL 네 요소를 먼저 제출해야 합니다.';
-      var cf = $('studentCerl'); if (cf && cf.scrollIntoView) cf.scrollIntoView({ block: 'start', behavior: REDUCE ? 'auto' : 'smooth' });
-      return;
-    }
-    /* RC-S: 자가진단까지 마친 뒤에 완료(✓)로 표시한다 — 판정 화면 진입만으로 점등하지 않는다 */
-    if (state.done.indexOf(m.id) === -1) { state.done.push(m.id); save(); renderProgress(); }
-    if (au && au.hidden) {
-      au.hidden = false;
-      au.innerHTML = '<div class="judge-box"><p class="eyebrow">✦ 증거 감사관 · 선택 심화</p>'
-        + '<label class="draft-label" for="freeDraft">내가 먼저 쓴 CERL <small>감사 기능은 이 글을 고쳐 쓰지 않고 과장 · 범위 · 인과만 점검합니다.</small></label>'
-        + '<textarea id="freeDraft" maxlength="900" readonly aria-readonly="true"></textarea>'
-        + '<div class="ai-row"><button class="ghost-btn small-btn" id="localAudit" type="button">기기 안에서 빠른 점검</button>'
-        + '<button class="ghost-btn small-btn" id="editCerl" type="button">내 CERL 수정하기</button></div>'
-        + '<div class="ai-consent"><label><input type="checkbox" id="aiConsent"> <span><b>선택 동의:</b> AI 감사를 요청하면 위 CERL과 화면의 관측 근거가 OpenAI API로 전송됩니다. 이름·학교·연락처는 입력하지 마세요.</span></label>'
-        + '<button class="ai-btn" id="askAudit" disabled><span aria-hidden="true">✦</span> 외부 AI 감사 요청</button></div>'
-        + '<p class="audit-status" id="auditStatus">기본 점검은 외부 전송 없이 이 기기에서 작동합니다. 외부 AI 감사는 동의한 경우에만 요청됩니다.</p>'
-        + '<div class="audit-result" id="auditResult" hidden></div></div>';
-      var ta = $('freeDraft');
-      ta.value = state.missionDraft[m.id] || cerlText(m);
-      $('localAudit').addEventListener('click', function () {
-        renderAudit(localAudit(ta.value), true);
-        $('auditStatus').textContent = '기기 안 규칙 점검 완료 — 글과 자료는 외부로 전송되지 않았습니다.';
-      });
-      $('editCerl').addEventListener('click', function () {
-        state.cerlSubmitted[m.id] = false; save(); renderVerdict();
-      });
-      var consent = $('aiConsent'), ask = $('askAudit');
-      consent.addEventListener('change', function () { ask.disabled = !consent.checked; });
-      ask.addEventListener('click', function () { doAudit(); });
-    }
-    var acts = $('verdictActions'); acts.hidden = false;
+  function renderAuditStep(m) {
+    if (state.done.indexOf(m.id) === -1) { state.done.push(m.id); save(); }
     var next = state.mi + 1;
-    acts.innerHTML = (next < MISSIONS.length
-      ? '<button class="primary-btn" id="nextMission">다음 미션 →</button>'
-      : '<button class="primary-btn" id="toFree">검증 마치고 결과 받기 →</button>')
-      + '<button class="ghost-btn" id="retry">기준 다시 조작하기 <small>(판정문은 유지)</small></button>';
+    setStage('<section class="card verdict-card audit-step-card">'
+      + missionStepHeader(m, 'audit')
+      + '<h1 class="stage-h">미션을 완료했습니다.</h1>'
+      + '<p class="sub">핵심 학습은 끝났습니다. 내 CERL을 점검하거나 바로 다음 미션으로 갈 수 있습니다.</p>'
+      + '<div class="judge-box"><p class="eyebrow">✦ 증거 감사관 · 선택 심화</p>'
+      + '<label class="draft-label" for="freeDraft">내가 먼저 쓴 CERL <small>감사 기능은 이 글을 고쳐 쓰지 않고 과장 · 범위 · 인과만 점검합니다.</small></label>'
+      + '<textarea id="freeDraft" maxlength="900" readonly aria-readonly="true"></textarea>'
+      + '<div class="ai-row"><button class="ghost-btn small-btn" id="localAudit" type="button">기기 안에서 빠른 점검</button>'
+      + '<button class="ghost-btn small-btn" id="editCerl" type="button">내 CERL 수정하기</button></div>'
+      + '<div class="ai-consent"><label><input type="checkbox" id="aiConsent"> <span><b>선택 동의:</b> AI 감사를 요청하면 위 CERL과 화면의 관측 근거가 OpenAI API로 전송됩니다. 이름·학교·연락처는 입력하지 마세요.</span></label>'
+      + '<button class="ai-btn" id="askAudit" disabled><span aria-hidden="true">✦</span> 외부 AI 감사 요청</button></div>'
+      + '<p class="audit-status" id="auditStatus">기본 점검은 외부 전송 없이 이 기기에서 작동합니다. 외부 AI 감사는 동의한 경우에만 요청됩니다.</p>'
+      + '<div class="audit-result" id="auditResult" hidden></div></div>'
+      + (m.lagMode ? '<div class="optional-next"><p class="eyebrow">선택 확장</p><button class="ghost-btn" id="auditWinter">겨울·동지에도 적용해 보기</button> <button class="ghost-btn" id="auditLab">🔬 열관성 실험실</button></div>' : '')
+      + '<div class="step-actions"><button class="ghost-btn" id="retry">기준 다시 조작하기 <small>(판정문은 유지)</small></button>'
+      + (next < MISSIONS.length ? '<button class="primary-btn" id="nextMission">다음 미션 →</button>' : '<button class="primary-btn" id="toFree">검증 마치고 결과 받기 →</button>')
+      + '</div></section>');
+    renderProgress();
+    var ta = $('freeDraft'); ta.value = state.missionDraft[m.id] || cerlText(m);
+    $('localAudit').addEventListener('click', function () { renderAudit(localAudit(ta.value), true); $('auditStatus').textContent = '기기 안 규칙 점검 완료 — 글과 자료는 외부로 전송되지 않았습니다.'; });
+    $('editCerl').addEventListener('click', function () { state.cerlSubmitted[m.id] = false; state.cerlStepById[m.id] = 0; setMissionStep('write'); });
+    var consent = $('aiConsent'), ask = $('askAudit');
+    consent.addEventListener('change', function () { ask.disabled = !consent.checked; });
+    ask.addEventListener('click', function () { doAudit(); });
+    $('retry').addEventListener('click', function () { setMissionStep('explore'); });
     if ($('nextMission')) $('nextMission').addEventListener('click', function () { startMission(next); });
     if ($('toFree')) $('toFree').addEventListener('click', renderComplete);
-    $('retry').addEventListener('click', renderExplore);
+    if ($('auditLab')) $('auditLab').addEventListener('click', renderLab);
+    if ($('auditWinter')) $('auditWinter').addEventListener('click', function () {
+      state.lagSeason = 'winter'; state.markDoy = null; state.lagRevealed = false; state.ti = 23;
+      delete state.predicts.lag; delete state.selfChecks.lag; state.missionStep = 'predict'; save(); renderMissionFlow();
+    });
   }
 
   /* ---------- 완료 · 고향 기후 카드 ---------- */
@@ -2560,6 +2800,7 @@
       /* 오래된 딥링크·손상된 저장 상태도 빈 산출물로 ‘완료’를 주장하지 못한다. */
       state.phase = 'mission';
       state.mi = MISSIONS.indexOf(missingCerl[0]);
+      state.missionStep = 'write';
       save();
       renderVerdict();
       var ce = $('cerlError');
@@ -2607,26 +2848,40 @@
     var drafts = MISSIONS.filter(function (m) { return (state.missionDraft[m.id] || '').trim(); })
       .map(function (m) { return '<li><b>' + m.title + '</b><br>' + escapeHTML(state.missionDraft[m.id]) + '</li>'; }).join('');
     var yrs = D.cities['서울'].timeline.years;
+    var completeStep = Math.max(0, Math.min(3, Number(state.completeStep) || 0));
     setStage('<section class="card done-card"><div class="burst" aria-hidden="true">✦</div><p class="eyebrow">' + MISSIONS.length + '개 미션 · CERL ' + MISSIONS.length + '편 완료</p>'
       + '<h1 class="stage-h">검증을 마쳤어요.</h1>'
       + '<p class="sub">당신은 자료를 보기 전 예측하고, 기준을 조작해 확인한 뒤, 매 미션에서 주장·근거·추론·한계를 직접 작성했습니다.</p>'
       + '<div class="skill-row"><span>① 절기≠기후</span><span>② 자료의 범위</span><span>③ 기준 정의</span><span>④ 근거만큼 결론</span></div>'
+      + '<nav class="panel-tabs" aria-label="완료 활동"><button data-complete-step="0" aria-current="' + (completeStep === 0 ? 'step' : 'false') + '">1. 내 기록</button>'
+      + '<button data-complete-step="1" aria-current="' + (completeStep === 1 ? 'step' : 'false') + '">2. 기후 카드</button>'
+      + '<button data-complete-step="2" aria-current="' + (completeStep === 2 ? 'step' : 'false') + '">3. 지구 맥락</button>'
+      + '<button data-complete-step="3" aria-current="' + (completeStep === 3 ? 'step' : 'false') + '">4. 더 탐구하기</button></nav>'
+      + '<div class="learning-panel" data-complete-panel="0"' + (completeStep === 0 ? '' : ' hidden') + '>'
       + '<div class="record"><p class="eyebrow">내 기록 <small>(수업에 제출할 때 아래 기록을 복사하거나 인쇄하세요)</small></p><ul class="rec-list">' + sc + '</ul>'
       + (drafts ? '<p class="eyebrow">내가 쓴 판정문</p><ul class="rec-list">' + drafts + '</ul>' : '')
       + '<p class="eyebrow">한 문장 정리</p><label class="draft-label" for="canDo">나는 이제 <b>___</b> 할 수 있다 <small>(수업에 제출할 때 함께 내세요)</small></label>'
       + '<textarea id="canDo" maxlength="200" placeholder="예: 나는 이제 ‘덥다’를 몇 도로 정하느냐에 따라 결론이 달라진다는 것을 자료로 보일 수 있다."></textarea>'
       + '</div>'
       /* 복사·인쇄 버튼을 .record 밖으로 뺀다 — 안에 두면 innerText에 버튼 라벨이 섞여 복사된다 */
-      + '<div class="rec-actions"><button class="ghost-btn" id="copyRec">기록 복사</button><button class="ghost-btn" id="printRec">인쇄 / PDF로 저장</button></div>'
+      + '<div class="rec-actions"><button class="ghost-btn" id="copyRec">기록 복사</button><button class="ghost-btn" id="printRec">인쇄 / PDF로 저장</button><button class="primary-btn panel-next" data-complete-step="1">기후 카드 만들기 →</button></div></div>'
+      + '<div class="learning-panel" data-complete-panel="1"' + (completeStep === 1 ? '' : ' hidden') + '>'
       + '<div class="cardmaker"><p class="eyebrow">내 고향 기후 카드 · 공유용</p>'
       + '<p class="cardmaker-sub">내가 태어난 무렵과 지금, 우리 지역 기후가 어떻게 달라졌는지 실측 자료로 확인하는 카드를 만들어요. (태어난 해 <b>±2년 평균</b>과 <b>최근 5년 평균</b>을 비교합니다 — 한 해만 비교하면 그 해 날씨에 휘둘리기 때문입니다.)</p>'
       + '<div class="cardmaker-row"><label>지역<select id="cardCity"></select></label><label>태어난 해<input id="cardYear" type="number" min="' + yrs[0] + '" max="' + yrs[yrs.length - 1] + '" value="2008" inputmode="numeric" /></label><button class="primary-btn" id="makeCard">카드 만들기</button></div>'
       + '<p class="card-hint" id="cardHint"></p>'
       + '<div id="cardPreview" class="card-preview" hidden></div><a id="cardSave" class="ghost-btn card-save" download="weather24_기후카드.png" hidden>이미지 저장 ↓</a></div>'
-      + '<details class="global-box" id="globalBox"><summary>🌍 지구 전체는 어떨까? — 이산화탄소와 지구 평균기온</summary><div id="globalMount"></div></details>'
+      + '<div class="step-actions"><button class="ghost-btn" data-complete-step="0">← 내 기록</button><button class="primary-btn" data-complete-step="2">지구 맥락 보기 →</button></div></div>'
+      + '<div class="learning-panel" data-complete-panel="2"' + (completeStep === 2 ? '' : ' hidden') + '>'
+      + '<p class="panel-kicker">지역 관측에서 지구 규모로</p><h2>같은 질문도 자료의 범위가 달라지면 답의 크기가 달라져요.</h2>'
+      + '<details class="global-box" id="globalBox"><summary>🌍 이산화탄소와 지구 평균기온 자료 펼치기</summary><div id="globalMount"></div></details>'
+      + '<div class="step-actions"><button class="ghost-btn" data-complete-step="1">← 기후 카드</button><button class="primary-btn" data-complete-step="3">더 탐구하기 →</button></div></div>'
+      + '<div class="learning-panel" data-complete-panel="3"' + (completeStep === 3 ? '' : ' hidden') + '>'
+      + '<p class="panel-kicker">선택 확장</p><h2>배운 검증 방법을 새로운 질문에 적용해 보세요.</h2>'
       + '<div class="done-next"><button class="ghost-btn" id="startLab">🔬 열관성 실험실 — 왜 그런지 직접 계산해 보기</button>'
       + '<button class="ghost-btn" id="startFree">내 지역·지표로 자유탐구 →</button></div>'
-      + '<p class="intro-teacher"><a href="./교사_학습지.html" target="_blank" rel="noopener">📄 교사용 학습지 (인쇄용) →</a></p></section>');
+      + '<p class="intro-teacher"><a href="./교사_학습지.html" target="_blank" rel="noopener">📄 교사용 학습지 (인쇄용) →</a></p>'
+      + '<div class="step-actions"><button class="ghost-btn" data-complete-step="2">← 지구 맥락</button></div></div></section>');
     $('cardCity').innerHTML = CITIES.map(function (c) { return '<option value="' + c + '"' + (c === state.city ? ' selected' : '') + '>' + c + ' (' + D.cities[c].station + ')</option>'; }).join('');
     /* 출생연도 ±2년 창이 '최근 5년' 창과 겹치면 차이가 0이 되므로 상한을 그 앞까지로 둔다 (RC-F) */
     function syncYearBounds() {
@@ -2665,8 +2920,39 @@
     $('printRec').addEventListener('click', function () { window.print(); });
     $('startFree').addEventListener('click', renderFree);
     if ($('startLab')) $('startLab').addEventListener('click', renderLab);
+    bindPanelTabs('complete', 4);
     var gb = $('globalBox');
     if (gb) gb.addEventListener('toggle', function () { if (gb.open) renderGlobal(); });
+  }
+
+  function bindPanelTabs(kind, count) {
+    var key = kind + 'Step';
+    if (kind === 'free') key = 'freeTab';
+    if (kind === 'lab') key = 'labTab';
+    var buttons = stage.querySelectorAll('[data-' + kind + '-step]');
+    var tabButtons = stage.querySelectorAll('.panel-tabs [data-' + kind + '-step]');
+    var panels = stage.querySelectorAll('[data-' + kind + '-panel]');
+    buttons.forEach(function (button) {
+      button.addEventListener('click', function () {
+        var next = Math.max(0, Math.min(count - 1, Number(button.dataset[kind + 'Step']) || 0));
+        state[key] = next; save();
+        panels.forEach(function (panel) { panel.hidden = Number(panel.dataset[kind + 'Panel']) !== next; });
+        tabButtons.forEach(function (item) {
+          item.setAttribute('aria-current', Number(item.dataset[kind + 'Step']) === next ? 'step' : 'false');
+        });
+        var active = stage.querySelector('[data-' + kind + '-panel="' + next + '"]');
+        if (active) {
+          active.setAttribute('tabindex', '-1');
+          active.focus({ preventScroll: true });
+          var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+          active.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+        }
+        if (kind === 'complete' && next === 2) {
+          var globalBox = $('globalBox');
+          if (globalBox && globalBox.open) renderGlobal();
+        }
+      });
+    });
   }
 
   function cardText(g, s, x, y, color, weight, size) {
@@ -2966,11 +3252,17 @@
   function renderLab() {
     state.phase = 'lab'; document.body.classList.remove('lag-mode'); save();
     var L = labState();
+    var labTab = Math.max(0, Math.min(3, Number(state.labTab) || 0));
     setStage('<section class="card lab-card">'
       + '<h1 class="hero-headline">왜 가장 더운 날이 하지가 아닐까 — 직접 계산해 보기</h1>'
       + '<div class="mhead"><span class="mno">열관성 실험실</span>'
       + '<span class="goal-chip">목표 ① 계절 지연을 만들 수 있는 <b>메커니즘</b> 시험</span>'
       + '<span class="time-chip">핵심 <b>3분</b></span></div>'
+      + '<nav class="panel-tabs" aria-label="열관성 실험 단계"><button data-lab-step="0" aria-current="' + (labTab === 0 ? 'step' : 'false') + '">1. 모형 이해</button>'
+      + '<button data-lab-step="1" aria-current="' + (labTab === 1 ? 'step' : 'false') + '">2. 조건 조작</button>'
+      + '<button data-lab-step="2" aria-current="' + (labTab === 2 ? 'step' : 'false') + '">3. 결과 해석</button>'
+      + '<button data-lab-step="3" aria-current="' + (labTab === 3 ? 'step' : 'false') + '">4. 한계 확인</button></nav>'
+      + '<div class="learning-panel" data-lab-panel="0"' + (labTab === 0 ? '' : ' hidden') + '>'
       + '<p class="lab-warn"><span aria-hidden="true">🔬</span> <b>이 화면의 파란 곡선만은 관측 자료가 아닙니다.</b> '
       + '햇빛이 들어오고 열이 빠져나가는 <b>물리 법칙 하나</b>로 계산한 결과예요. '
       + '앞의 미션들이 “실제로 이랬다”를 보여 줬다면, 여기서는 <b>“왜 그런지”</b>를 직접 만들어 봅니다.</p>'
@@ -2978,6 +3270,8 @@
       + '<p class="eqn"><b class="eq-c">열을 머금는 양 C</b> × <b>기온 변화</b> = '
       + '<b class="eq-q">들어오는 햇빛 Q</b><small>(날짜·위도로 계산)</small> − <b class="eq-o">나가는 열</b><small>(A + B×기온)</small></p>'
       + '<p class="eqn-s">들어오는 열이 나가는 열보다 많으면 기온이 오르고, 반대면 내려갑니다. 그것뿐이에요.</p></div>'
+      + '<div class="step-actions"><button class="primary-btn" data-lab-step="1">조건을 바꿔 보기 →</button></div></div>'
+      + '<div class="learning-panel" data-lab-panel="1"' + (labTab === 1 ? '' : ' hidden') + '>'
       + '<div class="picker"><div class="picker-block"><span class="picker-label">비교할 실측 지역 <small>(위도가 바뀌면 햇빛의 양도 바뀝니다)</small></span>'
       + '<div class="chips" id="labChips" role="tablist" aria-label="비교 지역"></div></div></div>'
       + '<div class="chart-card">'
@@ -2999,10 +3293,14 @@
       + '<span><i class="lg lg-term"></i> 하지(고정)</span></div>'
       + '</div>'
       + '<div class="readouts" id="labReadouts"></div>'
-      + '<div class="lab-findings" id="labFindings"></div>'
+      + '<div class="step-actions"><button class="ghost-btn" data-lab-step="0">← 모형 이해</button><button class="primary-btn" data-lab-step="2">결과 해석하기 →</button></div></div>'
+      + '<div class="learning-panel" data-lab-panel="2"' + (labTab === 2 ? '' : ' hidden') + '>'
+      + '<p class="panel-kicker">내 조작이 만든 결과</p><div class="lab-findings" id="labFindings"></div>'
+      + '<div class="step-actions"><button class="ghost-btn" data-lab-step="1">← 조건 조작</button><button class="primary-btn" data-lab-step="3">모형의 한계 확인 →</button></div></div>'
+      + '<div class="learning-panel" data-lab-panel="3"' + (labTab === 3 ? '' : ' hidden') + '>'
       + '<div class="lab-actions"><button class="primary-btn" id="labBack">← 미션으로 돌아가기</button>'
       + '<button class="ghost-btn" id="labFree">자유탐구로 →</button></div>'
-      + '<details class="method"><summary>이 모형은 무엇을 단순화했나 <small>(반드시 함께 읽어 주세요)</small></summary>'
+      + '<details class="method" open><summary>이 모형은 무엇을 단순화했나 <small>(반드시 함께 읽어 주세요)</small></summary>'
       + '<div class="method-body">'
       + '<p><b>이건 모형이지 관측이 아닙니다.</b> 실제 기후는 바람·구름·해류·지형이 함께 만듭니다. 이 모형에는 그 어느 것도 없습니다.</p>'
       + '<ol>'
@@ -3014,11 +3312,12 @@
       + '</ol>'
       + '<p><b>햇빛 Q의 출처</b> 관측이 아니라 천문 계산입니다 — 태양 적위와 지구–태양 거리(Spencer 1971 근사)로 위도별 하루 평균 일사량을 구했습니다. 태양상수 1361 W/m².</p>'
       + '</div></details>'
-      + '</section>');
+      + '<div class="step-actions"><button class="ghost-btn" data-lab-step="2">← 결과 해석</button></div></div></section>');
     bindLabChips();
     renderLabPresets();
     bindLabControls();
     drawLab();
+    bindPanelTabs('lab', 4);
     $('labBack').addEventListener('click', function () {
       var i = MISSIONS.map(function (m) { return m.id; }).indexOf('lag');
       startMission(i < 0 ? 0 : i);
@@ -3192,30 +3491,56 @@
   /* ---------- 자유탐구 ---------- */
   function renderFree() {
     state.phase = 'free'; document.body.classList.remove('lag-mode'); save();
+    var freeTab = Math.max(0, Math.min(2, Number(state.freeTab) || 0));
     setStage('<section class="card explore-card"><h1 class="sr-only">자유탐구 — 내 지역·절기·지표로 검증</h1>'
       + '<div class="mhead"><span class="mno">자유탐구</span><span class="goal-chip">내 지역 · 절기 · 지표를 자유롭게</span></div>'
-      + '<p class="task">지역·절기·지표를 바꾸고 기준선을 옮겨, 내 관심 주제를 직접 검증하세요. 결론을 쓸 때는 지역·기간·기준을 꼭 밝히세요.</p>'
-      + heroShell({ cityChips: true, termStrip: true, metricTabs: true })
-      + '<p class="cerl" id="freeCerl"></p>'
+      + '<nav class="panel-tabs panel-tabs-3" aria-label="자유탐구 단계"><button data-free-step="0" aria-current="' + (freeTab === 0 ? 'step' : 'false') + '">1. 질문 만들기</button>'
+      + '<button data-free-step="1" aria-current="' + (freeTab === 1 ? 'step' : 'false') + '">2. 증거 읽기</button>'
+      + '<button data-free-step="2" aria-current="' + (freeTab === 2 ? 'step' : 'false') + '">3. 판정·감사</button></nav>'
+      + '<div class="learning-panel" data-free-panel="0"' + (freeTab === 0 ? '' : ' hidden') + '>'
+      + '<p class="task"><b>지금 할 일 하나:</b> 지역·절기·지표를 바꾸고 기준선을 옮겨, 내가 검증할 질문을 만드세요.</p>'
+      + heroShell({ cityChips: true, termStrip: true, metricTabs: true, includeReadouts: false, includeMethod: false, compactIntegrity: true })
       + '<p class="share-row"><button class="ghost-btn small-btn" id="copyLink" type="button">🔗 이 화면 링크 복사</button>'
       + '<button class="ghost-btn small-btn" id="freeLab" type="button">🔬 열관성 실험실</button>'
       + '<small>지역·절기·지표·기준이 그대로 열리는 주소예요. 모둠끼리 비교하거나 선생님이 배부할 때 쓰세요.</small></p>'
+      + '<div class="step-actions"><button class="primary-btn" data-free-step="1">이 조건의 증거 읽기 →</button></div></div>'
+      + '<div class="learning-panel" data-free-panel="1"' + (freeTab === 1 ? '' : ' hidden') + '>'
+      + '<p class="panel-kicker">선택한 조건의 자동 집계</p><p class="cerl" id="freeCerl"></p>'
+      + '<div class="readouts" id="readouts"></div>'
       + '<div id="kmaRefMount"></div>'
       + '<div id="inqMount"></div>'
       + '<div id="winMount"></div>'
       + '<div id="sparkMount"></div>'
+      + '<div id="methodMount"></div>'
+      + '<div class="step-actions"><button class="ghost-btn" data-free-step="0">← 조건 다시 조작</button><button class="primary-btn" data-free-step="2">내 판정 쓰기 →</button></div></div>'
+      + '<div class="learning-panel" data-free-panel="2"' + (freeTab === 2 ? '' : ' hidden') + '>'
       + '<div class="judge-box"><label class="draft-label" for="freeDraft">내 판정문 <small>지역 · 기간 · 기준 · 한계를 넣어 한 문장으로</small></label>'
       + '<textarea id="freeDraft" maxlength="400" placeholder="예: 서울에서 ‘덥다’를 25°C로 정하면, 처서 무렵 더위가 그치는 날이 과거보다 13일 늦어졌다. 다만 이는 5년 관측 신호로, 전국이나 원인으로 넓혀 말하기는 어렵다."></textarea>'
-      + '<div class="ai-row"><button class="ai-btn" id="askAudit"><span aria-hidden="true">✦</span> AI 감사 요청</button></div>'
+      + '<div class="ai-row"><button class="ghost-btn small-btn" id="localAudit" type="button">기기 안에서 빠른 점검</button>'
+      + '<button class="ai-btn" id="askAudit" disabled><span aria-hidden="true">✦</span> AI 감사 요청</button></div>'
+      + '<div class="ai-consent"><label><input type="checkbox" id="aiConsent"> <span><b>선택 동의:</b> AI 감사를 요청하면 위 판정문과 화면의 관측 근거가 OpenAI API로 전송됩니다. 이름·학교·연락처는 입력하지 마세요.</span></label>'
+      + '<small>동의하지 않아도 기기 안 빠른 점검으로 같은 핵심 항목을 확인할 수 있습니다.</small></div>'
       + '<p class="audit-status" id="auditStatus">판정문을 쓰면 과장 · 범위 · 인과를 점검합니다. AI가 응답하지 않아도 같은 항목을 규칙 점검이 확인합니다.</p>'
-      + '<div class="audit-result" id="auditResult" hidden></div></div></section>');
+      + '<div class="audit-result" id="auditResult" hidden></div></div>'
+      + '<div class="step-actions"><button class="ghost-btn" data-free-step="1">← 증거 다시 읽기</button></div></div></section>');
     bindCityChips(); bindTermStrip(); bindMetricTabs(); bindThreshold(); bindViewTools();
     onTouched = function () {}; drawHero(); updateKmaRef(); updateInquiry(); updateWindow();
     $('freeDraft').value = state.freeDraft || '';
     $('freeDraft').addEventListener('input', function () { state.freeDraft = $('freeDraft').value.slice(0, 400); save(); });
-    $('askAudit').addEventListener('click', function () { doAudit(null); });
+    $('localAudit').addEventListener('click', function () {
+      var draft = ($('freeDraft').value || '').trim();
+      if (draft.replace(/\s/g, '').length < 12) {
+        $('auditStatus').textContent = '판정문을 12자 이상 써 주세요 (지역 · 기간 · 기준을 넣어 한 문장으로).';
+        $('freeDraft').focus(); return;
+      }
+      renderAudit(localAudit(draft), true);
+      $('auditStatus').textContent = '기기 안 규칙 점검 완료 — 글과 자료는 외부로 전송되지 않았습니다.';
+    });
+    $('aiConsent').addEventListener('change', function () { $('askAudit').disabled = !$('aiConsent').checked; });
+    $('askAudit').addEventListener('click', function () { doAudit(); });
     if ($('copyLink')) $('copyLink').addEventListener('click', function () { copyLink($('copyLink')); });
     if ($('freeLab')) $('freeLab').addEventListener('click', renderLab);
+    bindPanelTabs('free', 3);
   }
 
   /* ---------- AI 감사관 (+ 규칙 점검) ---------- */
@@ -3434,8 +3759,9 @@
     else if (state.phase === 'lab') renderLab();
     else if (state.phase === 'complete') renderComplete();
     else if (state.phase === 'terms') renderTerms();
-    else if (state.phase === 'intro' || state.phase === 'tutorial') renderIntro();
-    else { state.phase = 'mission'; renderExplore(); }
+    else if (state.phase === 'intro') state.introStep === 'method' ? renderIntroMethod() : renderIntro();
+    else if (state.phase === 'tutorial') renderTutorial();
+    else { state.phase = 'mission'; renderMissionFlow(); }
   }
   window.addEventListener('hashchange', function () {
     if (applyHash()) routeFromState();
@@ -3458,8 +3784,9 @@
   if (state.phase === 'free') renderFree();
   else if (state.phase === 'lab') renderLab();
   else if (state.phase === 'complete') renderComplete();
-  else if (state.phase === 'verdict') { state.phase = 'mission'; renderExplore(); }
+  else if (state.phase === 'verdict') { state.phase = 'mission'; state.missionStep = 'write'; renderMissionFlow(); }
   else if (state.phase === 'terms') renderTerms();
-  else if (state.phase === 'intro' || state.phase === 'tutorial') renderIntro();
-  else { state.phase = 'mission'; renderExplore(); }
+  else if (state.phase === 'intro') state.introStep === 'method' ? renderIntroMethod() : renderIntro();
+  else if (state.phase === 'tutorial') renderTutorial();
+  else { state.phase = 'mission'; renderMissionFlow(); }
 })();
