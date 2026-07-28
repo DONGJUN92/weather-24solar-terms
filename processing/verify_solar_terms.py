@@ -11,10 +11,16 @@ prototype/solar_terms_data.js에 대한 assert가 0개였다. 이 스크립트�
   C. 단조성   — 기준이 높아질 때 '기준 이상 일수'가 늘어나지 않는가
   D. 실측대조 — 사전계산값이 원시 CSV에서 다시 센 값과 일치하는가 (RC-A의 핵심 회귀 테스트)
   E. 방향     — 강수·습도 지표의 증감 방향이 실측과 일치하는가 (평활 곡선 시절의 부호 역전 재발 방지)
+  G. 강수전환 — 강수 미션의 rainFlip 수치와 방향이 올바른가
+  H. 계절지연 — 더위 시작·종료 시차와 계절별 요약이 일관되는가
+  H2. 극값안정 — 극값 날짜가 평활 고원에서 임의의 하루로 흔들리지 않는가
+  I. 이동창   — 26개 비교 기간을 바꿀 때 수치와 메타데이터가 함께 바뀌는가
   F. 문서대조 — 데이터에서 뽑은 값이 문서에 실제로 그 값으로 적혀 있는가 (R4에서 방식을 뒤집었다)
   J. 절기날짜 — 24개 대표 날짜가 태양황경 교차 최빈일과 일치하는가
   K. 전지구   — web_data/*.json에 불완결 연도가 섞이지 않았는가, r²가 재계산과 일치하는가
   L. 안정성   — 계절 지연이 잭나이프에서 얼마나 흔들리는지 기록되어 있는가
+  M. 극한지수 — 폭염·열대야·결빙일 계산과 비교 기간 고지가 일치하는가
+  N. 학습계약 — 무자료 예측·학생 CERL 선행·외부 AI 동의·과잉 인과 방지가 실제 코드에 남아 있는가
 
 실행: python verify_solar_terms.py            (실패 시 exit code 1)
      python verify_solar_terms.py --no-raw   (원시 CSV 없이 구조·문서 검사만 — zip 제출본용)
@@ -46,6 +52,9 @@ COL = {"temp": "avgTa", "humidity": "avgRhm", "precip": "sumRn"}
 fails, warns, checks = [], [], [0]
 DATA_CHECKS = [0]        # 문서가 인용하는 대표 검사 수(문서 대조 축 제외)
 DOC_COUNT_TARGETS = []   # 검사 건수 인용을 대조할 문서 (최종 건수를 알아야 하므로 report()에서 확인)
+PUBLISHED_DATA_CHECKS = 8213
+PUBLISHED_AUX_CHECKS = 90
+PUBLISHED_TOTAL_CHECKS = PUBLISHED_DATA_CHECKS + PUBLISHED_AUX_CHECKS
 
 
 def ck(cond, msg):
@@ -487,22 +496,95 @@ def main():
     ck("계산할 수 없" not in vjs_txt.split("열대야")[1][:200] if "열대야" in vjs_txt else True,
        "M: verify.js가 여전히 열대야를 '계산할 수 없다'고 말한다 — 원자료에는 minTa/maxTa가 있다")
 
+    # ── N. 학습·신뢰 계약 (레드팀 5차) ────────────────────────────
+    # 숫자만 맞아도 교육 순서가 뒤집히거나 개인정보 안내가 거짓이면 최고상 수준이 아니다.
+    # 대표 실패가 다시 들어오지 못하도록 코드·문서·배포 설정을 함께 게이트한다.
+    pred0 = vjs_txt.find("function renderPrediction")
+    pred1 = vjs_txt.find("function showLensGate", pred0)
+    pred_src = vjs_txt[pred0:pred1] if pred0 >= 0 and pred1 > pred0 else ""
+    verdict0 = vjs_txt.find("function renderVerdict")
+    verdict1 = vjs_txt.find("function onSelfCheck", verdict0)
+    verdict_src = vjs_txt[verdict0:verdict1] if verdict0 >= 0 and verdict1 > verdict0 else ""
+
+    ck(pred0 >= 0 and "introChart" not in vjs_txt,
+       "N: 관측 자료와 분리된 renderPrediction 화면이 없거나 소개 화면이 결과를 미리 노출한다")
+    ck("if (!missionAsked(m)) { renderPrediction(m); return; }" in vjs_txt,
+       "N: renderExplore 진입 시 예측 선행 가드가 없다")
+    ck(re.search(r"mc\.showLast && pl > 0[^?]{0,80}!isSealed\(\)", vjs_txt) is not None,
+       "N: 과거 마지막초과일 마커가 예측 봉인 중 노출될 수 있다")
+    ck(re.search(r"mc\.showLast && cl > 0[^?]{0,80}!isSealed\(\)", vjs_txt) is not None,
+       "N: 현재 마지막초과일 마커가 예측 봉인 중 노출될 수 있다")
+    ck("방금 만져 봤죠" not in vjs_txt, "N: 조작 뒤 예측을 유도하는 낡은 문구가 남아 있다")
+    ck("o.s" not in pred_src, "N: 예측 선택지에 정답 성격을 암시하는 보조문구를 렌더한다")
+    ck(verdict_src.find("studentCerlHTML(m)") < verdict_src.find('class="selfcheck"') < verdict_src.find('id="verdictReveal"'),
+       "N: 학생 CERL → 자가진단 → 전문가 예시 순서가 아니다")
+    ck('class="selfcheck" id="selfcheck" hidden' in verdict_src,
+       "N: 학생 CERL 제출 전에 자가진단이 열려 있다")
+    ck(all(f"k: '{k}'" in vjs_txt for k in ("c", "e", "r", "l")),
+       "N: 학생 CERL의 주장·근거·추론·한계 네 필드가 모두 있지 않다")
+    ck("!state.cerlSubmitted[m.id] || cerlErrors(m).length" in vjs_txt,
+       "N: CERL 없이 완료·다음 미션으로 갈 수 있는 경로가 있다")
+    ck('id="localAudit"' in vjs_txt, "N: 외부 전송 없는 기기 안 규칙 점검 버튼이 없다")
+    ck('id="aiConsent"' in vjs_txt and "OpenAI API로 전송" in vjs_txt,
+       "N: 외부 AI 전송 고지와 명시적 동의가 없다")
+    ck("showExample" not in vjs_txt, "N: 앱이 학생 입력칸에 모범 판정문을 대신 넣는 버튼이 남아 있다")
+    ck("한 달도 빠짐없이" not in vjs_txt and "품질관리·보간값" in vjs_txt,
+       "N: NOAA 월별 기록의 관측 공백·보간을 숨기거나 연속 직접측정으로 오표기한다")
+    ck("그래서 바닷가의 계절이 더 늦게 옵니다" not in vjs_txt and "유효 열용량 매개변수" in vjs_txt,
+       "N: 유효 열용량을 실제 해안 인과로 단정하는 문구가 남아 있다")
+
+    api_txt = (BASE / "api" / "ai-turn.js").read_text(encoding="utf-8")
+    net_m = re.search(r"NETWORK_MAX\s*=\s*(\d+)", api_txt)
+    ses_m = re.search(r"SESSION_MAX\s*=\s*(\d+)", api_txt)
+    ck(bool(net_m and ses_m and int(net_m.group(1)) >= 40 and 1 <= int(ses_m.group(1)) <= 10),
+       "N: 40명 공유망을 허용하면서 세션 남용을 막는 이중 한도가 아니다")
+    ck('x-learning-session' in api_txt.lower() and "networkBuckets" in api_txt and "sessionBuckets" in api_txt,
+       "N: AI 요청 한도가 학급 공유 IP와 개별 세션을 구분하지 않는다")
+
+    vercel = (BASE / "vercel.json").read_text(encoding="utf-8")
+    ck("Content-Security-Policy" in vercel and "frame-ancestors 'none'" in vercel and "X-Content-Type-Options" in vercel,
+       "N: 배포 보안 헤더(CSP·frame-ancestors·nosniff)가 없다")
+    index_txt = (BASE / "prototype" / "index.html").read_text(encoding="utf-8")
+    ck('src="./theme-init.js' in index_txt and "<script>" not in index_txt,
+       "N: CSP를 약화시키는 인라인 스크립트가 있거나 외부 테마 초기화 파일이 없다")
+    time_texts = [
+        (BASE / "README.md").read_text(encoding="utf-8"),
+        (BASE / "prototype" / "교사_학습지.html").read_text(encoding="utf-8"),
+        vjs_txt,
+    ]
+    final_claim_texts = [
+        time_texts[0],
+        (BASE / "발표_10분_구성안.md").read_text(encoding="utf-8"),
+        (BASE / "제출_체크리스트.md").read_text(encoding="utf-8"),
+    ]
+    ck(
+        all("15~20분" in txt and "55~70분" in txt for txt in time_texts)
+        and all("15축" in txt and "100/100" in txt for txt in final_claim_texts),
+        "N: 앱·README·교사 자료의 시간 또는 README·발표·체크리스트의 15축/100점 주장이 일치하지 않는다",
+    )
+
     return report()
 
 
 def report():
     # 문서가 인용한 '검사 건수'가 이번 실행값과 같은가 (4,810 vs 4,852 재발 차단).
     # 최종 건수는 모든 검사가 끝나야 알 수 있으므로 여기서 본다.
-    total = DATA_CHECKS[0] or checks[0]
+    data_total = DATA_CHECKS[0] or checks[0]
+    aux_total = checks[0] - DATA_CHECKS[0]
+    if not NO_RAW and data_total != PUBLISHED_DATA_CHECKS:
+        fails.append(f"F: 데이터 검사 수 {data_total} ≠ 공개 기준 {PUBLISHED_DATA_CHECKS} — 검사 추가/삭제 시 공개 수와 문서를 함께 갱신하세요")
+    if aux_total != PUBLISHED_AUX_CHECKS:
+        fails.append(f"F: 인터페이스·문서 검사 수 {aux_total} ≠ 공개 기준 {PUBLISHED_AUX_CHECKS} — 공개 수와 문서를 함께 갱신하세요")
+    allowed_counts = {PUBLISHED_DATA_CHECKS, PUBLISHED_TOTAL_CHECKS}
     for rel in dict.fromkeys(DOC_COUNT_TARGETS):
         f = BASE / rel
         if not f.exists():
             continue
         txt = f.read_text(encoding="utf-8")
         nums = {n.replace(",", "") for n in re.findall(r"([0-9],?[0-9]{3})\s*(?:개\s*)?(?:assert|검사|건)", txt)}
-        wrong = sorted(n for n in nums if n.isdigit() and 1000 <= int(n) <= 99999 and int(n) != total)
+        wrong = sorted(n for n in nums if n.isdigit() and 1000 <= int(n) <= 99999 and int(n) not in allowed_counts)
         if wrong:
-            warns.append(f"F: {rel} 의 검사 건수 표기 {wrong} ≠ 데이터 검사 {total}건 — 문서를 갱신하세요")
+            warns.append(f"F: {rel} 의 검사 건수 표기 {wrong} ≠ 데이터 {PUBLISHED_DATA_CHECKS}건 또는 총 {PUBLISHED_TOTAL_CHECKS}건 — 문서를 갱신하세요")
     print()
     if fails:
         print(f"  ✗ 실패 {len(fails)}건 / 검사 {checks[0]}건 (데이터 {DATA_CHECKS[0]} + 문서 {checks[0]-DATA_CHECKS[0]})")

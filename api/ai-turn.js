@@ -12,9 +12,17 @@
  *          ④ 실패 원인을 code로 구분해 화면이 정확한 문구를 고를 수 있게 한다
  */
 
+const { createHash } = require("node:crypto");
+
 const WINDOW_MS = 10 * 60 * 1000;
-const MAX_REQUESTS = 18;
-const buckets = new Map();
+/* 한 학교망의 공인 IP를 학생 40명이 공유해도 첫 요청이 막히지 않게 네트워크 버킷과
+   학습 세션 버킷을 분리한다. 네트워크 90회/10분, 세션 6회/10분이면 한 학급의
+   1~2회 감사는 통과하면서 한 브라우저의 반복 호출은 제한한다. 이 Map은 서버리스
+   인스턴스별 best-effort 보호이며, 핵심 학습은 항상 로컬 규칙 점검으로 완결된다. */
+const NETWORK_MAX = 90;
+const SESSION_MAX = 6;
+const networkBuckets = new Map();
+const sessionBuckets = new Map();
 
 const AUDIT_TOKENS = 1200;      // 실측: 추론 173~349 + 본문 ~250 → 1200이면 여유 3배 이상
 const COACH_TOKENS = 900;
@@ -108,15 +116,36 @@ function allowedCoachRequest(body) {
   };
 }
 
-function rateLimit(req) {
-  const raw = String(req.headers["x-forwarded-for"] || req.socket?.remoteAddress || "anonymous").split(",")[0].trim();
-  const now = Date.now();
-  const bucket = buckets.get(raw) || [];
+function bucketKey(value) {
+  return createHash("sha256").update(String(value || "anonymous")).digest("hex").slice(0, 24);
+}
+
+function takeBucket(map, key, limit, now) {
+  const bucket = map.get(key) || [];
   const active = bucket.filter((time) => now - time < WINDOW_MS);
-  if (active.length >= MAX_REQUESTS) return false;
+  if (active.length >= limit) {
+    const retryAfter = Math.max(1, Math.ceil((WINDOW_MS - (now - active[0])) / 1000));
+    map.set(key, active);
+    return { ok: false, retryAfter };
+  }
   active.push(now);
-  buckets.set(raw, active);
-  return true;
+  map.set(key, active);
+  return { ok: true, remaining: Math.max(0, limit - active.length) };
+}
+
+function rateLimit(req) {
+  const rawIp = String(req.headers["x-forwarded-for"] || req.socket?.remoteAddress || "anonymous").split(",")[0].trim();
+  const rawSession = text(req.headers["x-learning-session"], 80);
+  const validSession = /^[a-zA-Z0-9-]{12,80}$/.test(rawSession);
+  const now = Date.now();
+  const network = takeBucket(networkBuckets, bucketKey("net:" + rawIp), NETWORK_MAX, now);
+  if (!network.ok) return { ok: false, retryAfter: network.retryAfter, scope: "network", limit: NETWORK_MAX, remaining: 0 };
+  if (validSession) {
+    const session = takeBucket(sessionBuckets, bucketKey("session:" + rawIp + ":" + rawSession), SESSION_MAX, now);
+    if (!session.ok) return { ok: false, retryAfter: session.retryAfter, scope: "session", limit: SESSION_MAX, remaining: 0 };
+    return { ok: true, remaining: Math.min(network.remaining, session.remaining), limit: SESSION_MAX };
+  }
+  return { ok: true, remaining: network.remaining, limit: NETWORK_MAX };
 }
 
 function outputText(response) {
@@ -198,7 +227,20 @@ async function callOpenAI({ isCoach, payload, effort, maxTokens, timeoutMs }) {
 
 module.exports = async (req, res) => {
   if (req.method !== "POST") return res.status(405).json({ error: "POST 요청만 사용할 수 있습니다.", code: "method" });
-  if (!rateLimit(req)) return res.status(429).json({ error: "요청이 몰렸습니다. 잠시 후 다시 시도해 주세요.", code: "rate_limited" });
+  const limit = rateLimit(req);
+  res.setHeader("Cache-Control", "no-store");
+  res.setHeader("X-RateLimit-Limit", String(limit.limit || SESSION_MAX));
+  res.setHeader("X-RateLimit-Remaining", String(limit.remaining || 0));
+  if (!limit.ok) {
+    res.setHeader("Retry-After", String(limit.retryAfter));
+    return res.status(429).json({
+      error: limit.scope === "session"
+        ? "이 학습 세션의 AI 요청이 많습니다. 기기 안 빠른 점검을 사용하고 잠시 후 다시 시도해 주세요."
+        : "같은 네트워크의 AI 요청이 몰렸습니다. 기기 안 빠른 점검을 사용하고 잠시 후 다시 시도해 주세요.",
+      code: "rate_limited",
+      retry_after_seconds: limit.retryAfter
+    });
+  }
   if (!process.env.OPENAI_API_KEY) return res.status(503).json({ error: "AI 감사관이 아직 설정되지 않았습니다.", code: "not_configured" });
 
   const isCoach = req.body && req.body.mode === "coach";

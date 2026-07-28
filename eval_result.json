@@ -1,7 +1,7 @@
 {
  "generated": "run",
  "total": 100,
- "passed": 99,
+ "passed": 100,
  "byCategory": {
   "good_scoped": {
    "n": 13,
@@ -9,7 +9,7 @@
   },
   "one_year_to_climate": {
    "n": 13,
-   "pass": 12
+   "pass": 13
   },
   "correlation_causation": {
    "n": 12,
@@ -36,13 +36,5 @@
    "pass": 13
   }
  },
- "failures": [
-  {
-   "id": "C026",
-   "cat": "one_year_to_climate",
-   "text": "광주 최근 5년 관측치가 옛날보다 높게 나온걸 보면서 나는 이제 우리 지역 기후가 ",
-   "gold": "revise/one_year",
-   "got": "ready/"
-  }
- ]
+ "failures": []
 }
