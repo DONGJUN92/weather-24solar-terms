@@ -86,9 +86,10 @@ if printf '%s' "$ev" | grep -qE "전체 +[0-9]+/100"; then
 else no "평가 하네스 실패"; fi
 
 echo "── 7. 문서-현실 정합성 ───────────────────────────────────"
+# 문서에 적은 커밋 수는 '그 문서를 고친 커밋' 만큼 뒤처질 수밖에 없다 — 1 차이는 허용한다.
 c=$(git rev-list --count HEAD)
-if grep -q "요약: ${c}개 커밋" README.md 2>/dev/null; then ok "README 커밋 수 ${c} 일치"
-else no "README 커밋 수 표기가 실제(${c})와 다릅니다"; fi
+if grep -qE "요약: ($c|$((c-1))|$((c+1)))개 커밋" README.md 2>/dev/null; then ok "README 커밋 수 표기 일치 (실제 ${c})"
+else no "README 커밋 수 표기가 실제(${c})와 2 이상 다릅니다"; fi
 pg=$(python -c "import fitz,glob;print(fitz.open(glob.glob('발표자료*.pdf')[0]).page_count)" 2>/dev/null)
 if [ -n "$pg" ] && grep -q "PDF ${pg}장" 제출_체크리스트.md 2>/dev/null; then ok "발표자료 장수 ${pg} 일치"
 elif [ -n "$pg" ]; then no "발표자료 장수 표기 불일치 (실제 ${pg}장)"; fi
