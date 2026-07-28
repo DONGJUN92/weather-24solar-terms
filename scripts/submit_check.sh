@@ -91,7 +91,7 @@ c=$(git rev-list --count HEAD)
 if grep -qE "요약: ($c|$((c-1))|$((c+1)))개 커밋" README.md 2>/dev/null; then ok "README 커밋 수 표기 일치 (실제 ${c})"
 else no "README 커밋 수 표기가 실제(${c})와 2 이상 다릅니다"; fi
 pg=$(python -c "import fitz,glob;print(fitz.open(glob.glob('발표자료*.pdf')[0]).page_count)" 2>/dev/null)
-if [ -n "$pg" ] && grep -q "PDF ${pg}장" 제출_체크리스트.md 2>/dev/null; then ok "발표자료 장수 ${pg} 일치"
+if [ -n "$pg" ] && grep -qE "PDF \*{0,2}${pg}\*{0,2}장" 제출_체크리스트.md 2>/dev/null; then ok "발표자료 장수 ${pg} 일치"
 elif [ -n "$pg" ]; then no "발표자료 장수 표기 불일치 (실제 ${pg}장)"; fi
 n=$(ls prompt_sessions/*.md 2>/dev/null | grep -v README | wc -l)
 for f in prompt_sessions/*.md; do

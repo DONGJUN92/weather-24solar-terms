@@ -34,6 +34,7 @@
 | `collect_openmeteo_era5.py` | Open-Meteo(ERA5) | 불필요 | 한국 7개 도시 일별 기온/강수/바람/일사 (ERA5 재분석) | ✅ 실수집 완료 |
 | `collect_ecmwf_opendata.py` | ECMWF Open Data | 불필요 | 최신 IFS 오픈예보(2t/tp) GRIB | ✅ 실수집 완료 |
 | `collect_kma_openapi.py` | 기상청 ASOS 일자료 | 키 사용 | 한국 8개 지점 일자료 2022~2026 | ✅ **실수집 완료** (8지점·각 1,632일·내부결측 0) |
+| `collect_kma_allyears.py` | 기상청 ASOS 일자료(장기) | 키 사용 | **16개 지점 1969~2026** — 배포본이 실제로 쓰는 주 데이터 | ✅ **실수집 완료** |
 | `collect_nasa_gpm.py` | NASA GPM IMERG | 키 사용 | 한반도 월별 위성강수 | ✅ **실수집 완료** (2022~2025·45개월·내부결측 0) |
 | `collect_copernicus_cds.py` | Copernicus CDS | 키 사용 | ERA5 월평균(한반도) t2m·강수 | ✅ **실수집 완료** (2022~2026·53개월·내부결측 0) |
 
@@ -110,3 +111,23 @@ data_collectors/
 ├─ API_KEY_발급_가이드.md
 └─ output/                    # 수집 CSV + _simulated/
 ```
+
+
+---
+
+## 부록. `allyears` 수집 컬럼 — 왜 최고·최저기온을 포함하는가
+
+`collect_kma_allyears.py`의 `KEEP`은 다음 6개다.
+
+```python
+KEEP = ["tm", "avgTa", "minTa", "maxTa", "avgRhm", "sumRn"]
+```
+
+예전에는 `minTa`·`maxTa`를 빼고 4개만 남겼다. 그 결과 앱 화면과 README가
+**“자료에 최저·최고기온이 없다”**고 적었는데, 이는 사실이 아니었다 —
+ASOS 원자료에는 1969년부터 두 컬럼이 채워져 있고 수집 단계에서 버렸을 뿐이다.
+두 컬럼이 있어야 기상청의 대표 기후변화 지표인 **폭염일(일 최고 33℃↑)·열대야(일 최저 25℃↑)·결빙일**을
+셀 수 있다. 4차 레드팀에서 이 진술의 오류를 확인하고 컬럼을 되살렸다.
+
+> 현재 배포본의 폭염·열대야 지수는 **8지점 별도 수집분**(`kma_asos_daily_*.csv`)으로 계산한다.
+> `allyears` 전 지점 재수집이 끝나면 16지점으로 확대할 수 있다.

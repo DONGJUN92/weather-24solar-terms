@@ -54,6 +54,12 @@ c.stations['서울'].monthly[6];   // 7월: {tavg:27.4, precip:390.9, ...}
 ### `climate_change.json` — 기후변화 결합 + 회귀
 `series[]`: 연도별 `co2_ppm·temp_anomaly_C·sea_level_mm·korea_temp_C`.
 `relationship`: **CO2→기온 선형회귀**(`co2_temp_per_100ppm_C`, `r2`) → 슬라이더에 바로 사용.
+`meta.sources[]`: 출처·URL·**라이선스**(화면이 그대로 렌더해 CC BY 저작자표시를 이행).
+
+> **완결 연도 규칙** — 한국 자료에 적용한 것과 같은 규칙을 전지구 자료에도 적용합니다.
+> 월 12개가 모두 있는 해만 연평균에 사용하므로 **진행 중인 해는 들어가지 않습니다**
+> (`meta.completeness`에 마지막 완결 연도를 명시). 예전에는 1~5월만 있는 해가
+> ‘연평균’으로 들어가 Keeling 곡선의 계절 최대치 쪽으로 편의가 생겼습니다.
 ```js
 const cc = await (await fetch('climate_change.json')).json();
 const dT = cc.relationship.co2_temp_slope_C_per_ppm * (co2 - 280); // 산업화 이전 대비
@@ -61,6 +67,7 @@ const dT = cc.relationship.co2_temp_slope_C_per_ppm * (co2 - 280); // 산업화 
 
 ### `co2_keeling_monthly.json` — 마우나로아 월별 CO2
 `dates[]`, `co2_ppm[]` (1958~현재). Keeling 곡선 애니메이션용.
+월별 시계열이므로 **진행 중인 해의 월도 그대로 포함**합니다(연평균이 아니라 월값이라 편의가 없습니다).
 
 ### `typhoon_tracks_wnp.json` — 서태평양 태풍(2022~2026, 120개)
 `storms[]`: `name·season·peak_wind_kt·min_pres_mb·category` + `track[]`(6시간 간격

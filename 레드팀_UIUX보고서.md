@@ -1,5 +1,10 @@
 # Weather24 UI / UX / CX 레드팀 보고서
 
+> **📍 문서 상태 — 3차 감사 기록(원문 보존).** 이 문서의 지적은 대부분 이미 반영됐고,
+> 일부 수치는 그 뒤 데이터 재빌드로 바뀌었습니다. **현재 값으로 읽지 마세요.**
+> 최신 상태와 정정 내역: [`레드팀_4차_종합보고서.md`](레드팀_4차_종합보고서.md)
+
+
 > 대상: 배포본 https://weather-24solar-terms.vercel.app/ (`prototype/index.html` + `verify.js` 657줄 + `verify.css` 19KB + `style.css` 49KB)
 > 기준일 2026-07-26 · 현장 데모까지 26일
 > **방법: 전량 1차 실측.** 배포 사이트를 375×667 / 430×932 / 1280×800 뷰포트에서 직접 계측(getBoundingClientRect·getComputedStyle·합성 PointerEvent 드래그·performance API)하고, `verify.css`·`style.css`·`verify.js`를 대조했다. 추정치는 '계산'으로 명시했다.
