@@ -409,6 +409,21 @@ def main():
                    f"F: {rel}:{ln} 계절지연 값 '{m.group(1)}일'이 현재 데이터에 없다 "
                    f"(서울 과거 {seoul_past_hot}일 → 현재 {seoul_now_hot}일)")
         txt = f.read_text(encoding="utf-8")
+        # 폭염일·열대야를 인용했다면 화면 표기와 같아야 한다 (R4-M).
+        # 화면은 fmtDays로 10 이상을 정수 반올림하므로 문서도 그 값을 써야 한다.
+        sx = cities.get("서울", {}).get("extremes")
+        if sx:
+            def shown(v):
+                v = round(v * 10) / 10
+                return f"{v:.1f}" if v < 10 else f"{int(v + 0.5)}"
+            for key, word in (("heatwave", "폭염일"), ("tropicalNight", "열대야")):
+                r = sx["idx"].get(key)
+                if not r or r["past"] is None:
+                    continue
+                for m in re.finditer(word + r"[^\n]{0,24}?([\d.]+)\s*일?\s*(?:→|->)\s*([\d.]+)", txt):
+                    ck(m.group(1) == shown(r["past"]) and m.group(2) == shown(r["present"]),
+                       f"F: {rel} 의 서울 {word} 표기 '{m.group(1)} → {m.group(2)}'가 화면 값"
+                       f"({shown(r['past'])} → {shown(r['present'])})과 다르다")
         # 서울 25℃ 더위일을 'A → B' 형태로 적었다면 현재 값이어야 한다.
         # 단 '무엇이 틀렸었나' 식의 정정 기록(같은 줄에 옛값과 현재값이 함께 있는 표)은 예외다 —
         # 그건 낡은 수치가 아니라 고친 이력이고, 지우면 오히려 과정 기록이 사라진다.
