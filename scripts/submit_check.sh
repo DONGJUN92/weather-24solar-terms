@@ -88,8 +88,45 @@ else no "평가 하네스 실패"; fi
 echo "── 7. 문서-현실 정합성 ───────────────────────────────────"
 # 문서에 적은 커밋 수는 '그 문서를 고친 커밋' 만큼 뒤처질 수밖에 없다 — 1 차이는 허용한다.
 c=$(git rev-list --count HEAD)
-if grep -qE "요약: ($c|$((c-1))|$((c+1)))개 커밋" README.md 2>/dev/null; then ok "README 커밋 수 표기 일치 (실제 ${c})"
-else no "README 커밋 수 표기가 실제(${c})와 2 이상 다릅니다"; fi
+# 커밋 수는 세 산출물에 각각 적혀 있다 — 하나만 검사하면 나머지가 조용히 어긋난다(5차 F05).
+for pair in "README.md:요약: N개 커밋" "AI_활용_기록.md:커밋 N개" "scripts/build_deck.py:커밋 N건"; do
+  cf=${pair%%:*}
+  if grep -qE "($c|$((c-1))|$((c+1)))(개|건) 커밋|커밋 ($c|$((c-1))|$((c+1)))(개|건)" "$cf" 2>/dev/null; then
+    ok "$(basename "$cf") 커밋 수 표기 일치 (실제 ${c})"
+  else no "$(basename "$cf") 커밋 수 표기가 실제(${c})와 2 이상 다릅니다"; fi
+done
+
+# 라이브 시연 문서가 코드보다 오래되면, 대본이 존재하지 않는 화면을 가리킨다(5차 F02).
+# 발표는 시연이 절반이고 1분 초과가 −9점이라, 이 시차 자체를 실패로 잡는다.
+# 커밋 시각이 아니라 '파일 수정 시각'을 본다 — 아직 커밋하지 않은 코드 수정도 잡아야
+# '지금 배포할 코드'와 '지금 읽을 대본'이 어긋나는 것을 막을 수 있다.
+mt() { stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null; }
+vjs_t=$(mt prototype/verify.js)
+for d in 데모_대본.md 발표_10분_구성안.md; do
+  dt=$(mt "$d")
+  if [ -z "$vjs_t" ] || [ -z "$dt" ]; then
+    ok "$d 시차 검사 생략 (수정 시각을 읽을 수 없음)"
+  elif [ "$dt" -ge "$vjs_t" ]; then
+    ok "$d 가 verify.js와 같거나 더 최신"
+  else
+    no "$d 가 verify.js보다 오래됐습니다 — 시연 대본이 현재 화면과 다를 수 있습니다"
+  fi
+done
+
+# 배포 자산 총량 표기 검증 — gzip 실측 합계가 발표자료 표기와 ±5% 안인지(5차 F05).
+kb_doc=$(grep -oE "약 [0-9]{3}KB" scripts/build_deck.py 2>/dev/null | head -1 | grep -oE "[0-9]{3}")
+if [ -n "$kb_doc" ]; then
+  tot=0
+  for a in prototype/index.html prototype/base.css prototype/verify.css prototype/korea_geo.js prototype/solar_terms_data.js prototype/verify.js prototype/theme-init.js; do
+    [ -f "$a" ] || continue
+    sz=$(gzip -c "$a" 2>/dev/null | wc -c)
+    tot=$((tot + sz))
+  done
+  kb_real=$((tot / 1024))
+  lo=$((kb_doc * 95 / 100)); hi=$((kb_doc * 105 / 100))
+  if [ "$kb_real" -ge "$lo" ] && [ "$kb_real" -le "$hi" ]; then ok "자산 총량 표기 일치 (문서 ${kb_doc}KB · 실측 ${kb_real}KB)"
+  else no "자산 총량 표기가 실측과 5% 이상 다릅니다 (문서 ${kb_doc}KB · 실측 ${kb_real}KB)"; fi
+fi
 pg=$(python -c "import fitz,glob;print(fitz.open(glob.glob('발표자료*.pdf')[0]).page_count)" 2>/dev/null)
 if [ -n "$pg" ] && grep -qE "PDF \*{0,2}${pg}\*{0,2}장" 제출_체크리스트.md 2>/dev/null; then ok "발표자료 장수 ${pg} 일치"
 elif [ -n "$pg" ]; then no "발표자료 장수 표기 불일치 (실제 ${pg}장)"; fi

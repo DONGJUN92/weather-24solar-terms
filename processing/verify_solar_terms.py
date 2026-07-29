@@ -53,7 +53,7 @@ fails, warns, checks = [], [], [0]
 DATA_CHECKS = [0]        # 문서가 인용하는 대표 검사 수(문서 대조 축 제외)
 DOC_COUNT_TARGETS = []   # 검사 건수 인용을 대조할 문서 (최종 건수를 알아야 하므로 report()에서 확인)
 PUBLISHED_DATA_CHECKS = 8213
-PUBLISHED_AUX_CHECKS = 90
+PUBLISHED_AUX_CHECKS = 146
 PUBLISHED_TOTAL_CHECKS = PUBLISHED_DATA_CHECKS + PUBLISHED_AUX_CHECKS
 
 
@@ -345,6 +345,10 @@ def main():
                f"L: {name} 여름 지연 잭나이프 흔들림 {st['hot']['span']}일 — '어디서나 같다' 문장이 위태롭다")
     # 화면이 폐기한 해안/내륙 이분법을 되살리지 못하게 막는다
     vjs_txt = (BASE / "prototype" / "verify.js").read_text(encoding="utf-8")
+    # 주석은 학습자 화면에 렌더되지 않는다. '이 문구가 화면에 뜨는가'를 묻는 검사는
+    # 주석을 지운 소스로 해야 한다 — 그러지 않으면 수정 이력을 주석에 남길 수 없다.
+    vjs_code = re.sub(r"/\*.*?\*/", " ", vjs_txt, flags=re.S)
+    vjs_code = re.sub(r"^[ \t]*//.*$", " ", vjs_code, flags=re.M)
     ck(not re.search(r"^\s*var COASTAL\s*=", vjs_txt, re.M),
        "L: verify.js에 COASTAL 이분법이 되살아났다 — 인천·포항에서 성립하지 않고 표본에 무너지는 분류다")
     ck(not re.search(r"해안\(평균 '\s*\+|'해안 평균 '\s*\+", vjs_txt),
@@ -419,12 +423,14 @@ def main():
                    f"(서울 과거 {seoul_past_hot}일 → 현재 {seoul_now_hot}일)")
         txt = f.read_text(encoding="utf-8")
         # 폭염일·열대야를 인용했다면 화면 표기와 같아야 한다 (R4-M).
-        # 화면은 fmtDays로 10 이상을 정수 반올림하므로 문서도 그 값을 써야 한다.
+        # 5차 F09 이후 화면은 fmtDays가 아니라 fmtNum으로 세 칸을 모두 소수 한 자리로 찍는다
+        # (과거 + 변화 = 현재가 표 안에서 성립해야 하므로). 문서 대조 규약도 그것을 따른다.
+        # fmtNum = String(Math.round(v*10)/10) 이라 22.5는 '22.5', 23.0은 '23'이 된다.
         sx = cities.get("서울", {}).get("extremes")
         if sx:
             def shown(v):
                 v = round(v * 10) / 10
-                return f"{v:.1f}" if v < 10 else f"{int(v + 0.5)}"
+                return str(int(v)) if v == int(v) else f"{v:g}"
             for key, word in (("heatwave", "폭염일"), ("tropicalNight", "열대야")):
                 r = sx["idx"].get(key)
                 if not r or r["past"] is None:
@@ -436,9 +442,15 @@ def main():
         # 서울 25℃ 더위일을 'A → B' 형태로 적었다면 현재 값이어야 한다.
         # 단 '무엇이 틀렸었나' 식의 정정 기록(같은 줄에 옛값과 현재값이 함께 있는 표)은 예외다 —
         # 그건 낡은 수치가 아니라 고친 이력이고, 지우면 오히려 과정 기록이 사라진다.
+        # 다른 지점을 명시한 줄은 대상이 아니다 — 가이드 화면의 기본 지역은 대구이고,
+        # 미션 3은 제주·강원을 비교한다. 지점을 밝힌 줄까지 서울 값으로 검사하면
+        # 정확히 적은 문서가 오히려 실패한다(5차 P2 문서 재작성에서 실제로 걸렸다).
+        other_cities = tuple(c for c in cities if c != "서울")
         for ln, line in enumerate(txt.splitlines(), 1):
             pairs = re.findall(r"더위일[^\n]{0,40}?([\d.]+)\s*일?\s*(?:→|->)\s*([\d.]+)", line)
             if not pairs:
+                continue
+            if any(c in line for c in other_cities):
                 continue
             corrected = f"{d_past}" in line and f"{d_now}" in line
             for a, b in pairs:
@@ -496,6 +508,51 @@ def main():
     ck("계산할 수 없" not in vjs_txt.split("열대야")[1][:200] if "열대야" in vjs_txt else True,
        "M: verify.js가 여전히 열대야를 '계산할 수 없다'고 말한다 — 원자료에는 minTa/maxTa가 있다")
 
+    # 5차 F09: 표에 찍히는 세 숫자(과거·현재·변화)가 서로 맞아야 한다.
+    # 예전에는 과거·현재를 fmtDays(10 이상 정수 반올림)로, 변화를 fmtNum(소수 한 자리)으로
+    # 찍어 32행 중 16행이 암산 검산에 실패했다(4.2 + 18.3 ≠ 23).
+    # 화면은 이제 '표시된 두 값의 차'를 변화로 쓰므로 전 행이 성립해야 한다.
+    def _fmtnum(v):
+        v = round(v * 10) / 10
+        return v
+    for n in nex:
+        ex = cities[n]["extremes"]
+        for k in ("heatwave", "hot35", "tropicalNight", "iceDay"):
+            v = ex["idx"].get(k)
+            if not v or v.get("past") is None or v.get("present") is None:
+                continue
+            p, q = _fmtnum(v["past"]), _fmtnum(v["present"])
+            d = round((q - p) * 10) / 10
+            ck(abs(p + d - q) < 1e-9,
+               f"M: {n}.{k} 표 검산 실패 — 표시값 {p} + 변화 {d} ≠ {q}")
+    ck(re.search(r"var pastS = fmtNum\(v\.past\), nowS = fmtNum\(v\.present\)", vjs_code) is not None
+       and re.search(r"Number\(nowS\) - Number\(pastS\)", vjs_code) is not None,
+       "M: 극한지수 표의 변화 열이 '표시된 두 값의 차'로 계산되지 않는다 (표 안 검산이 깨진다)")
+
+    # 5차 F10: 민감도는 파이프라인이 계산해 둔 정확한 값을 화면이 그대로 써야 한다.
+    # 예전에는 이미 정수로 반올림된 창별 doy를 다시 차분해 이중 반올림 값을 인쇄했다.
+    ck("Number(S.thr) === Number(thr)" in vjs_code and "c.sensitivity" in vjs_code,
+       "M: sensitivityAt이 파이프라인의 sensitivity 값을 쓰지 않는다 (이중 반올림으로 문서와 어긋난다)")
+    sen = cities.get("서울", {}).get("sensitivity")
+    ck(sen and sen.get("long") is not None and sen.get("min") is not None,
+       "M: 서울 sensitivity(min/max/long)가 데이터에 없다 — 화면이 폴백 경로로 떨어진다")
+
+    # 5차 F14: 학습목표 ⑤(관측과 모형)이 필수 동선·완료 배지에 있어야 한다.
+    ck("if (step === 'audit' && m.lagMode && !state.labSeen) step = 'expert';" in vjs_code,
+       "N: 미션 5가 열관성 실험실을 거치지 않고 완료된다 — 학습목표 ⑤가 필수 동선 밖이다")
+    ck("state.labSeen = true;" in vjs_code and "⑤ 관측과 모형" in vjs_code,
+       "N: 완료 배지에 학습목표 ⑤가 없거나 실험실 방문 기록이 남지 않는다")
+    ck("열관성 실험실 (목표 ⑤)" in vjs_code,
+       "N: 내 기록에 모형 실험 결과가 남지 않는다 — 교사가 회수하는 산출물에 목표 ⑤이 빠진다")
+
+    # 5차 COPY-AI: 학습자 노출 문구의 조사·2인칭
+    ck("eulReul(f.label)" in vjs_code,
+       "N: CERL 필수 오류 문구가 조사를 하드코딩한다 ('근거을'·'한계을' 비문)")
+    ck(not re.search(r"driftStr \+ '</b>[와과]", vjs_code),
+       "N: 전문가 판정문이 '+N일와' 형태의 비문을 만든다")
+    ck("당신" not in vjs_code,
+       "N: 학습자 화면에 2인칭 '당신'이 있다 — 이 앱의 나머지 표기('내/내가')와 어긋난다")
+
     # ── N. 학습·신뢰 계약 (레드팀 5차) ────────────────────────────
     # 숫자만 맞아도 교육 순서가 뒤집히거나 개인정보 안내가 거짓이면 최고상 수준이 아니다.
     # 대표 실패가 다시 들어오지 못하도록 코드·문서·배포 설정을 함께 게이트한다.
@@ -520,6 +577,39 @@ def main():
        "N: 현재 마지막초과일 마커가 예측 봉인 중 노출될 수 있다")
     ck("방금 만져 봤죠" not in vjs_txt, "N: 조작 뒤 예측을 유도하는 낡은 문구가 남아 있다")
     ck("o.s" not in pred_src, "N: 예측 선택지에 정답 성격을 암시하는 보조문구를 렌더한다")
+
+    # 5차 F01(P0) 회귀 방지 — 봉인 문항 위에 결론 문구를 인쇄하지 않는가.
+    # 21:50 리팩터가 단계 헤더를 통합하면서 goal-chip(미션 결론 요약)이 예측 화면까지
+    # 올라와 미션 1·4·5의 사전 문항 정답을 그대로 적어 주었다. 세 채널을 모두 잠근다.
+    ck(re.search(r"goal-chip\">'\s*\+\s*m\.goal", vjs_txt) is None
+       and "goalChipText(m, step)" in vjs_txt,
+       "N: 단계 헤더가 학습목표 결론 문구를 단계와 무관하게 인쇄한다 (예측 화면 정답 누출)")
+    ck(re.search(r"if \(step === 'predict'\) return '자료를 보기 전 예측'", vjs_txt) is not None,
+       "N: 예측 화면의 목표 칩이 내용 중립 라벨이 아니다")
+    ck(re.search(r"NO_GOAL_TEXT\s*=\s*\[(?=[^\]]*'predict')(?=[^\]]*'lens')"
+                 r"(?=[^\]]*'check')(?=[^\]]*'transfer')[^\]]*\]", vjs_txt) is not None,
+       "N: 예측·개념준비·자가진단·전이 중 목표 결론 문구가 노출되는 문항 단계가 있다")
+
+    lens0 = vjs_code.find("var LENS = {")
+    lens1 = vjs_code.find("function lensDone", lens0)
+    lens_src = vjs_code[lens0:lens1] if lens0 >= 0 and lens1 > lens0 else ""
+    seoul = cities.get("서울", {})
+    m1_now = seoul.get("temp", {}).get("exceedDays", {}).get("present", {}).get("25")
+    m1_past = seoul.get("temp", {}).get("exceedDays", {}).get("past", {}).get("25")
+    ck(bool(lens_src), "N: 개념 준비(LENS) 블록을 찾지 못했습니다")
+    ck("25°C를 넘는 날" not in lens_src,
+       "N: 개념 준비 예시가 미션 1의 결론(기준 초과 일수)을 조작 전에 인쇄한다")
+    # 누출은 '며칠'로 표현된다 — 날씨 예시의 '31°C'처럼 숫자만 우연히 겹치는 경우를
+    # 오탐하지 않도록 일수 표기(예: '68일')로 좁혀서 본다.
+    for label, v in (("현재", m1_now), ("과거", m1_past)):
+        if v is None:
+            continue
+        ck(f"{int(round(v))}일" not in lens_src,
+           f"N: 개념 준비 예시에 미션 1 기본 기준의 {label} 결론 일수({int(round(v))}일)가 들어 있다")
+    ck("yearMean('서울', 'temp', 'past')" in lens_src,
+       "N: 개념 준비의 기후 예시 수치가 데이터에서 계산되지 않고 하드코딩됐다")
+    ck("절기와 기후는 어떻게 다를까" not in vjs_code,
+       "N: 학습 방법 화면이 사전 문항의 정답(절기와 기후의 구분)을 앞질러 인쇄한다")
     ck(0 <= cerl0 < verdict0 < check0 < expert0
        and "studentCerlHTML(m, n)" in vjs_txt[verdict0:check0]
        and "renderSelfCheckStep(m)" in vjs_txt[verdict0:check0]
@@ -568,10 +658,19 @@ def main():
         (BASE / "발표_10분_구성안.md").read_text(encoding="utf-8"),
         (BASE / "제출_체크리스트.md").read_text(encoding="utf-8"),
     ]
+    # 5차 F08: 예전 토큰('15~20분'·'55~70분')은 측정하지 않은 값을 완료 시간처럼 단정했다.
+    # 이제 세 문서가 같은 두 가지를 말해야 한다 — 설계 시간의 합, 그리고 아직 재지 않았다는 사실.
     ck(
-        all("15~20분" in txt and "55~70분" in txt for txt in time_texts)
-        and all("15축" in txt and "100/100" in txt for txt in final_claim_texts),
-        "N: 앱·README·교사 자료의 시간 또는 README·발표·체크리스트의 15축/100점 주장이 일치하지 않는다",
+        all("69~76분" in txt for txt in time_texts),
+        "N: 앱·README·교사 자료의 설계 시간(69~76분) 표기가 일치하지 않는다",
+    )
+    ck(
+        all(("아직 측정하지 않" in txt) for txt in time_texts),
+        "N: 세 자료 중 하나가 소요 시간을 측정한 것처럼 말한다 — 파일럿 전에는 '아직 측정하지 않았다'를 함께 적는다",
+    )
+    ck(
+        all("15축" in txt and "100/100" in txt for txt in final_claim_texts),
+        "N: README·발표·체크리스트의 15축/100점 주장이 일치하지 않는다",
     )
 
     return report()

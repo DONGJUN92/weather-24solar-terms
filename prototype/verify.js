@@ -171,8 +171,10 @@
              판정 화면에는 슬라이더가 없어 화면 어디에도 기준이 남지 않는다. */
           e: '‘' + n.thr + '°C 이상’ 기준으로, 제주는 ' + A.pStr + ' → <b class="hot">' + A.cStr + '</b>(' + A.driftStr + '), 강원(춘천)은 ' + B.pStr + ' → <b class="hot">' + B.cStr + '</b>(' + B.driftStr + ')입니다.',
           r: same
-            ? '시차는 <b>' + A.driftStr + '</b>와 <b>' + B.driftStr + '</b>로 비슷하지만, 더위가 그치는 <b>날짜</b>는 제주 ' + A.cStr + ', 강원 ' + B.cStr + '로 약 <b>' + Math.abs(A.c - B.c) + '일</b> 차이입니다.'
-            : '시차의 크기가 <b>' + A.driftStr + '</b>와 <b>' + B.driftStr + '</b>로 <b>' + gap + '일</b> 다릅니다.',
+            ? '시차는 제주 <b>' + A.driftStr + '</b>, 강원 <b>' + B.driftStr + '</b>로 비슷하지만, 더위가 그치는 <b>날짜</b>는 제주 ' + A.cStr + ', 강원 ' + B.cStr + '로 약 <b>' + Math.abs(A.c - B.c) + '일</b> 차이입니다.'
+            /* 5차 COPY-AI-02: driftStr은 '+14일' 형태라 '일와'는 비문이다('일'은 받침이 있어 '과').
+               두 분기 모두 지점 이름을 붙여 조사 자체를 없앤다. */
+            : '시차의 크기가 제주 <b>' + A.driftStr + '</b>, 강원 <b>' + B.driftStr + '</b>로 <b>' + gap + '일</b> 다릅니다.',
           l: '그러므로 한 지역(예: 서울)의 결과만으로 “전국의 계절이 똑같이 변했다”고 넓혀 말할 수 없습니다. 또한 ‘제주’는 제주 관측소, ‘강원’은 춘천 관측소 <b>한 지점</b>의 기록이므로 도 전체를 대표하지도 않습니다.'
              + regionGapNote(n.thr)
         };
@@ -287,8 +289,8 @@
           : '가장 추운 날은 동지가 아니라, 동지보다 <b class="hot">약 ' + lag + '일 뒤</b>입니다.',
         e: n.city + '(' + cityOf(n.city).station + ' 관측소)에서 ' + solName + eunNeun(solName) + ' <b>' + doyStr(solDoy) + '</b>인데, '
            + '실제로 ' + (isS ? '가장 더운' : '가장 추운') + ' 날은 <b class="hot">' + doyStr(actDoy) + '</b>(' + temp + '°C)입니다.'
-           + (off <= 5 ? ' 당신이 찍은 <b>' + doyStr(guess) + '</b>과 ' + off + '일 차이 — 잘 짚었습니다.'
-                       : ' 당신은 <b>' + doyStr(guess) + '</b>을 찍었고, 실제와 ' + off + '일 차이가 납니다.'),
+           + (off <= 5 ? ' 내가 찍은 <b>' + doyStr(guess) + '</b>과 ' + off + '일 차이 — 잘 짚었습니다.'
+                       : ' 내가 찍은 날은 <b>' + doyStr(guess) + '</b>, 실제와 ' + off + '일 차이가 납니다.'),
         r: isS
           ? '해가 가장 높이 떠도 땅과 바다가 <b>데워지는 데 시간이 걸립니다</b>(열관성). 하지 뒤에도 들어오는 열이 나가는 열보다 많은 동안 기온은 계속 오릅니다. '
             + '전국 16지점에서 이 지연은 <b>' + nat.min + '~' + nat.max + '일</b>로 거의 같고, 5년 중 한 해를 빼고 다시 계산해도 최대 <b>' + nat.jackMax + '일</b>밖에 움직이지 않습니다 — '
@@ -508,6 +510,19 @@
   function sensitivityAt(city, thr) {
     var c = cityOf(city), W = c.windows;
     if (state.metric !== 'temp' || !W || !W.list || !W.list.length) return null;
+    /* 5차 F10: 파이프라인이 이미 정확한 민감도를 계산해 데이터에 넣어 두었는데
+       (서울 thr=25 → min 4 · max 17.2 · 30년 9.6) 화면은 그것을 쓰지 않고
+       '이미 정수로 반올림된 창별 doy'를 다시 차분해 이중 반올림 값(+9)을 인쇄했다.
+       그래서 문서의 '+10일'(9.6의 올바른 반올림)과 화면이 어긋났다 — 문서가 옳고 화면이 틀렸다.
+       기준값이 파이프라인이 계산한 기준과 같을 때는 그 값을 그대로 쓴다. */
+    var S = c.sensitivity;
+    if (S && Number(S.thr) === Number(thr) && S.min != null && S.max != null) {
+      return { thr: thr, min: S.min, max: S.max, n: S.windows || W.list.length,
+               long: S.long != null ? S.long : null,
+               longSpan: S.longSpan || (W.long ? [W.long.y0, W.long.y1] : null),
+               longYears: S.longYears || (W.long ? (W.long.n || (W.long.y1 - W.long.y0 + 1)) : null),
+               current: S.current != null ? S.current : null, exact: true };
+    }
     var pi = lastInfo('past', thr, city, 'temp');
     if (!pi) return null;
     var base = pi[0], ds = [];
@@ -515,10 +530,12 @@
     if (ds.length < 5) return null;
     var lng = (W.long && W.long.last && W.long.last[String(thr)] != null) ? W.long.last[String(thr)] - base : null;
     var ci = lastInfo('present', thr, city, 'temp');
+    /* 폴백 경로: 창별 doy가 이미 정수라 여기서 나온 값은 하루 안쪽에서 덜 정확하다.
+       파이프라인이 계산한 기준값(보통 미션 기본 기준)에서는 위쪽 분기가 쓰인다. */
     return { thr: thr, min: Math.min.apply(null, ds), max: Math.max.apply(null, ds), n: ds.length,
              long: lng, longSpan: W.long ? [W.long.y0, W.long.y1] : null,
              longYears: W.long ? (W.long.n || (W.long.y1 - W.long.y0 + 1)) : null,
-             current: ci ? ci[0] - base : null };
+             current: ci ? ci[0] - base : null, exact: false };
   }
   function sensitivityText(city) {
     var s = sensitivityAt(city, state.thr);
@@ -552,7 +569,7 @@
                  selfChecks: {}, freeDraft: '', zoom: false, view: 'chart',
                  missionStep: null, cerlStepById: {}, evidenceById: {}, introStep: 'landing', termIntroStep: 0,
                  completeStep: 0, freeTab: 0, labTab: 0,
-                 markDoy: null, lagRevealed: false, lagSeason: 'summer', winI: null, lab: null };
+                 markDoy: null, lagRevealed: false, lagSeason: 'summer', winI: null, lab: null, labFrom: null, labSeen: false };
     try {
       /* v4는 ‘자료를 보기 전 예측’과 학생 CERL 필수 제출을 상태 스키마에 포함한다.
          이전 버전의 완료 기록을 그대로 살리면 빈 CERL로 완료 화면에 들어갈 수 있으므로
@@ -574,6 +591,11 @@
         if (!o.cerlStepById || typeof o.cerlStepById !== 'object') o.cerlStepById = {};
         if (!o.evidenceById || typeof o.evidenceById !== 'object') o.evidenceById = {};
         if (['predict', 'lens', 'orient', 'explore', 'evidence', 'write', 'check', 'expert', 'transfer', 'audit'].indexOf(o.missionStep) === -1) o.missionStep = null;
+        /* 실험실 진입 위치(5차 F04). 저장된 값이 스키마를 벗어나면 버린다 —
+           복귀가 엉뚱한 화면으로 가는 것보다 미션 5로 가는 폴백이 안전하다. */
+        if (o.labFrom && (typeof o.labFrom !== 'object'
+            || ['intro', 'mission', 'complete', 'free'].indexOf(o.labFrom.phase) === -1)) o.labFrom = null;
+        o.labSeen = !!o.labSeen;
         if (o.introStep !== 'method') o.introStep = 'landing';
         o.termIntroStep = Math.min(4, Math.max(0, Number(o.termIntroStep) || 0));
         o.completeStep = Math.min(3, Math.max(0, Number(o.completeStep) || 0));
@@ -1026,7 +1048,7 @@
   function sparkBlock(city, metric) {
     var s = sparklineSVG(city, metric); if (!s) return '';
     var tl = cityOf(city).timeline;
-    return '<div class="spark-wrap"><p class="spark-cap"><span aria-hidden="true">◷</span> ' + city + ' · ' + tl.years[0] + '–' + tl.years[tl.years.length - 1] + ' 연간 ' + (METRICS[metric] || METRICS.temp).label + ' 장기 흐름. <b class="past">과거</b>·<b class="now">현재</b> 비교 구간 표시 — <b>당신이 비교한 5년은 이 긴 흐름의 양 끝입니다.</b></p>' + s + '</div>';
+    return '<div class="spark-wrap"><p class="spark-cap"><span aria-hidden="true">◷</span> ' + city + ' · ' + tl.years[0] + '–' + tl.years[tl.years.length - 1] + ' 연간 ' + (METRICS[metric] || METRICS.temp).label + ' 장기 흐름. <b class="past">과거</b>·<b class="now">현재</b> 비교 구간 표시 — <b>내가 비교한 5년은 이 긴 흐름의 양 끝입니다.</b></p>' + s + '</div>';
   }
   function updateSpark() { var el = $('sparkMount'); if (el) el.innerHTML = sparkBlock(state.city, state.metric); }
 
@@ -1208,10 +1230,17 @@
     var rows = '';
     ['heatwave', 'hot35', 'tropicalNight', 'iceDay'].forEach(function (k) {
       var v = ex.idx[k]; if (!v || v.past == null || v.present == null) return;
-      var up = v.diff > 0;
+      /* 5차 F09: 과거·현재는 fmtDays(10일 이상이면 정수로 반올림)로, 변화는 fmtNum(항상 소수
+         한 자리)으로 찍어서 표시된 세 숫자가 서로 맞지 않았다 — 서울 폭염일이 4.2 · 23 · +18.3으로
+         나와 4.2 + 18.3 = 22.5 ≠ 23이 된다. '숫자를 정확한 범위로 말하라'를 가르치는 앱의 대표
+         실측 표가 암산 한 번으로 반증되는 셈이다. 세 칸을 같은 소수 한 자리로 통일하고
+         변화는 '표시된 두 값의 차'로 계산해, 표 안에서 검산이 항상 성립하게 한다. */
+      var pastS = fmtNum(v.past), nowS = fmtNum(v.present);
+      var d = Math.round((Number(nowS) - Number(pastS)) * 10) / 10;
+      var up = d > 0;
       rows += '<tr><th scope="row">' + v.label + '<small>' + v.def + '</small></th>'
-        + '<td>' + fmtDays(v.past) + '</td><td>' + fmtDays(v.present) + '</td>'
-        + '<td class="' + (up ? 'up' : (v.diff < 0 ? 'down' : '')) + '">' + (up ? '+' : '') + fmtNum(v.diff) + '일</td></tr>';
+        + '<td>' + pastS + '일</td><td>' + nowS + '일</td>'
+        + '<td class="' + (up ? 'up' : (d < 0 ? 'down' : '')) + '">' + (up ? '+' : '') + fmtNum(d) + '일</td></tr>';
     });
     return '<div class="table-wrap"><table class="data-table"><caption>'
       + state.city + '(' + cityOf().station + ' 관측소) · 기상청 기준온도로 센 연평균 일수 — 과거 '
@@ -1905,8 +1934,14 @@
       + '<i aria-hidden="true">→</i><div class="seal-step"><small>2 · 다음</small><b>관측 자료 조작</b><span>기준·지역·기간</span></div>'
       + '<i aria-hidden="true">→</i><div class="seal-step"><small>3 · 마지막</small><b>내 CERL 작성</b><span>주장·근거·추론·한계</span></div></div>'
       + '<p class="intro-lead">“처서가 지나면 더위가 그친다” 같은 <b>절기의 약속</b>을, 내 지역의 <b>실제 기상 관측</b>으로 직접 검증하는 기후 학습 도구예요. 기준선을 손으로 정해 과거와 현재를 비교하며 <b>절기·날씨·기후</b>를 구분하는 힘을 기릅니다.</p>'
-      + '<details class="intro-goal-details"><summary>이번 학습에서 기를 힘 5가지</summary><div class="intro-goals"><span>① 절기와 기후는 어떻게 다를까</span><span>② 이 자료는 어디까지 말할 수 있을까</span><span>③ ‘덥다’는 몇 도부터일까</span><span>④ 근거만큼만 결론 쓰기</span><span>⑤ 물리 법칙으로 계절을 다시 만들어 보기</span></div></details>'
-      + '<p class="intro-foot">미션 하나에 <b>핵심 2~3분</b>(예측·조작·내 CERL) · ' + MISSIONS.length + '미션 핵심 예상 <b>15~20분</b> · 심화·자유탐구까지 55~70분 · 학생 파일럿 전 추정치 · 설치·로그인 없이 · 모바일 지원</p>'
+      /* 5차 F01(P0): ①이 '절기와 기후는 어떻게 다를까'였는데, 이 화면 바로 다음이
+         '처서가 지났는데도 덥다'의 사전 문항이고 그 정답이 절기와 기후를 구분한 보기다.
+         목표를 숨기지 않되 결론을 앞질러 말하지 않는 발문으로 바꾼다. */
+      + '<details class="intro-goal-details"><summary>이번 학습에서 기를 힘 5가지</summary><div class="intro-goals"><span>① 절기는 무엇으로 정해지는 날짜일까</span><span>② 이 자료는 어디까지 말할 수 있을까</span><span>③ ‘덥다’는 몇 도부터일까</span><span>④ 근거만큼만 결론 쓰기</span><span>⑤ 물리 법칙으로 계절을 다시 만들어 보기</span></div></details>'
+      /* 5차 F08: '핵심 2~3분 / 5미션 15~20분'은 측정한 값이 아니라 설계 목표였는데 완료 시간처럼
+         읽혔다. 미션 하나가 8~10화면이고 필수 서술이 2~4칸이라 화면당 15초를 요구하는 수치다.
+         설계 시간의 합(69~76분)은 그대로 밝히고, 실제 소요 시간은 재지 않았다고 적는다. */
+      + '<p class="intro-foot">미션 하나는 <b>예측 → 조작 → 내 CERL</b> 세 단계예요 · ' + MISSIONS.length + '개 미션 + 심화·자유탐구까지 <b>설계 시간 69~76분</b>(두 차시) · 실제로 걸리는 시간은 <b>아직 측정하지 않았어요</b> — 학생 파일럿으로 재는 중입니다 · 설치·로그인 없이, 폰에서도 됩니다</p>'
       + '<div class="step-actions"><button class="ghost-btn" id="introBack">← 처음 화면</button><button class="primary-btn" id="introMission">첫 예측 시작 →</button></div>'
       + '</section>');
     $('introBack').addEventListener('click', renderIntro);
@@ -2241,10 +2276,25 @@
     seq.push('audit');
     return seq;
   }
+  /* 5차 F01(P0): goal-chip은 그 미션의 결론을 한 줄로 압축한 문구다. 21:50 리팩터가
+     단계 헤더를 하나로 통합하면서 이 칩이 '자료 없는 예측' 화면까지 올라왔고,
+     미션 1·4·5에서 사전 문항의 정답을 그대로 인쇄했다(이전 버전의 예측 화면 칩은
+     '자료를 보기 전 예측'이라는 내용 중립 라벨이었다).
+     정답 어휘가 보이면 안 되는 문항 단계에서는 목표 '번호'만 남긴다 —
+     학습목표를 숨기는 것이 아니라 결론 문구를 답하기 전에 보여 주지 않는 것이다. */
+  var NO_GOAL_TEXT = ['predict', 'lens', 'check', 'transfer'];
+  function goalChipText(m, step) {
+    if (step === 'predict') return '자료를 보기 전 예측';
+    if (NO_GOAL_TEXT.indexOf(step) !== -1) {
+      var no = String(m.goal || '').match(/^목표\s*[①②③④⑤]+/);
+      return no ? no[0] : '학습목표';
+    }
+    return m.goal;
+  }
   function missionStepHeader(m, step) {
     var seq = missionSequence(m), at = Math.max(0, seq.indexOf(step));
     return '<div class="mission-step-head"><div class="mhead"><span class="mno">미션 ' + (state.mi + 1) + ' / ' + MISSIONS.length
-      + '</span><span class="goal-chip">' + m.goal + '</span></div>'
+      + '</span><span class="goal-chip">' + goalChipText(m, step) + '</span></div>'
       + '<div class="micro-progress" aria-label="미션 세부 단계"><b>' + (at + 1) + '/' + seq.length + ' · ' + STEP_LABELS[step]
       + '</b><span><i style="width:' + ((at + 1) / seq.length * 100) + '%"></i></span></div></div>';
   }
@@ -2261,6 +2311,8 @@
     if (['check', 'expert', 'transfer', 'audit'].indexOf(step) !== -1 && (!state.cerlSubmitted[m.id] || cerlErrors(m).length)) step = 'write';
     if (['expert', 'transfer', 'audit'].indexOf(step) !== -1 && !state.selfChecks[m.id]) step = 'check';
     if (step === 'transfer' && !m.askPost) step = 'audit';
+    /* 5차 F14: 미션 5는 실험실을 한 번 열어 본 뒤에 감사·완료로 간다(목표 ⑤). */
+    if (step === 'audit' && m.lagMode && !state.labSeen) step = 'expert';
     if (step === 'audit' && m.askPost && state.post == null) step = 'transfer';
     state.missionStep = step; state.phase = 'mission'; save();
     if (step === 'orient') renderMissionOrient(m);
@@ -2349,6 +2401,16 @@
      goal-chip으로 목표를 <b>표시</b>하기는 했지만, 학습자가 절기·날씨·기후를
      <b>구분해 내는</b> 수행은 어디에도 없었다. 예측 봉인 직후 30초짜리 분류 관문을 둔다.
      세 문장은 각각 '천문 날짜 / 하루의 관측 / 여러 해의 경향'을 대표한다. */
+  /* 한 해 평균값 — LENS의 기후 예시를 데이터에서 계산해 문서·데이터와 어긋나지 않게 한다. */
+  function yearMean(city, metric, period) {
+    var c = D.cities[city] || {}, a = c[metric || 'temp'];
+    a = a && a[period];
+    if (!a || !a.length) return '—';
+    var s = 0; for (var i = 0; i < a.length; i++) s += a[i];
+    /* 두 값을 나란히 읽는 문장이라 소수점 자리를 고정한다 — num1은 14.0을 '14'로 줄여
+       '11.6°C에서 14°C로'처럼 표기가 어긋난다. */
+    return (s / a.length).toFixed(1);
+  }
   var LENS = {
     title: '30초 분류 — 같은 주제인데 층이 다릅니다',
     lead: '아래 세 문장을 <b>절기 · 날씨 · 기후</b> 중 하나로 나눠 보세요. 이 구분이 이 앱 전체의 뼈대예요.',
@@ -2360,7 +2422,11 @@
     items: [
       { id: 'a', t: '처서는 양력 8월 23일 무렵이다.', k: 'term', why: '태양의 황경으로 정해진 <b>날짜</b>입니다. 더운지 아닌지와 무관하게 해마다 거의 같아요.' },
       { id: 'b', t: '어제 서울 낮 기온이 31°C였다.', k: 'weather', why: '<b>하루</b>의 관측입니다. 하루 값으로는 경향을 말할 수 없어요.' },
-      { id: 'c', t: '서울에서 25°C를 넘는 날이 최근 5년 평균 68일로, 1969–73년의 31일보다 많다.', k: 'climate', why: '<b>여러 해</b>를 모아 센 값이라 경향에 관한 진술입니다. 다만 5년은 관측 신호이지 30년 기후평년은 아니에요.' }
+      /* 5차 F01(P0): 이전 문장은 '서울에서 25°C를 넘는 날이 68일 vs 31일'이었다 —
+         미션 1의 기본 지역·기본 기준의 결론 수치를 조작 전에 인쇄해, 사전 예측과
+         자가진단의 답을 함께 흘렸다. 어떤 미션도 결론으로 쓰지 않는 '한 해 평균기온'으로
+         바꾸고, 값은 하드코딩하지 않고 데이터에서 계산해 재빌드 때 어긋나지 않게 한다. */
+      { id: 'c', t: '서울의 한 해 평균기온이 ' + PERIOD_PAST + '년 ' + yearMean('서울', 'temp', 'past') + '°C에서 ' + PERIOD_NOW + '년 ' + yearMean('서울', 'temp', 'present') + '°C로 높아졌다.', k: 'climate', why: '<b>여러 해</b>를 모아 평균한 값이라 경향을 말하는 문장이에요. 다만 5년은 관측 신호일 뿐, 30년 기후평년은 아니에요.' }
     ]
   };
   function lensDone() { return !!(state.lens && Object.keys(state.lens).length >= LENS.items.length); }
@@ -2568,10 +2634,48 @@
     var d = missionCerl(m);
     return CERL_FIELDS.map(function (f) { return f.label + ': ' + (d[f.k] || '').trim(); }).join(' ');
   }
+  /* 5차 F03/F08: 자유서술이 미션 5개 × 4필드 = 20칸이라 반복 부담이 컸고, 그 부담이
+     '아무 글자나 채우는' 통과로 이어졌다. 미션 1은 네 요소를 모두 쓰게 유지하고(CERL을
+     처음 배우는 자리다), 미션 2~5는 <b>근거·한계</b> 두 요소만 필수로 둔다.
+     주장·추론 칸은 없애지 않고 선택으로 남긴다 — 쓰고 싶은 학습자의 자리를 빼앗지 않는다. */
+  var CERL_REQUIRED_ALL = ['c', 'e', 'r', 'l'], CERL_REQUIRED_CORE = ['e', 'l'];
+  function cerlRequired(m) { return m && m.id === 'chuseo' ? CERL_REQUIRED_ALL : CERL_REQUIRED_CORE; }
+  function cerlIsRequired(m, k) { return cerlRequired(m).indexOf(k) !== -1; }
+
+  /* 5차 F03: 통과 조건이 길이뿐이라 같은 문장을 네 칸에 복붙해도, 발문을 그대로 베껴도
+     완료 배지가 나왔다. 오탐이 미탐보다 무거우므로 '누가 봐도 성립하지 않는 것'만 막는다.
+       (a) 다른 칸과 완전히 같거나 한쪽이 다른 쪽을 그대로 품고 있다
+       (b) 근거 칸에 숫자가 하나도 없다 — 발문이 '화면에서 읽은 숫자를 넣으세요'다
+       (c) 화면의 미션 브리프·과제문을 25자 이상 그대로 옮겨 적었다 */
+  function cerlNorm(s) { return String(s || '').replace(/\s+/g, '').replace(/[.,·’‘“”"'()\[\]…~—-]/g, ''); }
+  function cerlContentError(m, f, val) {
+    var v = cerlNorm(val);
+    if (v.length < 8) return '';                     /* 짧은 칸은 길이 검사에 맡긴다 */
+    var d = missionCerl(m), dup = null;
+    CERL_FIELDS.forEach(function (g) {
+      if (dup || g.k === f.k) return;
+      var w = cerlNorm(d[g.k]);
+      if (w.length < 8) return;
+      if (v === w || (v.length >= 12 && w.length >= 12 && (v.indexOf(w) !== -1 || w.indexOf(v) !== -1))) dup = g.label;
+    });
+    if (dup) return '‘' + dup + '’ 칸과 같은 문장이에요. ' + f.label + eulReul(f.label) + ' 다른 내용으로 써 주세요.';
+    if (f.k === 'e' && !/[0-9]/.test(String(val))) return '근거에는 화면에서 읽은 숫자를 넣어 주세요. (지역·기간·기준과 함께)';
+    var srcs = [taskOf(m), briefOf(m)];
+    for (var i = 0; i < srcs.length; i++) {
+      var s = cerlNorm(String(srcs[i]).replace(/<[^>]*>/g, ''));
+      for (var j = 0; j + 25 <= s.length; j += 5) {
+        if (v.indexOf(s.substr(j, 25)) !== -1) return '화면의 안내 문장을 그대로 옮긴 것 같아요. 내 말로 다시 써 주세요.';
+      }
+    }
+    return '';
+  }
   function cerlErrors(m) {
     var d = missionCerl(m), missing = [];
     CERL_FIELDS.forEach(function (f) {
-      if ((d[f.k] || '').trim().replace(/\s/g, '').length < f.min) missing.push(f.label + ' ' + f.min + '자 이상');
+      if (!cerlIsRequired(m, f.k)) return;
+      var raw = d[f.k] || '';
+      if (raw.trim().replace(/\s/g, '').length < f.min) { missing.push(f.label + ' ' + f.min + '자 이상'); return; }
+      if (cerlContentError(m, f, raw)) missing.push(f.label + ' 내용 확인');
     });
     return missing;
   }
@@ -2588,10 +2692,21 @@
         ['강원(춘천) · ' + n.thr + '°C 기준', '과거 ' + gangwon.pStr + ' → 현재 ' + gangwon.cStr]
       ];
     } else if (m.id === 'rain') {
+      /* 5차 F06: 지역을 '서울'로 하드코딩해서, 지역 칩을 눌러 부산을 본 학습자가
+         증거 화면에서는 서울 숫자를, 두 화면 뒤 전문가 화면에서는 부산 숫자를 읽었다.
+         하필 '자료의 범위를 밝혀라'를 가르치는 미션이고, 같은 화면의 심화 안내가
+         지역 변경을 권한다. 그리고 학습자가 직접 정한 기준값이 증거에 한 번도
+         나타나지 않아 '내가 정한 기준으로 내가 읽은 증거'라는 계약이 여기서 끊겼다. */
+      var rc = n.city, rst = cityOf(rc).station;
+      var rlab = rc + (rst && rst !== rc ? '(' + rst + ')' : '');
       rows = [
-        ['서울 · 1mm 이상', '과거 ' + fmtDays(exceed('past', 1, '서울', 'precip')) + ' → 현재 ' + fmtDays(exceed('present', 1, '서울', 'precip'))],
-        ['서울 · 50mm 이상', '과거 ' + fmtDays(exceed('past', 50, '서울', 'precip')) + ' → 현재 ' + fmtDays(exceed('present', 50, '서울', 'precip'))]
+        [rlab + ' · 1mm 이상', '과거 ' + fmtDays(exceed('past', 1, rc, 'precip')) + ' → 현재 ' + fmtDays(exceed('present', 1, rc, 'precip'))],
+        [rlab + ' · 50mm 이상', '과거 ' + fmtDays(exceed('past', 50, rc, 'precip')) + ' → 현재 ' + fmtDays(exceed('present', 50, rc, 'precip'))]
       ];
+      if (n.thr !== 1 && n.thr !== 50) {
+        rows.push([rlab + ' · 내가 정한 ' + n.thr + 'mm 이상',
+          '과거 ' + fmtDays(exceed('past', n.thr, rc, 'precip')) + ' → 현재 ' + fmtDays(exceed('present', n.thr, rc, 'precip'))]);
+      }
     } else if (m.lagMode) {
       var lg = lagInfo();
       rows = [
@@ -2614,13 +2729,25 @@
     return studentEvidenceHTML(m, n) + '<div class="student-cerl" id="studentCerl">'
       + '<p class="eyebrow">내 CERL 먼저 쓰기 · 필수</p>'
       + '<h2 class="cerl-title">한 번에 한 요소씩, 내 근거로 설명하세요.</h2>'
-      + '<p class="cerl-intro">전문가 문장을 보기 전에 <b>주장 → 근거 → 추론 → 한계</b> 순서로 완성합니다. 이전 단계의 내용은 그대로 저장됩니다.</p>'
-      + '<div class="cerl-mini-progress"><b>' + (ci + 1) + ' / ' + CERL_FIELDS.length + ' · ' + current.label + '</b><span><i style="width:' + ((ci + 1) / CERL_FIELDS.length * 100) + '%"></i></span></div>'
+      + '<p class="cerl-intro">전문가 문장을 보기 전에 <b>주장 → 근거 → 추론 → 한계</b> 순서로 씁니다. '
+      + (m.id === 'chuseo'
+          ? '이 미션은 <b>네 요소 모두</b> 필수예요.'
+          : '이 미션은 <b>근거·한계</b>가 필수이고, 주장·추론은 쓰고 싶으면 쓰는 칸이에요.')
+      + ' 이전 단계의 내용은 그대로 저장됩니다.</p>'
+      + '<div class="cerl-mini-progress"><b>' + (ci + 1) + ' / ' + CERL_FIELDS.length + ' · ' + current.label
+      + (cerlIsRequired(m, current.k) ? '' : ' (선택)') + '</b><span><i style="width:' + ((ci + 1) / CERL_FIELDS.length * 100) + '%"></i></span></div>'
+      /* 5차 F15: 이전 요소를 display:none으로 감춰서, '내 주장을 뒷받침하는지 연결하세요'라고
+         지시하면서 그 주장을 화면에서 지웠다. 이미 쓴 요소는 읽기 전용 요약으로 위에 쌓는다. */
+      + CERL_FIELDS.slice(0, ci).filter(function (f) { return (d[f.k] || '').trim(); })
+          .map(function (f) { return '<p class="cerl-done"><b>' + f.label + '</b> ' + escapeHTML(d[f.k]) + '</p>'; }).join('')
       + '<div class="cerl-form">'
       + CERL_FIELDS.map(function (f) {
-          var fi = CERL_FIELDS.indexOf(f);
-          return '<label class="cerl-field cerl-step-field"' + (fi === ci ? '' : ' hidden') + '><span><b>' + f.label + '</b><small>' + f.prompt + '</small></span>'
-            + '<textarea data-cerl="' + f.k + '" maxlength="220" rows="2" placeholder="' + f.placeholder + '">' + escapeHTML(d[f.k] || '') + '</textarea></label>';
+          var fi = CERL_FIELDS.indexOf(f), reqd = cerlIsRequired(m, f.k);
+          return '<label class="cerl-field cerl-step-field"' + (fi === ci ? '' : ' hidden') + '><span><b>' + f.label + '</b>'
+            + (reqd ? '' : ' <em class="cerl-opt">선택</em>')
+            + '<small>' + f.prompt + '</small></span>'
+            + '<textarea data-cerl="' + f.k + '" maxlength="220" rows="2" placeholder="' + f.placeholder + '">' + escapeHTML(d[f.k] || '') + '</textarea>'
+            + '<span class="cerl-count" data-count-for="' + f.k + '" aria-live="off"></span></label>';
         }).join('')
       + '</div><p class="cerl-error" id="cerlError" role="alert"></p>'
       + '<div class="step-actions"><button class="ghost-btn" id="cerlPrev" type="button"' + (ci === 0 ? ' hidden' : '') + '>← 이전 요소</button>'
@@ -2629,11 +2756,22 @@
   }
   function bindStudentCerl(m) {
     var box = $('studentCerl'), next = $('cerlNext'); if (!box || !next) return;
+    /* 5차: maxlength 220만 있고 글자 수 표시가 없어서 학습자가 220자에서 조용히 막혔다.
+       현재 글자 수와 필수 최소치를 함께 보여 준다. */
+    function syncCount(ta) {
+      var k = ta.dataset.cerl, out = box.querySelector('[data-count-for="' + k + '"]');
+      if (!out) return;
+      var f = null; CERL_FIELDS.forEach(function (g) { if (g.k === k) f = g; });
+      var len = (ta.value || '').trim().replace(/\s/g, '').length;
+      var need = f && cerlIsRequired(m, k) ? f.min : 0;
+      out.textContent = len + ' / 220' + (need && len < need ? ' · ' + (need - len) + '자 더 필요해요' : '');
+    }
     box.querySelectorAll('[data-cerl]').forEach(function (ta) {
+      syncCount(ta);
       ta.addEventListener('input', function () {
         missionCerl(m)[ta.dataset.cerl] = ta.value.slice(0, 220);
         state.missionDraft[m.id] = cerlText(m);
-        save();
+        save(); syncCount(ta);
         var err = $('cerlError'); if (err) err.textContent = '';
       });
     });
@@ -2643,10 +2781,17 @@
     next.addEventListener('click', function () {
       var ci = cerlStepIndex(m), f = CERL_FIELDS[ci], ta = box.querySelector('[data-cerl="' + f.k + '"]');
       var err = $('cerlError'), len = (ta.value || '').trim().replace(/\s/g, '').length;
-      if (len < f.min) {
-        err.textContent = f.label + '을 ' + f.min + '자 이상 내 말로 써 주세요.';
+      var reqd = cerlIsRequired(m, f.k);
+      if (reqd && len < f.min) {
+        /* 5차 COPY-AI-01(P0): '을'을 하드코딩해 '근거을'·'한계을'이 나왔다. 앱에 이미 있는
+           eulReul()을 쓴다. 이 문구는 학습자가 가장 자주 보는 오류 메시지다. */
+        err.textContent = f.label + eulReul(f.label) + ' ' + f.min + '자 이상 내 말로 써 주세요. (지금 ' + len + '자)';
         ta.focus(); return;
       }
+      /* 5차 F03: 길이만 보면 같은 문장 복붙·발문 베끼기가 통과한다. 선택 칸이라도
+         내용이 들어 있으면 같은 기준으로 본다 — 기록에 남는 글이기 때문이다. */
+      var ce = cerlContentError(m, f, ta.value);
+      if (ce) { err.textContent = ce; ta.focus(); return; }
       if (ci < CERL_FIELDS.length - 1) {
         state.cerlStepById[m.id] = ci + 1; save(); renderVerdict(); return;
       }
@@ -2708,7 +2853,10 @@
       + (ans && !ans.correct ? '<button class="ghost-btn" id="checkRevisit">그래프에서 다시 확인</button>' : '')
       + (ans ? '<button class="primary-btn" id="checkNext">전문가 예시와 비교 →</button>' : '') + '</div></section>');
     $('scChoices').querySelectorAll('[data-v]').forEach(function (btn) { btn.addEventListener('click', function () { onSelfCheck(btn, sc, m); }); });
-    $('checkBack').addEventListener('click', function () { state.cerlSubmitted[m.id] = false; state.missionStep = 'write'; save(); renderMissionFlow(); });
+    /* 5차 F03: CERL 수정으로 돌아갈 때 cerlStepById를 되돌리지 않아, 마지막 칸(한계)만
+       열린 채로 '수정' 화면이 열렸다 — 학생이 주장·근거를 고치려 해도 그 칸에 닿지 못한다.
+       editCerl(감사 화면)은 이미 0으로 되돌리고 있어 두 경로의 동작이 갈렸다. */
+    $('checkBack').addEventListener('click', function () { state.cerlSubmitted[m.id] = false; state.cerlStepById[m.id] = 0; state.missionStep = 'write'; save(); renderMissionFlow(); });
     if ($('checkRevisit')) $('checkRevisit').addEventListener('click', function () { setMissionStep('explore'); });
     if ($('checkNext')) $('checkNext').addEventListener('click', function () { setMissionStep('expert'); });
   }
@@ -2721,10 +2869,22 @@
       + '<details class="expert-example" open><summary>전문가 CERL 전체 보기</summary><div class="expert-cerl">'
       + cerlHTML(v) + '</div></details>'
       + '<details class="expert-long"><summary>이 5년은 긴 흐름에서 어디일까?</summary>' + sparkBlock(state.city, state.metric) + '</details>'
+      /* 5차 F14: 학습목표 ⑤(관측과 모형)만 필수 동선 밖에 있었다 — 유일한 시뮬레이션 자산인
+         열관성 실험실이 여섯 곳의 '선택' 링크로만 열렸고, 완료 배지에도 ⑤가 없었다.
+         계절 지연을 배운 직후가 '왜 그런가'를 모형으로 확인할 자리이므로,
+         미션 5에서는 실험실을 한 번 열어 본 뒤에 감사·완료로 넘어가게 한다. */
+      + (m.lagMode && !state.labSeen
+          ? '<p class="optional-next"><b>다음은 왜 그런지 직접 계산해 봅니다.</b> 관측이 아니라 물리 법칙으로 계절을 만들어 보고, 열용량과 온실효과 중 무엇이 지연을 만드는지 확인해요.</p>'
+          : '')
       + '<div class="step-actions"><button class="ghost-btn" id="expertBack">← 자가진단</button>'
-      + '<button class="primary-btn" id="expertNext">' + (m.askPost ? '다른 절기에 적용 →' : '감사하고 완료하기 →') + '</button></div></section>');
+      + '<button class="primary-btn" id="expertNext">'
+      + (m.lagMode && !state.labSeen ? '🔬 열관성 실험실로 확인하기 →' : (m.askPost ? '다른 절기에 적용 →' : '감사하고 완료하기 →'))
+      + '</button></div></section>');
     $('expertBack').addEventListener('click', function () { setMissionStep('check'); });
-    $('expertNext').addEventListener('click', function () { setMissionStep(m.askPost ? 'transfer' : 'audit'); });
+    $('expertNext').addEventListener('click', function () {
+      if (m.lagMode && !state.labSeen) { renderLab(); return; }
+      setMissionStep(m.askPost ? 'transfer' : 'audit');
+    });
   }
 
   function postGrowthHTML() {
@@ -2845,14 +3005,23 @@
       parts.push(s ? (s.correct ? '자가진단 정답' : '자가진단 다시 확인') : '자가진단 미응답');
       return '<li><b>' + m.title + '</b><br>' + parts.join(' · ') + '</li>';
     }).join('');
+    /* 5차 F14: 목표 ⑤을 실제로 수행했다는 기록이 내 기록에 없었다. 학습자가 고른 물리량과
+       그때의 계절 지연을 남겨, 교사가 회수하는 산출물에 모형 실험이 드러나게 한다. */
+    if (state.labSeen) {
+      var LB = labState(), lsim = runEBM(LB.depth, LB.ghg, cityOf(LB.city).lat);
+      sc += '<li><b>열관성 실험실 (목표 ⑤)</b><br>내가 고른 값 — 열을 머금는 두께 <b>' + num1(LB.depth) + 'm</b>'
+        + ' · 대기가 가두는 열 <b>' + num1(LB.ghg) + ' W/m²</b> → 모형의 계절 지연 <b>' + lsim.lag + '일</b>'
+        + ' · 연평균 <b>' + num1(lsim.mean) + '°C</b> (관측이 아니라 계산 결과)</li>';
+    }
     var drafts = MISSIONS.filter(function (m) { return (state.missionDraft[m.id] || '').trim(); })
       .map(function (m) { return '<li><b>' + m.title + '</b><br>' + escapeHTML(state.missionDraft[m.id]) + '</li>'; }).join('');
     var yrs = D.cities['서울'].timeline.years;
     var completeStep = Math.max(0, Math.min(3, Number(state.completeStep) || 0));
     setStage('<section class="card done-card"><div class="burst" aria-hidden="true">✦</div><p class="eyebrow">' + MISSIONS.length + '개 미션 · CERL ' + MISSIONS.length + '편 완료</p>'
       + '<h1 class="stage-h">검증을 마쳤어요.</h1>'
-      + '<p class="sub">당신은 자료를 보기 전 예측하고, 기준을 조작해 확인한 뒤, 매 미션에서 주장·근거·추론·한계를 직접 작성했습니다.</p>'
-      + '<div class="skill-row"><span>① 절기≠기후</span><span>② 자료의 범위</span><span>③ 기준 정의</span><span>④ 근거만큼 결론</span></div>'
+      + '<p class="sub">자료를 보기 전에 예측하고, 기준을 직접 조작해 확인한 뒤, 미션마다 주장·근거·추론·한계를 스스로 작성했습니다.</p>'
+      + '<div class="skill-row"><span>① 절기≠기후</span><span>② 자료의 범위</span><span>③ 기준 정의</span><span>④ 근거만큼 결론</span>'
+      + (state.labSeen ? '<span>⑤ 관측과 모형</span>' : '') + '</div>'
       + '<nav class="panel-tabs" aria-label="완료 활동"><button data-complete-step="0" aria-current="' + (completeStep === 0 ? 'step' : 'false') + '">1. 내 기록</button>'
       + '<button data-complete-step="1" aria-current="' + (completeStep === 1 ? 'step' : 'false') + '">2. 기후 카드</button>'
       + '<button data-complete-step="2" aria-current="' + (completeStep === 2 ? 'step' : 'false') + '">3. 지구 맥락</button>'
@@ -3135,7 +3304,7 @@
         + '<p class="global-warn"><b>여기서 멈춰야 하는 지점</b> 두 선이 함께 움직인다는 것(설명력 r² = ' + (rel.r2 != null ? rel.r2 : '—') + ')은 <b>상관</b>입니다. '
         + '그래프 두 개가 닮았다는 사실만으로는 <b>어느 쪽이 원인인지 증명되지 않습니다.</b> 원인을 말하려면 기체가 열을 가두는 <b>물리 실험</b>과 <b>기후 모델</b> 같은 다른 종류의 증거가 필요해요 — '
         + '그 증거들까지 합쳐서 IPCC는 인간 활동이 온난화의 주된 원인이라고 결론지었습니다.</p>'
-        + '<p class="global-link">당신이 앞에서 본 <b>' + state.city + '의 기록</b>은 이 큰 흐름 속의 <b>한 점</b>입니다. 한 지점의 5년으로 지구를 말할 수 없고, 지구의 평균으로 우리 동네의 처서를 말할 수도 없어요 — '
+        + '<p class="global-link">앞에서 본 <b>' + state.city + '의 기록</b>은 이 큰 흐름 속의 <b>한 점</b>입니다. 한 지점의 5년으로 지구를 말할 수 없고, 지구의 평균으로 우리 동네의 처서를 말할 수도 없어요 — '
         + '<b>자료마다 말할 수 있는 범위가 다르다</b>는 것, 그게 이 수업의 마지막 배움입니다.</p>'
         /* R4-P1-15: 이 패널에만 출처가 한 글자도 없었다. OWID는 CC BY 4.0이라 저작자표시가
            의무이고, README §7 약속6("모든 화면에 출처")의 반례이기도 했다.
@@ -3250,6 +3419,16 @@
   ];
 
   function renderLab() {
+    /* 5차 F04: 복귀 버튼이 진입 위치와 무관하게 항상 미션 5를 새로 시작했다.
+       완료 화면에서 실험실에 들어갔다 나오면 완료 화면이 사라지고(startMission이
+       state.phase를 'mission'으로 되돌린다) 되돌아가려면 미션 5를 다시 통과해야 했다.
+       인트로에서 들어가면 미션 1~4를 건너뛴 채 미션 5로 떨어졌다.
+       실험실은 여섯 곳에서 열리므로, 들어온 자리를 기억해 그 자리로 되돌린다. */
+    if (state.phase !== 'lab') {
+      state.labFrom = { phase: state.phase, mi: state.mi, missionStep: state.missionStep, introStep: state.introStep };
+    }
+    /* 목표 ⑤을 실제로 밟았다는 기록. 미션 5의 감사·완료 관문이 이 값을 본다(5차 F14). */
+    state.labSeen = true;
     state.phase = 'lab'; document.body.classList.remove('lag-mode'); save();
     var L = labState();
     var labTab = Math.max(0, Math.min(3, Number(state.labTab) || 0));
@@ -3319,6 +3498,16 @@
     drawLab();
     bindPanelTabs('lab', 4);
     $('labBack').addEventListener('click', function () {
+      var f = state.labFrom;
+      state.labFrom = null;
+      /* 들어온 자리로 되돌린다. 미션 도중이었으면 그 미션의 그 단계로,
+         완료·자유탐구·인트로였으면 그 화면으로. 기록이 없을 때만 미션 5를 연다. */
+      if (f && f.phase === 'complete') { state.phase = 'complete'; save(); renderComplete(); return; }
+      if (f && f.phase === 'free') { state.phase = 'free'; save(); renderFree(); return; }
+      if (f && f.phase === 'intro') { state.phase = 'intro'; save(); f.introStep === 'method' ? renderIntroMethod() : renderIntro(); return; }
+      if (f && f.phase === 'mission' && MISSIONS[f.mi]) {
+        state.phase = 'mission'; state.mi = f.mi; state.missionStep = f.missionStep || 'orient'; save(); renderMissionFlow(); return;
+      }
       var i = MISSIONS.map(function (m) { return m.id; }).indexOf('lag');
       startMission(i < 0 ? 0 : i);
     });
@@ -3772,9 +3961,23 @@
      ↺ 처음부터 버튼은 그대로 두고, 묻지 않고 지우지도 않는다. */
   (function askResume() {
     var idle = state.savedAt && (Date.now() - state.savedAt) > 20 * 60 * 1000;
-    var progressed = (state.done && state.done.length) || state.phase === 'complete' || state.phase === 'free';
+    /* 5차 F11: '미션 1개 완료'를 진행으로 셌더니 가장 흔한 사고를 놓쳤다 —
+       앞사람이 미션 1 도중에 떠난 경우다. 그때 다음 학생은 봉인된 예측과 CERL 초안을
+       그대로 물려받는다. 예측·작성·단계 진행 중 무엇이든 남아 있으면 묻는다. */
+    var wrote = state.missionCerl && Object.keys(state.missionCerl).some(function (k) {
+      var d = state.missionCerl[k] || {};
+      return ['c', 'e', 'r', 'l'].some(function (f) { return (d[f] || '').trim(); });
+    });
+    var answered = (state.predicts && Object.keys(state.predicts).length) || state.pre != null;
+    var midMission = state.phase === 'mission' && state.missionStep && state.missionStep !== 'predict';
+    var progressed = (state.done && state.done.length) || state.phase === 'complete' || state.phase === 'free'
+      || state.phase === 'lab' || wrote || answered || midMission;
     if (!idle || !progressed) return;
-    if (!confirm('이 컴퓨터에 20분 전에 멈춘 학습 기록이 있습니다.\n\n[확인] 이어서 하기\n[취소] 새로 시작하기(기록을 지웁니다)')) {
+    /* 파괴적인 쪽을 [확인]에 둔다. 예전에는 [취소]와 Esc가 기록 영구 삭제여서,
+       2차시 수업에서 무심코 Esc를 누른 학생이 쓴 글을 전부 잃었다. */
+    if (confirm('이 컴퓨터에 20분 넘게 멈춰 있던 학습 기록이 있어요.\n\n'
+      + '[확인] 기록을 지우고 새로 시작하기 — 지금까지 쓴 글이 모두 사라져요\n'
+      + '[취소] 이어서 하기')) {
       try { localStorage.removeItem('weather24_verify_v4'); localStorage.removeItem('weather24_verify_v3'); } catch (e) {}
       location.replace(location.pathname + location.search);
     }

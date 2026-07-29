@@ -992,3 +992,13 @@ small { font-size: max(11.5px, .86em); }
 @media (prefers-reduced-motion: reduce) {
   .micro-progress i, .cerl-mini-progress i, .micro-panel, .learning-panel { transition: none; animation: none; }
 }
+
+/* ── 5차 반영: CERL 작성 경험 ─────────────────────────────────
+   F15 이미 쓴 요소를 지우지 않고 위에 쌓는다 · 글자 수 카운터 · 선택 칸 표시 */
+.cerl-done { margin: 0 0 8px; padding: 8px 12px; border-radius: 12px;
+  background: rgba(var(--shade-rgb), .5); font-size: 13.5px; line-height: 1.6; color: var(--ink2); }
+.cerl-done b { margin-right: 8px; color: var(--ink); }
+.cerl-count { display: block; margin-top: 4px; text-align: right;
+  font-size: 13px; line-height: 1.5; color: var(--muted); font-variant-numeric: tabular-nums; }
+.cerl-opt { margin-left: 6px; padding: 1px 7px; border-radius: 999px;
+  background: rgba(var(--shade-rgb), .55); font-size: 12.5px; font-style: normal; font-weight: 700; color: var(--muted); }
