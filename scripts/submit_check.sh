@@ -141,6 +141,19 @@ if grep -rqE "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}" prompt_sessions/*.
   no "세션 로그에 이메일 평문이 있습니다"; else ok "세션 로그 이메일 0건"; fi
 if grep -qE '^s*var COASTALs*=' prototype/verify.js; then no "verify.js에 폐기한 COASTAL 이분법이 남아 있습니다"; else ok "해안/내륙 이분법 제거 확인"; fi
 
+# 캐시 버스팅 — 자산을 고쳤는데 ?v= 를 올리지 않으면 재방문자·주최측 PC가 옛 파일을 받는다.
+# 마지막으로 ?v= 가 바뀐 커밋보다 자산이 더 최신이면 실패로 잡는다.
+iv_t=$(mt prototype/index.html)
+for asset in prototype/verify.js prototype/verify.css prototype/base.css prototype/solar_terms_data.js prototype/korea_geo.js prototype/theme-init.js; do
+  at=$(mt "$asset")
+  if [ -z "$iv_t" ] || [ -z "$at" ]; then continue; fi
+  if [ "$at" -gt "$iv_t" ]; then
+    no "$(basename "$asset") 가 index.html보다 최신입니다 — ?v= 버전을 올리세요(캐시된 옛 파일이 배포됩니다)"
+  else
+    ok "$(basename "$asset") 캐시 버스팅 최신"
+  fi
+done
+
 echo
 if [ "$fail" -eq 0 ]; then printf '\033[32m제출 가능 — 검사 전부 통과\033[0m\n'; else printf '\033[31m실패 %d건 — 고치기 전에는 제출하지 마세요\033[0m\n' "$fail"; fi
 exit $fail
