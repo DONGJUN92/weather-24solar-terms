@@ -148,6 +148,11 @@ if grep -rqE "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}" prompt_sessions/*.
 # 섞여 들어왔다. 제출물에 있을 이유가 없는 정보라 export_sessions.py 가 마스킹하지만, 여기서 다시 본다.
 if grep -rqE "([A-Za-z]:\+Users\+|/(home|Users)/)[A-Za-z0-9._-]+" prompt_sessions/*.md 2>/dev/null; then
   no "세션 로그에 마스킹되지 않은 로컬 홈 경로가 있습니다"; else ok "세션 로그 로컬 경로 마스킹 확인"; fi
+# 제3자를 식별할 수 있는 서술 — export_sessions.py 가 구간 제외와 표현 치환 두 단계로 막지만,
+# 두 단계의 순서를 뒤집으면 치환이 제외 지문을 지워 구간이 그대로 실린다(실제로 한 번 겪었다).
+# 결과물을 직접 검사해 그 회귀를 잡는다.
+if grep -rqE "합격팀|타 *팀 *실명|본선 *1?5?개? *팀 *실명" prompt_sessions/*.md 2>/dev/null; then
+  no "세션 로그에 제3자를 식별할 수 있는 서술이 있습니다"; else ok "세션 로그 제3자 식별 서술 0건"; fi
 if grep -qE '^s*var COASTALs*=' prototype/verify.js; then no "verify.js에 폐기한 COASTAL 이분법이 남아 있습니다"; else ok "해안/내륙 이분법 제거 확인"; fi
 
 # 캐시 버스팅 — 자산을 고쳤는데 ?v= 를 올리지 않으면 재방문자·주최측 PC가 옛 파일을 받는다.
