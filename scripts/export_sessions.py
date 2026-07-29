@@ -52,8 +52,9 @@ SECRET = re.compile(
 # 로컬 홈 경로 — 윈도우 사용자명이 그대로 드러나므로 치환한다.
 HOMEPATH = re.compile(r"([A-Za-z]):\\Users\\[A-Za-z0-9._\-]+")
 
-# R4: 제출 목적과 무관하고 타 팀 실명이 등장하는 구간은 내보내지 않는다.
+# R4: 제출 목적과 무관하고 제3자를 식별할 수 있는 구간은 내보내지 않는다.
 # (이 제출물은 사무국이 보관·회람하며 중복·표절 심사를 거친다)
+# 아래 정규식은 무엇을 걸러냈는지 감사할 수 있도록 남겨 둔다 — 제외가 임의적이지 않다는 근거다.
 DROP_PATTERNS = [
     re.compile(r"본선.{0,6}(진출|합격).{0,4}(팀|명단).{0,40}(평가|분석|비교)"),
     re.compile(r"(합격팀|경쟁팀|타\s*팀).{0,20}(공유하는|3대|코드|밀린)"),
@@ -138,7 +139,7 @@ for sid, name, desc in TOPICS:
         # 도구 결과가 사용자 메시지로 되돌아오는 경우 제외
         if role == "user" and body.startswith("[백그라운드 작업 결과"):
             continue
-        # 제출 목적과 무관한 경쟁팀 분석 구간은 싣지 않는다
+        # 제출 목적과 무관한 구간은 싣지 않는다 (아래 DROP_PATTERNS 참조)
         if any(p.search(body) for p in DROP_PATTERNS):
             dropped_offtopic += 1
             turns.append((role, when(o), "*(제출 목적과 무관한 구간 — 제외)*"))
@@ -191,7 +192,7 @@ for sid, name, desc in TOPICS:
     print(f"  ✓ {name}.md  지시 {nu} · 답변 {na} · {os.path.getsize(fp)//1024}KB")
 
 print(f"\n총 {len(made)}개 세션, {sum(x[3] for x in made)//1024}KB "
-      f"· 중복 턴 {dropped_dup}건 제거 · 경쟁분석 구간 {dropped_offtopic}건 제외")
+      f"· 중복 턴 {dropped_dup}건 제거 · 무관 구간 {dropped_offtopic}건 제외")
 
 # 목차를 실물과 항상 일치시킨다 (예전에는 AI_활용_기록.md의 목록 7개가 실물과 0건 일치했다)
 idx = ["# 프롬프트 세션 로그", "",
