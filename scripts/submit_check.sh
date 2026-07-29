@@ -49,7 +49,10 @@ done
 
 echo "── 5. 제출용 zip 시험 생성 ───────────────────────────────"
 TMP=$(mktemp -d 2>/dev/null || echo /tmp)
-if git archive --format=zip --output="$TMP/src.zip" HEAD 2>/dev/null; then
+# 5차: `git archive HEAD` 만으로는 사무국 배포 자료(사무국 추가 공유 자료/·오리엔테이션/)가
+# 빠지지 않는다 — 추적 파일이므로 그대로 담긴다(실측 10.2MB). 제출본 생성과 동일한
+# pathspec 제외를 여기서도 써서, 게이트가 실제 제출물과 같은 것을 검사하게 한다.
+if git archive --format=zip --output="$TMP/src.zip" HEAD ':(exclude)사무국 추가 공유 자료' ':(exclude)오리엔테이션' 2>/dev/null; then
   risky=$(python - "$TMP/src.zip" <<'PY'
 import sys, zipfile
 z = zipfile.ZipFile(sys.argv[1])
@@ -57,7 +60,9 @@ z = zipfile.ZipFile(sys.argv[1])
 bad = [n for n in z.namelist()
        if '.env' in n or n.startswith('.git/') or n.startswith('.claude/')
        or 'node_modules' in n or n.endswith('.key') or n.endswith('.pyc')
-       or '__pycache__' in n or n == '_raw_page.html' or '/_simulated/' in n]
+       or '__pycache__' in n or n == '_raw_page.html' or '/_simulated/' in n
+       # 사무국이 배포한 자료를 사무국에 되돌려 제출하지 않는다(제출_체크리스트 §3)
+       or n.startswith('사무국') or n.startswith('오리엔테이션')]
 print(' '.join(bad))
 PY
 )
