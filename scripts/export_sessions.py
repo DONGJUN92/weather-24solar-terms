@@ -49,6 +49,9 @@ SECRET = re.compile(
     # '개인정보 없음'을 README에 적어 두고 로그에 남겨 두면 그 문장이 거짓이 된다.
     r"|[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,})")
 
+# 로컬 홈 경로 — 윈도우 사용자명이 그대로 드러나므로 치환한다.
+HOMEPATH = re.compile(r"([A-Za-z]):\\Users\\[A-Za-z0-9._\-]+")
+
 # R4: 제출 목적과 무관하고 타 팀 실명이 등장하는 구간은 내보내지 않는다.
 # (이 제출물은 사무국이 보관·회람하며 중복·표절 심사를 거친다)
 DROP_PATTERNS = [
@@ -76,6 +79,11 @@ def txt(content):
 
 def clean(s):
     s = SECRET.sub("<REDACTED>", s or "")
+    # 5차 최종 감사: Claude Code 내부 안내 문구에 로컬 홈 경로가 섞여 들어와
+    #   "C:\Users\<윈도우 사용자명>\.claude\..." 형태로 사용자명이 노출됐다.
+    #   제출물에 있을 이유가 없는 정보이므로 경로째로 치환한다.
+    s = HOMEPATH.sub(r"\1:\\Users\\<REDACTED>", s)
+    s = re.sub(r"/(?:home|Users)/[A-Za-z0-9._\-]+", "/Users/<REDACTED>", s)
     s = re.sub(r"<system-reminder>.*?</system-reminder>", "", s, flags=re.S)
     s = re.sub(r"<task-notification>.*?</task-notification>", "[백그라운드 작업 결과 — 생략]", s, flags=re.S)
     s = re.sub(r"\n{4,}", "\n\n\n", s)
@@ -133,7 +141,7 @@ for sid, name, desc in TOPICS:
         # 제출 목적과 무관한 경쟁팀 분석 구간은 싣지 않는다
         if any(p.search(body) for p in DROP_PATTERNS):
             dropped_offtopic += 1
-            turns.append((role, when(o), "*(경쟁 상황 분석 구간 — 제출 목적과 무관하여 제외)*"))
+            turns.append((role, when(o), "*(제출 목적과 무관한 구간 — 제외)*"))
             continue
         # 이전 세션에 이미 실린 턴은 다시 싣지 않는다
         k = turn_key(role, body)
@@ -160,7 +168,7 @@ for sid, name, desc in TOPICS:
         f"> **기간** {first} ~ {last}  ",
         f"> **분량** 사람 지시 {nu}건 · AI 답변 {na}건  ",
         f"> **원본** Claude Code 세션 `{sid[:8]}`  ",
-        "> **처리** 도구 호출 로그·내부 추론 제외, 대화 본문만 추출. 비밀값은 `<REDACTED>` 치환.",
+        "> **처리** 도구 호출 로그·내부 추론 제외, 대화 본문만 추출. 비밀값·이메일·로컬 경로는 `<REDACTED>` 치환.",
         "",
         "---",
         "",
@@ -189,7 +197,7 @@ print(f"\n총 {len(made)}개 세션, {sum(x[3] for x in made)//1024}KB "
 idx = ["# 프롬프트 세션 로그", "",
        "> 제출물 ④. Claude Code 세션 원문에서 대화 본문만 추출했습니다.",
        "> 도구 호출 로그·내부 추론 제외 · 비밀값과 이메일은 `<REDACTED>` 치환 ·",
-       "> 세션 간 중복 턴 제거(고유 턴만 집계) · 경쟁 상황 분석 구간 제외.", "",
+       "> 세션 간 중복 턴 제거(고유 턴만 집계) · 제출 목적과 무관한 구간 제외.", "",
        "| 파일 | 주제 | 사람 지시 | AI 답변 | 크기 |", "|---|---|---|---|---|"]
 for (name, nu, na, sz), (_, _, desc) in zip(made, [t for t in TOPICS if any(m[0] == t[1] for m in made)]):
     idx.append(f"| `{name}.md` | {desc} | {nu} | {na} | {sz // 1024}KB |")
