@@ -47,6 +47,28 @@ for f in index.html base.css verify.css verify.js korea_geo.js solar_terms_data.
   [ "$c" = "200" ] && ok "$f $c" || no "$f $c"
 done
 
+# R6: 가장 무거운 실격 사유는 "검증 중 핵심 로직 수정·소스 누락 발견"(제출_체크리스트 §머리말)인데,
+#     게이트는 배포본이 200을 주는지만 보고 '배포된 파일 == 제출할 소스'인지는 검사하지 않았다.
+#     HEAD 의 파일과 라이브 자산을 줄바꿈 정규화 후 SHA-256 으로 대조한다.
+#     (Vercel 은 텍스트 자산을 그대로 서빙하므로 정규화만 하면 일치해야 한다.)
+echo "   · HEAD ↔ 배포본 해시 대조"
+hash_mismatch=0
+for f in index.html base.css verify.css verify.js korea_geo.js solar_terms_data.js theme-init.js; do
+  local_h=$(git show "HEAD:prototype/$f" 2>/dev/null | tr -d '\r' | sha256sum | cut -c1-16)
+  live_h=$(curl -s "$APP/$f" | tr -d '\r' | sha256sum | cut -c1-16)
+  if [ -z "$local_h" ]; then no "HEAD 에 prototype/$f 가 없습니다"; hash_mismatch=1
+  elif [ "$local_h" = "$live_h" ]; then ok "$f 해시 일치 ($local_h)"
+  else no "$f 가 HEAD($local_h) 와 배포본($live_h) 이 다릅니다 — 커밋 또는 배포가 밀렸습니다"; hash_mismatch=1; fi
+done
+[ "$hash_mismatch" -eq 0 ] && ok "배포본 = 제출 소스 (7개 자산 전부 일치)"
+
+# 라이브에 남아 있으면 안 되는 폐기 경로 — R6에서 archive.html/app.js/style.css 를 제거했다.
+# 이 셋은 본 앱이 참조하지 않으면서 외부 전송 동의 없이 학생 글을 API로 보내는 버튼을 갖고 있었다.
+for f in archive.html app.js style.css thumbnail.png; do
+  c=$(curl -s -o /dev/null -w '%{http_code}' "$APP/$f")
+  [ "$c" = "404" ] && ok "$f 제거 확인 (404)" || no "$f 가 아직 라이브에 있습니다 ($c) — 폐기한 프로토타입이 노출됩니다"
+done
+
 echo "── 5. 제출용 zip 시험 생성 ───────────────────────────────"
 TMP=$(mktemp -d 2>/dev/null || echo /tmp)
 # 5차: `git archive HEAD` 만으로는 사무국 배포 자료(사무국 추가 공유 자료/·오리엔테이션/)가
@@ -146,14 +168,41 @@ if grep -rqE "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}" prompt_sessions/*.
   no "세션 로그에 이메일 평문이 있습니다"; else ok "세션 로그 이메일 0건"; fi
 # 5차 최종 감사: Claude Code 내부 안내 문구를 타고 로컬 홈 경로(윈도우 사용자명)가 세션 로그에
 # 섞여 들어왔다. 제출물에 있을 이유가 없는 정보라 export_sessions.py 가 마스킹하지만, 여기서 다시 본다.
-if grep -rqE "([A-Za-z]:\+Users\+|/(home|Users)/)[A-Za-z0-9._-]+" prompt_sessions/*.md 2>/dev/null; then
+#
+# R6: 이 패턴이 백슬래시를 잃어 실제로는 아무것도 잡지 못하면서 항상 ✓를 찍고 있었다.
+#     쌍따옴표 안의 "\+" 가 셸을 거쳐 ERE 의 "\+"(리터럴 +)가 되어 "C:+Users+" 를 찾았다 —
+#     실제 경로 C:\Users\... 는 절대 걸리지 않는다. 홑따옴표 + [[:alpha:]] 로 다시 쓴다.
+HOME_PATH_RE='([A-Za-z]:\\+[Uu]sers\\+|/(home|Users)/)[A-Za-z0-9._-]+'
+if grep -rqE "$HOME_PATH_RE" prompt_sessions/*.md 2>/dev/null; then
   no "세션 로그에 마스킹되지 않은 로컬 홈 경로가 있습니다"; else ok "세션 로그 로컬 경로 마스킹 확인"; fi
 # 제3자를 식별할 수 있는 서술 — export_sessions.py 가 구간 제외와 표현 치환 두 단계로 막지만,
 # 두 단계의 순서를 뒤집으면 치환이 제외 지문을 지워 구간이 그대로 실린다(실제로 한 번 겪었다).
 # 결과물을 직접 검사해 그 회귀를 잡는다.
 if grep -rqE "합격팀|타 *팀 *실명|본선 *1?5?개? *팀 *실명" prompt_sessions/*.md 2>/dev/null; then
   no "세션 로그에 제3자를 식별할 수 있는 서술이 있습니다"; else ok "세션 로그 제3자 식별 서술 0건"; fi
-if grep -qE '^s*var COASTALs*=' prototype/verify.js; then no "verify.js에 폐기한 COASTAL 이분법이 남아 있습니다"; else ok "해안/내륙 이분법 제거 확인"; fi
+# R6: 이 패턴도 \s 가 s 로 붕괴해 "^s*var COASTALs*=" 가 됐다 — 들여쓴 선언(실제 코드 형태)은
+#     ^s* 에 걸리지 않아 회귀를 못 잡는다. 백슬래시가 필요 없는 문자 클래스로 다시 쓴다.
+COASTAL_RE='^[[:space:]]*var[[:space:]]+COASTAL[[:space:]]*='
+if grep -qE "$COASTAL_RE" prototype/verify.js; then no "verify.js에 폐기한 COASTAL 이분법이 남아 있습니다"; else ok "해안/내륙 이분법 제거 확인"; fi
+
+# ── 게이트 자기검증 (R6) ──────────────────────────────────────────────
+# 위 두 패턴은 '항상 통과'하는 상태로 오래 있었다. 검사기가 실제로 잡는지 스스로 시험한다.
+# 일부러 위반 문자열을 만들어 패턴이 걸러 내는지 확인하고, 못 잡으면 게이트를 실패시킨다.
+_selftest_dir=$(mktemp -d)
+# printf 의 '형식' 자리에 백슬래시 문자열을 두면 \U 를 유니코드 이스케이프로 읽어 실패한다.
+# 반드시 %s 로 '인수'로 넘긴다 (이 실수 때문에 자기검증이 거짓 실패를 냈다).
+printf '%s\n' 'C:\Users\someone\project'    > "$_selftest_dir/home_win.txt"
+printf '%s\n' '/home/someone/project'       > "$_selftest_dir/home_posix.txt"
+printf '%s\n' '    var COASTAL = { x };'    > "$_selftest_dir/coastal.txt"
+printf '%s\n' 'nothing sensitive here'      > "$_selftest_dir/clean.txt"
+_st_fail=0
+grep -qE "$HOME_PATH_RE" "$_selftest_dir/home_win.txt"   || { _st_fail=1; echo "  (자기검증) 윈도우 홈 경로 패턴이 실패"; }
+grep -qE "$HOME_PATH_RE" "$_selftest_dir/home_posix.txt" || { _st_fail=1; echo "  (자기검증) POSIX 홈 경로 패턴이 실패"; }
+grep -qE "$COASTAL_RE"   "$_selftest_dir/coastal.txt"    || { _st_fail=1; echo "  (자기검증) COASTAL 패턴이 실패"; }
+grep -qE "$HOME_PATH_RE" "$_selftest_dir/clean.txt"      && { _st_fail=1; echo "  (자기검증) 깨끗한 파일을 오탐"; }
+rm -rf "$_selftest_dir"
+if [ "$_st_fail" -eq 0 ]; then ok "게이트 자기검증 — 위반 문자열을 실제로 잡는다"
+else no "게이트의 검사 패턴이 위반 문자열을 잡지 못합니다 (검사기 자체가 고장)"; fi
 
 # 캐시 버스팅 — 자산을 고쳤는데 ?v= 를 올리지 않으면 재방문자·주최측 PC가 옛 파일을 받는다.
 # 마지막으로 ?v= 가 바뀐 커밋보다 자산이 더 최신이면 실패로 잡는다.

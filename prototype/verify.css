@@ -34,8 +34,8 @@
 .term-pill.is-on { background: rgba(var(--sea-rgb),.16); border-color: var(--sea); }
 .term-pill.is-on b { color: var(--on-sea); }
 
-.chart-card { background: linear-gradient(180deg, var(--panel), var(--panel2)); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 12px 8px; box-shadow: var(--shadow); }
-.chart-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 8px 4px 2px; margin-top: 2px; border-top: 1px solid var(--line); font-size: 11.5px; color: var(--muted); }
+.chart-card { background: linear-gradient(180deg, var(--panel), var(--panel2)); border: 1px solid var(--line); border-radius: var(--radius); padding: var(--sp-3) var(--sp-3) var(--sp-4); box-shadow: var(--shadow); }
+.chart-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; padding: var(--sp-2) 4px var(--sp-1); margin-top: var(--sp-3); border-top: 1px solid var(--line); font-size: 11.5px; color: var(--muted); }
 .chart-legend .lg { display: inline-block; width: 15px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 5px; }
 .lg-past { background: repeating-linear-gradient(90deg, var(--muted) 0 5px, transparent 5px 9px); height: 2px; }
 .lg-now { background: var(--coral); }
@@ -47,11 +47,34 @@
    pan-y로 세로 스크롤은 브라우저에 돌려주고, 드래그를 실제로 잡은 순간에만 JS가 막는다.
    계절 지연 미션은 가로 드래그가 조작이므로 pan-y가 그대로 맞는다. */
 #heroSvg { width: 100%; height: auto; display: block; touch-action: pan-y; cursor: ns-resize; }
+/* R6: 1366×768(주최측 PC·프로젝터 표준)에서 조작·자유탐구 화면의 주 CTA가 폴드
+   600~650px 아래에 있었다. 차트를 줄여도 페이지 자체가 길어서(칩·절기·지표 + 차트 +
+   슬라이더 + 프리셋 + 범례 + 출처) 해결되지 않는다. 세로가 짧은 화면에서는
+   '다음' 단추를 하단에 고정해 언제든 누를 수 있게 한다 — 스크롤은 그대로 두고
+   다음 행동만 항상 보이게 하는 쪽이 맞다. 모바일(≤680px)은 이미 같은 규칙이 있다. */
+@media (min-width: 681px) and (max-height: 860px) {
+  /* sticky는 '자기 컨테이닝 블록 안에서만' 떠 있을 수 있다. 미션 조작 화면의 버튼은
+     .explore-actions 안에 있고 그 래퍼 자체가 폴드 밖이라, 버튼만 sticky로 만들면
+     올라오지 않는다. 래퍼(안내문 + 버튼)를 통째로 고정한다 — 다음에 무엇을 해야 하는지와
+     그 버튼이 같이 보이는 편이 학습에도 낫다. */
+  .explore-card > .explore-actions,
+  .explore-card > .step-actions:not(.step-actions-sub),
+  .explore-card .learning-panel > .step-actions:not(.step-actions-sub),
+  .lab-card .learning-panel > .step-actions:not(.step-actions-sub) {
+    position: sticky; bottom: .5rem; z-index: 12; margin: var(--sp-4) -.25rem 0;
+    padding: .55rem .7rem; border-radius: 14px;
+    background: rgba(var(--shade-rgb),.94); box-shadow: 0 8px 30px rgba(0,0,0,.18);
+    backdrop-filter: blur(12px);
+  }
+  .explore-card > .explore-actions > small { margin: 0 0 .35rem; }
+  .explore-card, .lab-card { padding-bottom: 5rem; }
+}
 #heroSvg.is-dragging { touch-action: none; }
 /* 미션5는 가로(날짜) 조작이다 — 커서가 세로를 가리키면 학습자가 그 방향으로 끈다. */
 .lag-mode #heroSvg { cursor: ew-resize; }
 
-.range-row { display: flex; align-items: center; gap: 8px; padding: 8px 6px 4px; flex-wrap: wrap; }
+/* 실측: 차트 SVG ↔ range-row ↔ presets 사이가 전부 0px이라 그래프가 조작부에 얹혀 보였다. */
+.range-row { display: flex; align-items: center; gap: 8px; padding: 0 6px; margin-top: var(--sp-4); flex-wrap: wrap; }
 .range-row > span { font-size: 12.5px; color: var(--muted); }
 .range-row input[type=range] { flex: 1; min-width: 110px; accent-color: var(--thr); height: 30px; }
 .range-row input[type=range]:focus-visible { outline: 3px solid var(--sun); outline-offset: 3px; border-radius: 6px; }
@@ -71,7 +94,11 @@
 .live-nums .ln-sep { color: rgba(var(--line-rgb),.3); margin: 0 4px; }
 
 /* 자주 쓰는 기준 프리셋 — 의미 있는 이름으로 기준을 고르게 한다 */
-.presets { display: flex; flex-wrap: wrap; gap: 7px; padding: 4px 6px 6px; }
+.preset-block { margin-top: var(--sp-3); padding: 0 6px; }
+.picker-label-inline { display: block; margin-bottom: var(--sp-1); }
+.presets { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+/* 프리셋 버튼 안 '22°C' / '선선한 여름날' 두 줄이 1px 간격으로 붙어 있었다. */
+.presets b { display: block; margin-bottom: var(--sp-1); }
 .preset { display: flex; flex-direction: column; gap: 1px; align-items: flex-start; padding: 6px 11px; min-height: 40px; border: 1px solid var(--line); border-radius: 11px; background: var(--panel2); color: var(--ink); text-align: left; }
 .preset b { font-size: 13px; font-weight: 700; }
 .preset small { font-size: 10.5px; color: var(--muted2); }
@@ -93,7 +120,7 @@
 .heat-note span { color: var(--sun); margin-right: 4px; }
 .heat-note b { color: var(--ink-max); font-weight: 700; }
 /* 자료의 한계는 결론보다 작지 않게 — 차트 위로 승격 (F-9) */
-.integrity { margin: 0 2px 10px; font-size: 13px; line-height: 1.65; color: var(--muted); background: rgba(var(--sea-rgb),.06); border-left: 3px solid rgba(var(--sea-rgb),.45); padding: 8px 12px; border-radius: 0 10px 10px 0; }
+.integrity { margin: var(--sp-4) 2px var(--sp-3); font-size: 13px; line-height: 1.65; color: var(--muted); background: rgba(var(--sea-rgb),.06); border-left: 3px solid rgba(var(--sea-rgb),.45); padding: var(--sp-3); border-radius: 0 10px 10px 0; }
 .integrity span { color: var(--sea); margin-right: 4px; }
 .integrity b { color: var(--ink2); font-weight: 700; }
 
@@ -148,7 +175,8 @@
 .verify-progress { display: flex; align-items: flex-start; justify-content: center; gap: 4px; margin: 6px 0 16px; flex-wrap: wrap; }
 .pstep { display: flex; flex-direction: column; align-items: center; gap: 4px; max-width: 92px; text-align: center; }
 .pstep i { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel2); color: var(--muted); font-size: 12px; font-style: normal; font-weight: 700; }
-.pstep small { font-size: 10.5px; color: var(--muted3); line-height: 1.2; }
+/* 6개 라벨 중 4개가 두 줄이 되는데 줄간격이 1.2라 붙어 보였다. */
+.pstep small { font-size: 10.5px; color: var(--muted3); line-height: 1.35; }
 .pstep.on i { border-color: var(--sun); color: var(--ink-on-accent); background: var(--sun); }
 .pstep.on small { color: var(--ink); }
 .pstep.done i { border-color: var(--sea); color: var(--ink-on-accent); background: var(--sea); }
@@ -185,7 +213,11 @@
 
 .explore-actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 16px; }
 .explore-actions small { font-size: 12px; color: var(--muted); }
-.primary-btn.is-muted { filter: grayscale(.55) opacity(.72); }
+/* 예전 filter: grayscale+opacity 는 다크에서 대비 1.01:1(글자가 사실상 안 보임),
+   라이트에서 1.13:1이었다. is-muted 는 disabled 속성이 아니라 '누르면 안내를 띄우는' 버튼이라
+   WCAG 비활성 예외에 해당하지 않는다. 색이 아니라 점선 테두리로 '아직 잠김'을 표시한다. */
+.primary-btn.is-muted { background: transparent; color: var(--muted); border: 1px dashed rgba(var(--line-rgb),.45); box-shadow: none; filter: none; }
+.primary-btn.is-muted:hover { transform: none; border-color: rgba(var(--sun-rgb),.7); color: var(--ink2); }
 .is-flash { animation: flashRing .5s ease 2; border-radius: 12px; }
 @keyframes flashRing { 0%, 100% { box-shadow: none; } 50% { box-shadow: 0 0 0 3px var(--sun); } }
 
@@ -223,7 +255,7 @@
 .seal-step small, .seal-step b, .seal-step span { display: block; }
 .seal-step small { color: var(--muted2); font-size: 10.5px; }
 .seal-step b { margin: 4px 0 3px; color: var(--ink); font-size: 13px; }
-.seal-step span { color: var(--muted); font-size: 10.5px; line-height: 1.45; }
+.seal-step span { color: var(--muted); font-size: 10.5px; line-height: 1.6; }
 @media (max-width: 560px) {
   .intro-seal { grid-template-columns: 1fr; gap: 6px; }
   .intro-seal > i { justify-self: center; transform: rotate(90deg); line-height: 1; }
@@ -436,7 +468,7 @@ button.pstep:focus-visible { outline: 3px solid var(--sun); outline-offset: 3px;
 .brief-box p { margin: 0; padding: 0 12px 11px; font-size: 13.5px; line-height: 1.7; color: var(--muted); }
 
 /* ── 보기 도구: 그래프↔표 토글 + 기준 구간 확대 (UX-1 / UX-8) ── */
-.view-tools { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 0 2px 8px; }
+.view-tools { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 0 2px var(--sp-3); }
 .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
 .seg-btn { border: 0; background: transparent; color: var(--muted); font-size: 12.5px; padding: 7px 14px; min-height: 34px; }
 .seg-btn.is-on { background: rgba(var(--sky-rgb),.18); color: var(--on-sky); font-weight: 700; }
@@ -495,7 +527,10 @@ button.pstep:focus-visible { outline: 3px solid var(--sun); outline-offset: 3px;
 
 /* ── 24절기 입문: 공전 궤도 시각화 ── */
 .orbit-card { animation: cardIn .24s ease; }
-.orbit-wrap { margin: 14px 0 6px; }
+/* 1366×768에서 궤도 SVG가 592px를 차지해 '다음 →' CTA가 폴드 122px 아래로 밀렸다.
+   세로가 짧은 화면에서는 궤도를 줄여 CTA가 첫 화면에 남게 한다. */
+.orbit-wrap { margin: var(--sp-4) 0 var(--sp-2); display: grid; place-items: center; }
+.orbit-wrap svg { width: 100%; max-width: 620px; max-height: min(52vh, 520px); height: auto; }
 #orbitSvg { width: 100%; height: auto; display: block; }
 .orb-term { cursor: pointer; }
 .orb-term:hover circle { stroke: var(--ink-max); stroke-width: 2; }
@@ -523,7 +558,10 @@ button.pstep:focus-visible { outline: 3px solid var(--sun); outline-offset: 3px;
 .why-box { margin-top: 18px; padding: 16px 18px; border: 1px solid var(--line); border-radius: 16px; background: var(--panel2); }
 .why-h { margin: 0 0 8px; font-size: 16px; color: var(--sea); letter-spacing: -.01em; }
 .why-h + .why-p { margin-top: 0; }
-.why-p { margin: 10px 0 0; font-size: 14px; line-height: 1.8; color: var(--muted); }
+/* max-width 가 없어 카드 폭을 그대로 물려받았다(실측 754~771px = 14px 한글로 한 줄 55자).
+   한국어 본문의 권장 행장은 35~45자다. 55자는 눈이 다음 줄 시작점을 잃는 길이이고,
+   이 화면 고아줄 4건이 전부 여기서 나왔다. */
+.why-p { margin: var(--sp-3) 0 0; max-width: 44em; font-size: 14px; line-height: 1.8; color: var(--muted); }
 .why-p b { color: var(--ink2); font-weight: 700; }
 .why-box .why-h:not(:first-child) { margin-top: 20px; }
 .drift-svg { width: 100%; height: auto; display: block; margin: 12px 0 2px; }
@@ -707,7 +745,9 @@ h1, h2, h3, .hero-headline { line-height: 1.38; }
 
 /* ── 너무 작던 글자 (계측: 10px·10.5px·11px) ───────────────────── */
 .chip small, .term-pill small { font-size: 11px; }     /* 10px → 11px */
-.pstep small { font-size: 11.5px; }                    /* 10.5px → 11.5px */
+/* R6: 폭이 68~92px뿐이라 9자 한글 라벨은 어차피 두 줄이 된다 — balance로 두 줄 길이를 맞춘다
+   (390px 실측: '처서, 지금도 맞나'가 마지막 줄 36%로 갈렸다). */
+.pstep small { font-size: 11.5px; text-wrap: balance; }  /* 10.5px → 11.5px */
 .cur-tag { font-size: 11px; }                          /* 10.5px → 11px */
 .picker-label small { font-size: 11.5px; }             /* 11px → 11.5px */
 .win-note, .map-note, .kma-src, .integrity { font-size: 12px; }  /* 11.5px → 12px */
@@ -845,10 +885,18 @@ small { font-size: max(11.5px, .86em); }
    (기본 11px은 6.1px로 렌더돼 사실상 읽을 수 없었다) */
 @media (max-width: 620px) {
   .orb-name { font-size: 21px !important; font-weight: 700 !important; }
+  /* R6: 태양·북극·근일점·원일점 라벨이 이 규칙에서 빠져 있어 390px에서 6.4~7.5px로 줄었다. */
+  .orb-aux { font-size: 19px !important; }
+  .orb-sun { font-size: 21px !important; }
   .orb-dot { r: 10; }
   .orb-term.is-on .orb-dot { r: 15; }
   .orb-hit { r: 26; }
 }
+/* 궤도 위 글자는 계절 호·궤도선과 겹칠 수 있으므로 배경색 후광을 깐다. */
+.orb-name, .orb-aux { paint-order: stroke; stroke: var(--svg-halo); stroke-width: 3px; stroke-linejoin: round; }
+/* SVG 밖으로 뺀 그림 설명 — 축척과 함께 줄지 않으므로 모바일에서도 12px를 유지한다. */
+.fig-caption { margin: var(--sp-2) auto 0; max-width: 52ch; font-size: 12px; line-height: 1.7;
+  color: var(--muted2); text-align: center; text-wrap: pretty; }
 
 /* ── 판정: 자가진단 → 판정문 순서 ──────────────────────────── */
 .sc-lead { margin: 0 0 8px; font-size: 12.5px; color: var(--muted2); }
@@ -891,7 +939,7 @@ small { font-size: max(11.5px, .86em); }
   padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel);
   color: var(--muted); font-size: 13px; text-align: left; cursor: pointer; }
 .lens-btn b { color: var(--ink); font-size: 13.5px; }
-.lens-btn small { font-size: 11px; color: var(--muted3); line-height: 1.4; }
+.lens-btn small { font-size: 11px; color: var(--muted3); line-height: 1.55; }
 .lens-btn:not([disabled]):hover { border-color: var(--sea); }
 .lens-btn.is-right { border-color: var(--green); background: rgba(var(--green-rgb, 28,107,58), .12); }
 .lens-btn.is-right b { color: var(--green); }
@@ -930,7 +978,8 @@ small { font-size: max(11.5px, .86em); }
 .lens-counter { color: var(--muted2); font-size: .8rem; font-weight: 750; }
 .lens-one-q { margin: .7rem 0 1rem; }
 .focus-task { margin-top: .6rem; }
-.integrity.is-compact { font-size: .76rem; line-height: 1.45; padding: .65rem .75rem; }
+/* 모바일에서 4줄이 되는 문단인데 줄간격이 화면에서 가장 좁았다(1.45). */
+.integrity.is-compact { font-size: .78rem; line-height: 1.65; padding: .7rem .8rem; }
 .explore-actions > small { display: block; margin: .8rem 0 0; min-height: 1.4rem; color: var(--muted2); }
 .evidence-step-card { max-width: 930px; }
 .evidence-step-card .student-evidence { margin: 1rem 0; }
@@ -976,8 +1025,15 @@ small { font-size: max(11.5px, .86em); }
 @media (max-width: 680px) {
   .mission-step-head .mhead { gap: .4rem; }
   .micro-progress, .cerl-mini-progress { grid-template-columns: 1fr; gap: .42rem; }
-  .step-actions { position: sticky; bottom: .45rem; z-index: 12; margin: 1rem -.25rem 0; padding: .6rem; border-radius: 14px;
+  /* 예전에는 .step-actions 와 .step-actions-sub 가 둘 다 sticky 라 화면 하단 같은 자리에
+     겹쳐 쌓였다(실측 375px: 764–802 × 782–802). 주 액션만 고정하고 보조는 흐름에 둔다.
+     고정 바 높이만큼 카드에 아래 여백을 줘서 본문이 바 뒤로 들어가지 않게 한다. */
+  /* R6: margin 좌우 -.25rem 이 컨테이너보다 8px 넓어져 .verify-stage 에 4px 가로 넘침을
+     만들었다(문서 스크롤은 없었지만 그림자가 잘렸다). 카드 폭에 맞춘다. */
+  .step-actions:not(.step-actions-sub) { position: sticky; bottom: .45rem; z-index: 12; margin: 1rem 0 0; padding: .6rem; border-radius: 14px;
     background: rgba(var(--shade-rgb),.94); box-shadow: 0 8px 30px rgba(0,0,0,.22); backdrop-filter: blur(12px); }
+  .step-actions-sub { position: static; margin-top: .75rem; }
+  .cerl-step-card, .evidence-step-card, .check-step-card, .transfer-step-card, .audit-step-card { padding-bottom: 5rem; }
   .step-actions .primary-btn { flex: 1 1 180px; }
   .cerl-compare-grid { grid-template-columns: 1fr; }
   .orient-brief { font-size: .96rem; }
@@ -991,6 +1047,57 @@ small { font-size: max(11.5px, .86em); }
 
 @media (prefers-reduced-motion: reduce) {
   .micro-progress i, .cerl-mini-progress i, .micro-panel, .learning-panel { transition: none; animation: none; }
+}
+
+/* ── 기록 삭제 확인 대화상자 (R6: OS confirm() 대체) ──────────────── */
+.modal-sm { width: min(430px, calc(100% - 32px)); }
+.modal-sm .reset-h { margin: var(--sp-3) 0 var(--sp-2); font-size: 20px; line-height: 1.4; }
+.modal-sm p { margin: 0; font-size: 13.5px; line-height: 1.75; color: var(--muted); }
+.reset-actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); justify-content: flex-end; margin-top: var(--sp-5); }
+.reset-actions .ghost-btn { border: 1px solid var(--line); border-radius: 11px; padding: 9px 13px; }
+
+/* ── 전이 확인 3문항 (R6) ───────────────────────────────────────── */
+.transfer-quiz { margin: 0 0 var(--sp-5); padding: var(--sp-4); border: 1px solid rgba(var(--sea-rgb),.3);
+  border-radius: 16px; background: rgba(var(--sea-rgb),.05); }
+.transfer-quiz .tq-lead { margin: 0 0 var(--sp-4); font-size: 13px; line-height: 1.75; color: var(--muted); }
+.tq-item + .tq-item { margin-top: var(--sp-5); padding-top: var(--sp-4); border-top: 1px solid var(--line); }
+.tq-q { margin: 0 0 var(--sp-3); font-size: 14px; line-height: 1.75; color: var(--ink2); }
+.tq-q b { color: var(--sea); margin-right: 2px; }
+.transfer-quiz .choice-row { margin-top: 0; }
+.transfer-quiz .choice { text-align: left; }
+
+/* ── 이해 확인 1차 오답 되돌리기 (R6) ──────────────────────────── */
+.sc-retry { margin: var(--sp-3) 0 0; padding: var(--sp-3); border-left: 3px solid var(--sun);
+  border-radius: 0 10px 10px 0; background: rgba(var(--sun-rgb),.09);
+  font-size: 13px; line-height: 1.75; color: var(--ink2); }
+.sc-retry b { color: var(--on-sun); }
+
+/* ── 예측 봉인 해제 (R6: POE 루프의 '관찰') ──────────────────────── */
+.predict-reveal { margin: 0 0 var(--sp-5); padding: var(--sp-4); border: 1px solid rgba(var(--sun-rgb),.38);
+  border-left: 3px solid var(--sun); border-radius: 0 14px 14px 0; background: rgba(var(--sun-rgb),.07); }
+.predict-reveal.is-ok { border-color: rgba(var(--green-rgb),.38); border-left-color: var(--green); background: rgba(var(--green-rgb),.07); }
+.predict-reveal .eyebrow { color: var(--on-sun); margin-bottom: var(--sp-3); }
+.predict-reveal.is-ok .eyebrow { color: var(--on-green); }
+.predict-reveal dl { display: grid; grid-template-columns: auto 1fr; gap: var(--sp-2) var(--sp-4); margin: 0 0 var(--sp-3); }
+.predict-reveal dt { color: var(--muted2); font-size: 12px; font-weight: 700; white-space: nowrap; }
+.predict-reveal dd { margin: 0; color: var(--ink2); font-size: 13.5px; line-height: 1.7; }
+.predict-reveal .pr-why { margin: 0 0 var(--sp-2); font-size: 13px; line-height: 1.75; color: var(--ink2); }
+.predict-reveal .pr-note { margin: 0; font-size: 12.5px; line-height: 1.7; color: var(--muted); }
+@media (max-width: 560px) { .predict-reveal dl { grid-template-columns: 1fr; gap: 2px var(--sp-2); } }
+
+/* ── 터치 타깃 (WCAG 2.5.5 권장 44px) ────────────────────────────
+   base.css의 기본값(36px)은 verify.css의 .theme-btn{min-height:30px}·
+   .verify-actions .text-btn{min-height:32px}에 밀린다(로드 순서·구체성).
+   마우스 환경의 헤더 높이는 그대로 두고, 터치 환경에서만 44px로 올린다. */
+@media (pointer: coarse) {
+  .verify-actions .text-btn, .theme-btn, .ghost-btn, .seg-btn, .step-btn { min-height: 44px; }
+  .brand { min-height: 44px; }
+}
+/* pointer:coarse 만으로는 부족하다 — 데스크톱 브라우저의 모바일 에뮬레이션이나 터치 겸용
+   노트북에서는 fine 으로 보고된다. 실제로 손가락으로 쓰는 폭에서는 폭 기준으로도 올린다. */
+@media (max-width: 560px) {
+  .verify-actions .text-btn, .theme-btn, .ghost-btn, .seg-btn, .step-btn { min-height: 44px; }
+  .brand { min-height: 44px; }
 }
 
 /* ── 5차 반영: CERL 작성 경험 ─────────────────────────────────

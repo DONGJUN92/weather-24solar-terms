@@ -5,29 +5,30 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#081c2d" media="(prefers-color-scheme: dark)" />
   <meta name="theme-color" content="#eef2f5" media="(prefers-color-scheme: light)" />
-  <title>Weather24 | 절기의 약속 검증소</title>
-  <meta name="description" content="‘덥다’의 기준선을 직접 정해, 내 지역에서 24절기의 약속이 아직 맞는지 기상청 관측 자료로 검증하는 기후 학습 웹앱" />
+  <title>Weather24 | 절기, 아직 맞을까</title>
+  <meta name="description" content="‘덥다’의 기준을 직접 정해, 우리 지역에서 24절기가 지금도 맞는지 기상청 관측 자료로 확인하는 기후 학습 웹앱" />
   <!-- 1024×1024·1.71MB짜리 썸네일을 파비콘으로 쓰면 첫 로드마다 그만큼 받는다.
        탭 아이콘은 32px, iOS 홈화면은 180px, 소셜 카드는 1200×630으로 분리한다. -->
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=1" />
   <link rel="apple-touch-icon" sizes="180x180" href="favicon-180.png?v=1" />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://weather-24solar-terms.vercel.app/" />
-  <meta property="og:title" content="Weather24 | 절기의 약속 검증소" />
-  <meta property="og:description" content="기준선 하나로, 내 지역에서 절기의 약속을 실측으로 검증하는 기후 레슨" />
+  <meta property="og:title" content="Weather24 | 절기, 아직 맞을까" />
+  <meta property="og:description" content="기준은 내가 정하고, 우리 지역 관측 자료로 24절기가 지금도 맞는지 확인하는 기후 수업" />
   <meta property="og:image" content="https://weather-24solar-terms.vercel.app/og-image.jpg" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <script src="./theme-init.js?v=1"></script>
-  <link rel="stylesheet" href="./base.css?v=6" />
-  <link rel="stylesheet" href="./verify.css?v=48" />
+  <link rel="stylesheet" href="./base.css?v=8" />
+  <link rel="stylesheet" href="./verify.css?v=55" />
 </head>
 <body class="verify-mode">
+  <a class="skip-link" href="#stage">본문으로 건너뛰기</a>
   <div class="sky-noise" aria-hidden="true"></div>
 
   <main class="verify-shell">
     <header class="verify-top">
-      <a class="brand" href="#" id="homeLink" aria-label="Weather24 절기의 약속 검증소 — 소개로"><span class="brand-mark" aria-hidden="true">W</span><span><strong>WEATHER24</strong><small>절기의 약속 검증소</small></span></a>
+      <a class="brand" href="#" id="homeLink" aria-label="Weather24 절기, 아직 맞을까 — 소개 화면으로"><span class="brand-mark" aria-hidden="true">W</span><span><strong>WEATHER24</strong><small>절기, 아직 맞을까</small></span></a>
       <div class="verify-actions">
         <div class="theme-seg" role="radiogroup" aria-label="화면 테마">
           <button type="button" class="theme-btn" data-theme-set="auto" role="radio" aria-label="자동 테마" aria-checked="true" title="시스템 설정을 따릅니다"><span aria-hidden="true">◐</span><small aria-hidden="true">자동</small></button>
@@ -45,26 +46,37 @@
 
   <dialog class="modal" id="guideDialog">
     <div class="modal-head"><p class="eyebrow">사용법</p><button class="close-btn" data-close="guideDialog" aria-label="닫기">×</button></div>
-    <h2>한 화면에 한 가지씩,<br />다섯 단계로 검증합니다.</h2>
+    <h2>한 화면에 한 가지씩, 이 순서로 진행합니다.</h2>
     <ol class="guide-steps">
-      <li><span>1</span><div><strong>예측을 먼저 봉인합니다.</strong><p>자료를 보고 정답을 고르는 것이 아니라, 내 생각을 검증합니다.</p></div></li>
-      <li><span>2</span><div><strong>질문과 조작 방법을 확인합니다.</strong><p>지금 무엇을 바꾸고 무엇을 비교할지 한 문장으로 확인합니다.</p></div></li>
-      <li><span>3</span><div><strong>‘덥다’ 기준을 내가 정합니다.</strong><p>기준선의 ⇅ 손잡이를 끌거나, 슬라이더·＋−·프리셋으로 정확한 값을 고릅니다. 정하는 즉시 숫자가 바뀝니다.</p></div></li>
-      <li><span>4</span><div><strong>증거를 읽고 CERL을 씁니다.</strong><p>절기의 약속과 실측을 비교해 주장·근거·추론·한계를 내 말로 작성합니다.</p></div></li>
-      <li><span>5</span><div><strong>스스로 확인한 뒤 전문가와 비교합니다.</strong><p>자가진단을 먼저 풀고, 그 다음 전문가 예시와 비교해 내 결론의 범위를 점검합니다.</p></div></li>
+      <li><span>1</span><div><strong>자료를 보기 전에 먼저 예측합니다.</strong><p>정답을 고르는 것이 아니라, 지금 내 생각을 기록해 두고 그것을 확인합니다.</p></div></li>
+      <li><span>2</span><div><strong>무엇을 움직일지 확인합니다.</strong><p>지금 무엇을 바꾸고 무엇을 비교할지 한 문장으로 확인합니다.</p></div></li>
+      <li><span>3</span><div><strong>‘덥다’ 기준을 내가 정합니다.</strong><p>기준선의 ⇅ 손잡이를 끌거나, 슬라이더와 ＋− 단추, ‘자주 쓰는 기준’으로 정확한 값을 고릅니다. 정하는 즉시 숫자가 바뀝니다.</p></div></li>
+      <li><span>4</span><div><strong>증거를 읽고 내 결론을 씁니다.</strong><p>절기가 말하는 시기와 실제 관측을 비교해 주장·근거·추론·한계를 내 말로 적습니다.</p></div></li>
+      <li><span>5</span><div><strong>스스로 확인한 뒤 모범 예시와 견줍니다.</strong><p>이해 확인 문항을 먼저 풀고, 그다음 모범 예시와 비교해 내 결론의 범위를 점검합니다.</p></div></li>
     </ol>
     <h3 class="guide-h3">알아두면 좋은 말</h3>
     <ul class="guide-terms">
       <li><b>ASOS</b> 기상청이 전국에 설치한 자동 종관기상관측 장비. 이 앱의 모든 숫자가 여기서 나옵니다.</li>
       <li><b>관측 신호</b> 몇 해의 관측에서 드러난 변화. 방향은 알려 주지만 장기 결론까지 말해 주지는 않습니다.</li>
       <li><b>기후평년</b> 오랜 기간(국제 표준은 보통 30년)의 평균. 이 앱의 5년 비교는 기후평년이 아닙니다.</li>
-      <li><b>CERL</b> 주장(Claim)·근거(Evidence)·추론(Reasoning)·한계(Limitation). 자료로 말할 때 갖춰야 할 네 가지입니다.</li>
+      <li><b>CERL</b> 주장(Claim)·근거(Evidence)·추론(Reasoning)·한계(Limitation). 과학교육에서 널리 쓰는 <b>CER</b>에 ‘한계’를 더한 이 앱의 확장형입니다 — 자료로 말할 때는 어디까지 말할 수 있는지도 함께 밝혀야 하기 때문입니다.</li>
     </ul>
     <button class="primary-btn" data-close="guideDialog">확인</button>
   </dialog>
 
+  <!-- 기록 삭제 확인 — OS 기본 confirm() 대신 앱 안에서 묻는다(라이브 데모 완성도) -->
+  <dialog class="modal modal-sm" id="resetDialog">
+    <div class="modal-head"><p class="eyebrow">처음부터</p><button class="close-btn" data-close="resetDialog" aria-label="닫기">×</button></div>
+    <h2 class="reset-h">지금까지 쓴 기록을 지울까요?</h2>
+    <p>예측·내 결론·이해 확인 결과가 <b>모두 사라집니다.</b> 공용 컴퓨터에서 다음 사람을 위해 초기화할 때 쓰세요.</p>
+    <div class="reset-actions">
+      <button class="ghost-btn" data-close="resetDialog">그냥 이어서 하기</button>
+      <button class="primary-btn" id="resetConfirm">지우고 처음부터</button>
+    </div>
+  </dialog>
+
   <script src="./korea_geo.js?v=1"></script>
   <script src="./solar_terms_data.js?v=11"></script>
-  <script src="./verify.js?v=58"></script>
+  <script src="./verify.js?v=69"></script>
 </body>
 </html>

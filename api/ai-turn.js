@@ -1,5 +1,5 @@
 /*
- * Weather24 — AI 증거 감사관 / 탐구 파트너
+ * Weather24 — AI 결론 점검 / 탐구 파트너
  *
  * 502 간헐 실패 수정 (실측 진단 결과):
  *   원인 — max_output_tokens=360인데 추론 토큰이 107~346개를 소비했다.
@@ -30,6 +30,10 @@ const COACH_TOKENS = 900;
 const FIRST_TIMEOUT_MS = 16000;
 const RETRY_TIMEOUT_MS = 9000;
 
+/* R6 기록: 이 파일에는 audit(결론 점검)과 coach(탐구 안내) 두 모드가 있는데, 배포된 웹앱은
+   audit만 호출한다(verify.js에 mode:'coach' 호출 0건). 제출 직전에 지우지 않고 남긴 이유는
+   유일한 AI 경로를 건드리는 위험이 제거 이득보다 크기 때문이다 — 서버리스 함수는 로컬에서
+   그대로 재현해 시험할 수 없다. 미사용임을 여기 명시해 소스 검토에서 오해가 없게 한다. */
 const AUDIT_ACTIONS = ["compare_region", "change_metric", "check_period", "add_counter_evidence", "state_limitation", "submit_verdict"];
 const COACH_ACTIONS = ["compare_region", "change_metric", "check_period", "add_counter_evidence", "state_limitation", "save_evidence", "open_investigation"];
 const ACTION_LABELS = {
@@ -39,8 +43,8 @@ const ACTION_LABELS = {
   add_counter_evidence: "반증 자료 추가하기",
   state_limitation: "한계 문장 쓰기",
   save_evidence: "현재 결과를 증거로 저장",
-  open_investigation: "내 근거로 수사실 열기",
-  submit_verdict: "판정 기록 보관하기"
+  open_investigation: "내 근거로 자유탐구 열기",
+  submit_verdict: "결론 저장하기"
 };
 
 const auditSchema = {
@@ -120,6 +124,15 @@ function bucketKey(value) {
   return createHash("sha256").update(String(value || "anonymous")).digest("hex").slice(0, 24);
 }
 
+/* R6: Map에서 만료된 키를 지우지 않아 웜 인스턴스에서 무한히 커졌다.
+   토큰을 소비할 때마다 오래된 키를 함께 청소한다(서버리스 인스턴스별 best-effort 보호). */
+function sweep(map, now) {
+  for (const [k, v] of map) {
+    const active = v.filter((t) => now - t < WINDOW_MS);
+    if (active.length) map.set(k, active); else map.delete(k);
+  }
+}
+
 function takeBucket(map, key, limit, now) {
   const bucket = map.get(key) || [];
   const active = bucket.filter((time) => now - time < WINDOW_MS);
@@ -130,6 +143,7 @@ function takeBucket(map, key, limit, now) {
   }
   active.push(now);
   map.set(key, active);
+  if (map.size > 200) sweep(map, now);
   return { ok: true, remaining: Math.max(0, limit - active.length) };
 }
 
@@ -173,7 +187,7 @@ function extractFeedback(data) {
 
 function auditInstructions() {
   return [
-    "당신은 Weather24의 증거 감사관이다.",
+    "당신은 Weather24의 결론 점검이다.",
     "중학생 학습자가 실제 기상·기후 자료를 해석하도록 돕는다.",
     "입력 evidence 배열에 있는 정보만 근거로 삼고 숫자, 출처, 원인, 인과관계를 새로 만들지 마라.",
     "결론을 대신 내리지 말고, 과장·비약·일반화 여부와 다음 행동 한 가지를 짚어라.",
@@ -226,26 +240,44 @@ async function callOpenAI({ isCoach, payload, effort, maxTokens, timeoutMs }) {
 }
 
 module.exports = async (req, res) => {
-  if (req.method !== "POST") return res.status(405).json({ error: "POST 요청만 사용할 수 있습니다.", code: "method" });
-  const limit = rateLimit(req);
+  /* R6: 405 응답에도 no-store를 붙인다 — 예전에는 Vercel 기본 캐시 헤더로 나갔다. */
   res.setHeader("Cache-Control", "no-store");
+  if (req.method !== "POST") return res.status(405).json({ error: "POST 요청만 사용할 수 있습니다.", code: "method" });
+
+  /* R6: Origin/Referer 확인이 없어 제3자 페이지가 no-cors POST로 OpenAI 크레딧을 태울 수 있었다.
+     교실에서 같은 오리진으로만 쓰는 기능이므로, 브라우저가 보낸 Origin이 배포 오리진과
+     다르면 거절한다(Origin 헤더가 없는 서버-서버 호출은 예전처럼 통과시켜 진단을 막지 않는다). */
+  const origin = String(req.headers.origin || "");
+  if (origin) {
+    const host = String(req.headers.host || "");
+    let originHost = "";
+    try { originHost = new URL(origin).host; } catch (e) { originHost = ""; }
+    if (!originHost || originHost !== host) {
+      return res.status(403).json({ error: "이 요청은 학습 웹앱에서만 보낼 수 있습니다.", code: "bad_origin" });
+    }
+  }
+
+  if (!process.env.OPENAI_API_KEY) return res.status(503).json({ error: "AI 점검이 아직 설정되지 않았습니다.", code: "not_configured" });
+
+  /* R6: 예전에는 레이트리밋이 본문 검증보다 먼저 돌아, 400으로 거절될 잘못된 요청도
+     학생의 6회 한도를 깎았다. 형식이 맞는 요청만 한도를 소비하게 순서를 바꾼다. */
+  const isCoach = req.body && req.body.mode === "coach";
+  const payload = isCoach ? allowedCoachRequest(req.body) : allowedAuditRequest(req.body);
+  if (!payload) return res.status(400).json({ error: isCoach ? "현재 관측 신호와 질문을 먼저 선택해 주세요." : "증거 두 가지와 12자 이상의 결론이 필요합니다.", code: "bad_request" });
+
+  const limit = rateLimit(req);
   res.setHeader("X-RateLimit-Limit", String(limit.limit || SESSION_MAX));
   res.setHeader("X-RateLimit-Remaining", String(limit.remaining || 0));
   if (!limit.ok) {
     res.setHeader("Retry-After", String(limit.retryAfter));
     return res.status(429).json({
       error: limit.scope === "session"
-        ? "이 학습 세션의 AI 요청이 많습니다. 기기 안 빠른 점검을 사용하고 잠시 후 다시 시도해 주세요."
-        : "같은 네트워크의 AI 요청이 몰렸습니다. 기기 안 빠른 점검을 사용하고 잠시 후 다시 시도해 주세요.",
+        ? "이 학습 세션의 AI 요청이 많습니다. 이 기기에서 빠른 점검을 쓰고 잠시 후 다시 시도해 주세요."
+        : "같은 네트워크의 AI 요청이 몰렸습니다. 이 기기에서 빠른 점검을 쓰고 잠시 후 다시 시도해 주세요.",
       code: "rate_limited",
       retry_after_seconds: limit.retryAfter
     });
   }
-  if (!process.env.OPENAI_API_KEY) return res.status(503).json({ error: "AI 감사관이 아직 설정되지 않았습니다.", code: "not_configured" });
-
-  const isCoach = req.body && req.body.mode === "coach";
-  const payload = isCoach ? allowedCoachRequest(req.body) : allowedAuditRequest(req.body);
-  if (!payload) return res.status(400).json({ error: isCoach ? "현재 관측 신호와 질문을 먼저 선택해 주세요." : "증거 카드 2장과 12자 이상의 판정문이 필요합니다.", code: "bad_request" });
 
   const maxTokens = isCoach ? COACH_TOKENS : AUDIT_TOKENS;
   /* 1차: 추론 low로 품질을 확보. 2차: 잘렸으면 추론을 끄고 재시도(실측 ~1.7초, 추론 토큰 0). */

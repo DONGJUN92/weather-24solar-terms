@@ -53,7 +53,7 @@ fails, warns, checks = [], [], [0]
 DATA_CHECKS = [0]        # 문서가 인용하는 대표 검사 수(문서 대조 축 제외)
 DOC_COUNT_TARGETS = []   # 검사 건수 인용을 대조할 문서 (최종 건수를 알아야 하므로 report()에서 확인)
 PUBLISHED_DATA_CHECKS = 8213
-PUBLISHED_AUX_CHECKS = 146
+PUBLISHED_AUX_CHECKS = 147
 PUBLISHED_TOTAL_CHECKS = PUBLISHED_DATA_CHECKS + PUBLISHED_AUX_CHECKS
 
 
@@ -538,8 +538,14 @@ def main():
        "M: 서울 sensitivity(min/max/long)가 데이터에 없다 — 화면이 폴백 경로로 떨어진다")
 
     # 5차 F14: 학습목표 ⑤(관측과 모형)이 필수 동선·완료 배지에 있어야 한다.
-    ck("if (step === 'audit' && m.lagMode && !state.labSeen) step = 'expert';" in vjs_code,
+    # R6: 관문은 '열었는가'(labOpened), 배지·기록은 '실제로 조작했는가'(labSeen)로 분리했다 —
+    #     예전에는 화면을 열기만 해도 목표 ⑤ 배지와 "내가 고른 값" 기록이 기본값으로 발급됐다.
+    ck("if (step === 'audit' && m.lagMode && !state.labOpened) step = 'expert';" in vjs_code,
        "N: 미션 5가 열관성 실험실을 거치지 않고 완료된다 — 학습목표 ⑤가 필수 동선 밖이다")
+    ck("state.labSeen = true" in vjs_code
+       and re.search(r"function setLabDepth[\s\S]{0,240}state\.labSeen = true", vjs_code) is not None
+       and re.search(r"function setLabGhg[\s\S]{0,240}state\.labSeen = true", vjs_code) is not None,
+       "N2: 목표 ⑤ 배지가 '조작 1회 이상'이 아니라 '화면 진입'으로 발급된다")
     ck("state.labSeen = true;" in vjs_code and "⑤ 관측과 모형" in vjs_code,
        "N: 완료 배지에 학습목표 ⑤가 없거나 실험실 방문 기록이 남지 않는다")
     ck("열관성 실험실 (목표 ⑤)" in vjs_code,

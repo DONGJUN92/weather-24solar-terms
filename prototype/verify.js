@@ -5,7 +5,7 @@
   if (!D || !D.cities) { stage.innerHTML = '<p class="load-fail">자료를 불러오지 못했습니다. 새로고침해 주세요. (인터넷 연결을 확인해 주세요)</p>'; return; }
 
   /*
-   * 절기의 약속 검증소 — 예측 봉인 → 기준선 조작 → CERL 판정.
+   * 절기, 아직 맞을까 — 예측 기록 → 기준선 직접 정하기 → 내 결론(CERL) 작성.
    * 절기는 고정된 천문 날짜(움직이지 않는 세로선), 기후는 움직이는 곡선.
    * AI 없이 100% 동작하며, 결과 화면에 '무엇을 배웠는지'가 남는다.
    *
@@ -29,8 +29,8 @@
     temp: {
       key: 'temp', label: '기온', unit: '°C', verb: '덥다', basis: '하루 평균기온', day: '더위일', last: '더위가 그치는 날', showLast: true, def: 25,
       grid: [20, 34],
-      presets: [{ v: 22, t: '22°C', s: '선선한 여름날' }, { v: 25, t: '25°C', s: '여름의 통상 기준' }, { v: 28, t: '28°C', s: '무더위' }],
-      offGrid: { t: '폭염 33°C', s: '낮 최고기온 기준 — 기준표 서랍에서 실측 확인' }
+      presets: [{ v: 22, t: '22°C', s: '선선한 여름날' }, { v: 25, t: '25°C', s: '여름에 흔히 쓰는 기준' }, { v: 28, t: '28°C', s: '무더위' }],
+      offGrid: { t: '폭염 33°C', s: '낮 최고기온 기준 — 아래 ‘기상청은 어떤 기준을 쓸까?’에서 확인' }
     },
     precip: {
       key: 'precip', label: '강수', unit: 'mm', verb: '비가 많다', basis: '하루 강수량', day: '비 온 날', last: null, showLast: false, def: 1,
@@ -69,14 +69,42 @@
     correct: 'b'
   };
 
+  /* R6: 전이(transfer) 측정이 미션 1에만 붙어 있었다(askPost는 chuseo 단독).
+     목표 ②③은 전이로 확인된 적이 한 번도 없는데 완료 화면은 목표 배지 4개를 무조건 발급했다.
+     완료 화면에 동형 문항 3개를 두어 "학습 효과를 어떻게 측정했나"에 제시할 지표를 만든다.
+     세 문항 모두 앱에 나오지 않은 새 상황이고, 보기 길이를 25자 안팎으로 맞췄다. */
+  var TRANSFER_Q = [
+    { id: 't1', goal: '목표 ③ 기준을 정해야 자료가 된다',
+      q: '어떤 기사가 “올해 열대야가 작년보다 두 배 늘었다”고 썼습니다. 이 문장을 자료로 확인하려면 무엇을 먼저 물어야 할까요?',
+      options: [{ v: 'def', t: '열대야를 몇 도 기준으로 셌는지' },
+                { v: 'who', t: '어느 방송사가 보도했는지' },
+                { v: 'feel', t: '사람들이 실제로 더웠다고 느꼈는지' }],
+      correct: 'def',
+      explain: '‘열대야’는 기준을 정해야 세어지는 말입니다(기상청 기준은 밤 최저기온 25°C 이상). 기준이 다르면 같은 해도 다른 숫자가 나옵니다.' },
+    { id: 't2', goal: '목표 ② 자료의 범위',
+      q: '우리 반이 학교 옥상에서 잰 기온으로 “올해 우리 시가 더워졌다”고 말할 수 있을까요?',
+      options: [{ v: 'no', t: '옥상 한 곳의 기록이라 시 전체로 넓힐 수 없다' },
+                { v: 'yes', t: '같은 시 안에서 잰 값이므로 말할 수 있다' },
+                { v: 'avg', t: '여러 날을 평균 내면 말할 수 있다' }],
+      correct: 'no',
+      explain: '날을 늘리면 <b>그 옥상</b>의 값이 더 믿을 만해질 뿐, 말할 수 있는 <b>범위</b>는 그대로 그 옥상입니다. 범위를 넓히려면 지점을 늘려야 합니다.' },
+    { id: 't3', goal: '목표 ④ 근거만큼만 결론',
+      q: '“작년보다 아이스크림이 많이 팔렸고 평균기온도 높았다. 따라서 더위가 아이스크림 판매를 늘렸다.” 이 결론의 문제는?',
+      options: [{ v: 'cause', t: '함께 변한 것만 보고 원인을 단정했다' },
+                { v: 'few', t: '자료가 한 해뿐이라 숫자가 틀렸다' },
+                { v: 'unit', t: '기온의 단위를 밝히지 않았다' }],
+      correct: 'cause',
+      explain: '두 값이 같이 움직였다는 사실은 <b>원인을 증명하지 않습니다</b>. 원인을 말하려면 다른 종류의 증거가 더 필요해요 — 이 앱이 매 화면에서 지킨 원칙과 같습니다.' }
+  ];
+
   /* 판정문은 {c 주장, e 근거, r 추론, l 한계} 4요소로 반환한다 (F-7). */
   var MISSIONS = [
     {
       id: 'chuseo', goal: '목표 ① 절기(천문 날짜) ≠ 기후(관측)',
-      title: '처서, 약속은 유효한가',
+      title: '처서, 지금도 맞나',
       city: '서울', ti: 15, metric: 'temp', thr: 25, lockCity: true, lockTerm: true,
-      brief: '처서(8/23)는 “더위가 그침”을 뜻합니다. 서울의 과거(' + PERIOD_PAST + ')와 현재(' + PERIOD_NOW + ')를 비교해, 이 약속이 아직 유효한지 검증하세요.',
-      task: '그래프의 보라색 ‘덥다 기준선’을 위아래로 끌거나 아래 슬라이더·프리셋으로 정한 뒤, 과거와 현재의 ‘더위가 그치는 날’을 비교하세요.',
+      brief: '처서(8/23)는 “더위가 그침”을 뜻합니다. 서울의 과거(' + PERIOD_PAST + ')와 지금(' + PERIOD_NOW + ')을 비교해, 정말 그런지 확인해 보세요.',
+      task: '보라색 <b>‘덥다’ 기준선</b>을 위아래로 끌어 기준을 정하세요. 그다음 과거와 지금의 ‘더위가 그치는 날’을 비교합니다.',
       verdict: function (n) {
         if (n.pl >= 0 && n.cl >= 0) return {
           c: '처서(더위가 그침)가 지나도 더위가 이어집니다.',
@@ -87,7 +115,7 @@
         if (n.pl < 0 && n.cl >= 0) return {
           c: '이 기준에서는 과거에 ‘더위가 그치는 날’ 자체가 없었습니다.',
           e: n.city + '에서 ‘' + n.thr + '°C 이상’인 날은 과거 연평균 <b>' + n.pdStr + '</b>, 현재 <b class="hot">' + n.cdStr + '</b>입니다.',
-          r: '과거에는 이 기준을 넘는 날이 거의 없어 시차를 계산할 수 없습니다. 두 시기를 <b>나란히</b> 비교하려면 기준선을 조금 낮춰 보세요.',
+          r: '과거에는 이 기준을 넘는 날이 거의 없어 며칠 늦어졌는지 계산할 수 없습니다. 두 시기를 <b>나란히</b> 비교하려면 기준선을 조금 낮춰 보세요.',
           l: '한쪽 시기에 값이 없으면 “며칠 늦어졌다”고 말할 수 없습니다 — 비교할 수 있는 기준을 고르는 것도 자료를 다루는 일입니다.'
         };
         return {
@@ -98,9 +126,12 @@
         };
       },
       selfCheck: {
-        q: '‘덥다’ 기준선을 25°C에서 28°C로 올리면, 기준 이상 더위일은 어떻게 될까?',
-        options: [{ v: 'up', t: '늘어난다' }, { v: 'down', t: '줄어든다' }, { v: 'same', t: '그대로다' }], correct: 'down',
-        explain: '기준이 높을수록 그 기준을 넘는 날은 줄어듭니다. 그래서 ‘덥다’를 몇 도로 정하는지에 따라 결론이 달라지고, 우리는 늘 그 기준을 밝혀야 합니다.'
+        /* R6: 이 미션의 목표는 ①(절기 ≠ 기후)인데 문항은 ③(기준 정의)을 묻고 있었다.
+           목표 ①은 앱 전체에서 타당하게 측정되는 곳이 없었다. 문항을 목표에 맞춘다. */
+        q: '앞으로 10년 동안 더위가 더 길어진다면, <b>처서 날짜</b>는 어떻게 될까?',
+        options: [{ v: 'move', t: '더위에 맞춰 뒤로 밀린다' }, { v: 'fixed', t: '8월 23일 무렵 그대로다' }, { v: 'gone', t: '절기 자체가 없어진다' }], correct: 'fixed',
+        retryHint: '방금 본 그래프에서 <b>세로선(처서)</b>이 과거·현재 어디에 있었는지 떠올려 보세요. 그 선이 움직였나요?',
+        explain: '절기는 <b>태양의 위치(황경)</b>로 정한 천문 날짜라 기온과 무관하게 해마다 거의 그대로입니다. 달라진 것은 <b>그 무렵 관측된 더위</b>예요 — 방금 기준선으로 센 그 숫자입니다.'
       },
       askPost: true
     },
@@ -109,12 +140,12 @@
       title: '여름은 며칠일까',
       city: '부산', ti: 13, metric: 'temp', thr: 25, lockCity: false, lockTerm: true,
       brief: '‘여름’을 “일평균 몇 °C 이상인 날”로 정하느냐에 따라 여름의 길이가 달라집니다. 기준을 바꿔 가며 과거와 현재의 여름 길이를 비교하세요.',
-      /* RC-G: 미션1 자가진단('기준↑ → 일수↓')과 다른 축을 묻는다 — 직전 해설의 재인이 되지 않게 */
+      /* RC-G: 미션1 이해 확인('기준↑ → 일수↓')과 다른 축을 묻는다 — 직전 해설의 재인이 되지 않게 */
       predict: {
         q: '기준을 25°C에서 28°C로 올리면, 과거와 현재의 <b>격차</b>(현재 − 과거)는 어떻게 될까?',
         options: [{ v: 'wide', t: '격차가 커진다', s: '높은 기준일수록 차이가 두드러진다' }, { v: 'narrow', t: '격차가 작아진다', s: '둘 다 0에 가까워진다' }, { v: 'unknown', t: '잘 모르겠다', s: '직접 확인해 봅니다' }]
       },
-      task: '기준선을 여러 높이로 옮겨, 과거·현재의 ‘기준 이상 더위일(=여름 길이)’이 얼마나 달라지는지 확인하세요. <b>지역 칩을 눌러 내 지역으로도 바꿔 볼 수 있어요.</b>',
+      task: '기준선을 <b>25°C와 28°C</b> 두 곳에 놓고, 과거·지금의 ‘기준 넘은 날 수(=여름 길이)’ <b>차이</b>가 어떻게 달라지는지 비교하세요. <b>위쪽 지역 단추를 눌러 우리 지역으로도 바꿔 볼 수 있어요.</b>',
       verdict: function (n) {
         if (n.pd < 0.5 && n.cd < 0.5) return {
           c: '이 기준으로는 여름이 과거·현재 모두 0일에 가깝습니다.',
@@ -136,21 +167,25 @@
         };
       },
       selfCheck: {
-        q: '“여름이 길어졌다”고 자료로 말하려면, 반드시 함께 밝혀야 하는 것은?',
-        options: [{ v: 'crit', t: '기준 온도와 비교 기간' }, { v: 'feel', t: '체감온도만 밝히면 된다' }, { v: 'none', t: '작년과 올해만 비교하면 된다' }], correct: 'crit',
-        explain: '“여름”, “덥다” 같은 말은 기준을 정해야 자료가 됩니다. 기준 온도와 비교 기간(지역·지표)이 빠지면 같은 자료로도 다른 결론이 나옵니다.'
+        /* R6: 정답 어휘('기준'·'기간')가 직전 화면의 근거 발문에 그대로 인쇄돼 있었고,
+           오답 둘에는 절대어 '만'이 붙어 소거 단서가 됐다. 보기 셋을 같은 명사구 형식·
+           비슷한 길이로 맞추고, 실제 학생이 흔히 드는 근거를 매력적 오답으로 넣는다. */
+        q: '“여름이 길어졌다”고 자료로 말하려면, 무엇을 함께 밝혀야 할까?',
+        options: [{ v: 'crit', t: '‘여름’의 기준 온도와 비교한 두 기간' }, { v: 'record', t: '그해 최고기온과 그날의 체감온도' }, { v: 'recent', t: '작년 여름과 올해 여름의 평균기온' }], correct: 'crit',
+        retryHint: '기준선을 25°C와 28°C에 놓았을 때 <b>같은 자료인데 여름 길이가 달라졌던 것</b>을 떠올려 보세요. 무엇이 달라져서 숫자가 바뀌었나요?',
+        explain: '“여름”, “덥다” 같은 말은 <b>기준을 정해야</b> 자료가 됩니다. 최고기온이나 작년·올해 비교는 그 자체로 틀린 자료는 아니지만, 기준과 기간을 밝히지 않으면 같은 자료로도 다른 결론이 나옵니다.'
       }
     },
     {
       id: 'region', goal: '목표 ② 자료의 범위(지역·기간·지표) 읽기',
       title: '우리 지역만 그럴까',
       city: '제주', ti: 15, metric: 'temp', thr: 25, lockCity: false, lockTerm: true, compare: ['제주', '강원'],
-      brief: '한 지역에서 더위가 길어졌다고 해서 전국이 똑같이 변했을까요? 남쪽 제주와 산간 강원(춘천)을 번갈아 보며 반증해 보세요.',
+      brief: '한 지역에서 더위가 길어졌다고 해서 전국이 똑같이 변했을까요? 남쪽 제주와 산간 강원(춘천)을 번갈아 보며, 정말 그런지 확인해 보세요.',
       predict: {
         q: '제주와 강원(춘천), 두 지역의 ‘더위가 그치는 날’은?',
         options: [{ v: 'same', t: '날짜도 변화도 거의 같을 것이다', s: '' }, { v: 'diff', t: '지역마다 다를 것이다', s: '' }, { v: 'unknown', t: '잘 모르겠다', s: '' }]
       },
-      task: '제주 칩과 강원 칩을 번갈아 눌러, 처서 뒤 ‘더위가 그치는 날’이 지역마다 어떻게 다른지 비교하세요.',
+      task: '위쪽 지역에서 <b>제주</b>와 <b>강원</b>을 번갈아 눌러, 처서 뒤 ‘더위가 그치는 날’이 지역마다 어떻게 다른지 비교하세요.',
       verdict: function (n) {
         var A = n.regionOf('제주'), B = n.regionOf('강원');
         if (A.drift == null || B.drift == null) {
@@ -158,31 +193,35 @@
           return {
             c: '이 기준에서는 두 지역을 나란히 비교할 수 없습니다.',
             e: '‘' + n.thr + '°C 이상’ 기준에서 ' + who + eunNeun(who) + ' 두 시기 중 한쪽에 기준을 넘은 날이 없습니다.',
-            r: '한쪽에 값이 없으면 시차를 계산할 수 없습니다. 기준을 <b>26°C 이하</b>로 낮추면 두 지역을 함께 볼 수 있습니다.',
+            r: '한쪽에 값이 없으면 며칠 늦어졌는지 계산할 수 없습니다. 기준을 <b>26°C 이하</b>로 낮추면 두 지역을 함께 볼 수 있습니다.',
             l: '비교가 성립하는 기준을 고르는 일 자체가 자료를 다루는 능력입니다.'
           };
         }
         var gap = Math.abs(A.drift - B.drift);
         var same = gap < 5;
         return {
-          c: same ? '시차의 크기는 비슷하지만, 여름이 끝나는 날짜 자체는 지역마다 다릅니다.'
+          c: same ? '늦어진 날수는 비슷하지만, 여름이 끝나는 날짜 자체는 지역마다 다릅니다.'
                   : '같은 절기·같은 기준인데도 변화의 크기가 지역마다 다릅니다.',
           /* R4-P1-8: '기준을 밝혀라'를 가르치는 미션인데 정작 이 근거 절에만 기준이 없었다.
              판정 화면에는 슬라이더가 없어 화면 어디에도 기준이 남지 않는다. */
           e: '‘' + n.thr + '°C 이상’ 기준으로, 제주는 ' + A.pStr + ' → <b class="hot">' + A.cStr + '</b>(' + A.driftStr + '), 강원(춘천)은 ' + B.pStr + ' → <b class="hot">' + B.cStr + '</b>(' + B.driftStr + ')입니다.',
           r: same
-            ? '시차는 제주 <b>' + A.driftStr + '</b>, 강원 <b>' + B.driftStr + '</b>로 비슷하지만, 더위가 그치는 <b>날짜</b>는 제주 ' + A.cStr + ', 강원 ' + B.cStr + '로 약 <b>' + Math.abs(A.c - B.c) + '일</b> 차이입니다.'
+            ? '늦어진 날수는 제주 <b>' + A.driftStr + '</b>, 강원 <b>' + B.driftStr + '</b>로 비슷하지만, 더위가 그치는 <b>날짜</b>는 제주 ' + A.cStr + ', 강원 ' + B.cStr + '로 약 <b>' + Math.abs(A.c - B.c) + '일</b> 차이입니다.'
             /* 5차 COPY-AI-02: driftStr은 '+14일' 형태라 '일와'는 비문이다('일'은 받침이 있어 '과').
                두 분기 모두 지점 이름을 붙여 조사 자체를 없앤다. */
-            : '시차의 크기가 제주 <b>' + A.driftStr + '</b>, 강원 <b>' + B.driftStr + '</b>로 <b>' + gap + '일</b> 다릅니다.',
+            : '늦어진 날수가 제주 <b>' + A.driftStr + '</b>, 강원 <b>' + B.driftStr + '</b>로 <b>' + gap + '일</b> 다릅니다.',
           l: '그러므로 한 지역(예: 서울)의 결과만으로 “전국의 계절이 똑같이 변했다”고 넓혀 말할 수 없습니다. 또한 ‘제주’는 제주 관측소, ‘강원’은 춘천 관측소 <b>한 지점</b>의 기록이므로 도 전체를 대표하지도 않습니다.'
              + regionGapNote(n.thr)
         };
       },
       selfCheck: {
-        q: '서울 한 지역의 자료만으로 “전국의 계절이 똑같이 변했다”고 말할 수 있을까?',
-        options: [{ v: 'no', t: '말할 수 없다' }, { v: 'yes', t: '말할 수 있다' }, { v: 'part', t: '평균만 내면 말할 수 있다' }], correct: 'no',
-        explain: '한 지역의 신호는 그 지역의 범위 안에서만 유효합니다. 전국을 말하려면 여러 지역을 함께 비교해야 하고, 지점 하나가 도 전체를 대표하지도 않습니다.'
+        /* R6: '말할 수 있다/없다' 2지선다에 가까운데 브리프와 한계 발문이 이미 정답 방향을
+           지시했고, 게다가 이 미션에 나오지 않는 '서울'을 물었다. 학생이 방금 만든 두 수치로
+           판단하게 바꾸고, 오답 둘은 실제 오개념('평균 내면 대표된다'·'기간 늘리면 일반화된다')으로 둔다. */
+        q: '제주와 강원, 두 지점의 값을 확인했습니다. 이걸로 “전국의 여름이 며칠 길어졌다”고 말하려면 무엇이 더 필요할까?',
+        options: [{ v: 'more', t: '전국을 대표할 수 있는 여러 지점의 값' }, { v: 'avg', t: '제주와 강원 두 값의 평균' }, { v: 'long', t: '두 지점을 더 긴 기간으로 다시 센 값' }], correct: 'more',
+        retryHint: '두 지점의 값이 서로 <b>얼마나 달랐는지</b> 다시 보세요. 그 둘을 평균하면 무엇의 평균이 될까요?',
+        explain: '두 값을 평균해도 그것은 <b>두 지점의 평균</b>일 뿐 전국이 아닙니다. 기간을 늘리면 그 두 지점의 신뢰도는 올라가지만 <b>범위</b>는 그대로예요 — 범위를 넓히려면 <b>지점</b>을 늘려야 합니다. ‘지도’ 보기의 16지점이 그 확인 도구입니다.'
       }
     }
   ];
@@ -194,7 +233,7 @@
     title: '비는 줄었을까 늘었을까',
     city: '서울', ti: 12, metric: 'precip', thr: 1, lockCity: false, lockTerm: true,
     brief: '“요즘 비가 줄었다”와 “요즘 물난리가 잦다”는 둘 다 자주 듣는 말입니다. 하나의 강수 자료로 두 말이 동시에 맞을 수 있는지, 기준을 바꿔 가며 확인하세요.',
-    task: '아래 프리셋을 <b>1mm → 10mm → 30mm → 50mm</b> 순서로 눌러, 변화의 <b>방향이 어디서 뒤집히는지</b> 찾아보세요.',
+    task: '아래 <b>‘자주 쓰는 기준’</b>에서 <b>1mm → 10mm → 30mm → 50mm</b>를 차례로 눌러, 변화의 <b>방향이 어디서 뒤집히는지</b> 찾아보세요.',
     predict: {
       q: '‘비 온 날(1mm 이상)’과 ‘하루 50mm 넘는 큰비’는 같은 방향으로 변했을까?',
       options: [{ v: 'same', t: '둘 다 같은 방향으로 변했다', s: '비는 다 같은 비니까' },
@@ -219,9 +258,13 @@
       };
     },
     selfCheck: {
+      /* R6: 오답 '둘 중 하나는 틀렸다'와 '함께 성립할 수 없다'가 같은 명제여서 실질 2지선다였다
+         (추측 정답률 33%가 아니라 50%). 하나를 '총량이 늘면 빈도와 강도가 함께 는다'는
+         전형적 오개념으로 바꾼다 — 이 화면의 실측이 그것을 정면으로 반증한다. */
       q: '“요즘 비가 줄었다”는 뉴스와 “물난리가 잦아졌다”는 뉴스가 함께 나올 때, 가장 정확한 판단은?',
-      options: [{ v: 'both', t: '둘 중 하나는 틀렸다' }, { v: 'ok', t: '기준이 다르면 둘 다 맞을 수 있다' }, { v: 'no', t: '비는 하나이므로 함께 성립할 수 없다' }],
+      options: [{ v: 'ok', t: '세는 기준이 다르면 둘 다 맞을 수 있다' }, { v: 'wrong', t: '둘 중 하나는 잘못된 보도다' }, { v: 'total', t: '비의 총량이 늘었다면 두 말이 다 맞는다' }],
       correct: 'ok',
+      retryHint: '<b>1mm</b>와 <b>50mm</b>를 다시 눌러 두 숫자를 보고 오세요. 둘이 <b>같은 방향</b>으로 움직였나요?',
       explain: '강수는 ‘며칠 왔는가’와 ‘한 번에 얼마나 왔는가’가 서로 다른 지표입니다. 실제 관측에서도 비 온 날은 줄고 큰비의 날은 늘었습니다 — 그래서 강수 이야기는 반드시 <b>어떤 기준으로 셌는지</b>를 함께 말해야 합니다.'
     }
   });
@@ -324,12 +367,16 @@
       if (state.lagSeason === 'winter') {
         return {
           q: '“동지가 지났는데 1월이 더 춥다”를 가장 잘 설명하는 것은?',
+          /* R6: 이 파일의 POST_QUESTION 주석이 '보기 길이도 맞춰 「가장 긴 보기가 정답」이라는
+             단서를 없앤다'고 원칙을 선언해 놓고, 정작 이 문항은 정답 63자 vs 오답 15·20자였다.
+             세 보기를 25~30자 범위로 맞춘다. */
           options: [
-            { v: 'both', t: '땅과 바다가 식는 데 시간이 걸려서(계절 지연)이고, 늦는 정도는 지점마다 달라 이 자료만으로 원인을 단정할 수 없다' },
-            { v: 'onlyclimate', t: '기후변화로 겨울이 이상해져서다' },
-            { v: 'onlysun', t: '동지 뒤에도 해가 계속 낮아지기 때문이다' }
+            { v: 'both', t: '식는 데 시간이 걸려서이고, 며칠 늦는지는 지점마다 다르다' },
+            { v: 'onlyclimate', t: '기후변화로 겨울 추위의 시기가 통째로 밀린 것이다' },
+            { v: 'onlysun', t: '동지가 지나도 해가 계속 낮아져서 더 추워지는 것이다' }
           ],
           correct: 'both',
+          retryHint: '동지 뒤에 해는 다시 <b>높아집니다</b>. 그런데도 더 추웠다면, 들어오는 열과 나가는 열 중 어느 쪽이 아직 많다는 뜻일까요?',
           /* R4-P0-4: 예전 해설은 "해안일수록 늦다"를 정답으로 채점했다. 그 주장은
              인천·포항에서 성립하지 않고 표본을 바꾸면 사라진다 — 앱이 스스로
              경계하는 과잉 단정을 '정답'으로 가르치고 있었다. */
@@ -341,11 +388,12 @@
       return {
         q: '“처서(8/23)가 지났는데도 덥다”의 이유로 <b>가장 정확한 설명</b>은?',
         options: [
-          { v: 'both', t: '원래 늦게까지 더운 데다(계절 지연), 최근 더위가 더 길어졌다' },
-          { v: 'onlyclimate', t: '전부 기후변화 때문이다' },
-          { v: 'onlylag', t: '전부 계절 지연 때문이고 기후변화와 무관하다' }
+          { v: 'both', t: '늘 있던 계절 지연에 최근 늘어난 더위가 겹친 것이다' },
+          { v: 'onlyclimate', t: '예전에는 없던 일이며 전부 기후변화로 생긴 것이다' },
+          { v: 'onlylag', t: '예전과 똑같은 계절 지연이며 달라진 것은 없다' }
         ],
         correct: 'both',
+        retryHint: '실험실에서 <b>온실효과만 끝까지 올렸을 때</b> 가장 더운 날이 움직였는지 떠올려 보세요. 지연과 더위 증가는 같은 원인일까요?',
         explain: '두 가지가 함께 작용합니다. <b>계절 지연</b>은 예전에도 있던 물리 현상이라 “원래 처서 무렵은 덥다”가 맞고, 동시에 <b>관측된 더위일 증가</b>는 최근의 변화입니다. 한쪽만 말하면 절반만 맞는 설명이 됩니다.'
       };
     }
@@ -398,7 +446,7 @@
     var sj = sensitivityAt('제주', thr), sg = sensitivityAt('강원', thr);
     if (sj && sg && sj.long != null && sg.long != null && sj.current != null && sg.current != null) {
       var maxed = (sj.current >= sj.max - 0.01) && (sg.current >= sg.max - 0.01);
-      out += ' 또한 두 값은 5년 창 ' + sj.n + '개 중 ' + (maxed ? '<b>가장 큰 값</b>' : '한 창의 값')
+      out += ' 또한 두 값은 5년 구간 ' + sj.n + '개 중 ' + (maxed ? '<b>가장 큰 값</b>' : '한 구간의 값')
         + '이고, ' + sj.longYears + '년(' + sj.longSpan.join('–') + ')으로 넓히면 제주 <b>' + fmt1(sj.long)
         + '일</b> · 강원 <b>' + fmt1(sg.long) + '일</b>'
         + ((sj.long - sg.long) * (here[0] - here[1]) < 0 ? '로 <b class="hot">순서가 뒤집힙니다</b>' : '입니다')
@@ -502,10 +550,10 @@
     var y = yearsOf(city);
     return '과거 ' + y.past.length + '년(' + PERIOD_PAST + ') vs 현재 ' + y.present.length + '년(' + PERIOD_NOW + ')';
   }
-  /* R4-P1-8: 예전에는 기준이 정확히 25℃일 때만 민감도 고지가 나왔다.
+  /* R4-P1-8: 예전에는 기준이 정확히 25°C일 때만 민감도 고지가 나왔다.
      그런데 미션 1·2가 시키는 행동이 바로 "기준선을 여러 높이로 옮겨"다 —
      학습자가 그 지시를 따르는 순간 유일한 강건성 고지가 사라졌다.
-     windows 데이터에 20~34℃ 전 임계값의 창별 값이 이미 들어 있으므로
+     windows 데이터에 20~34°C 전 임계값의 창별 값이 이미 들어 있으므로
      현재 기준에서 직접 계산한다. 이제 어떤 기준에서도 고지가 따라온다. */
   function sensitivityAt(city, thr) {
     var c = cityOf(city), W = c.windows;
@@ -540,7 +588,7 @@
   function sensitivityText(city) {
     var s = sensitivityAt(city, state.thr);
     if (!s) return '';
-    return ' 참고로 같은 기준(' + s.thr + '°C)에서 비교하는 5년 창 ' + s.n + '개를 옮겨 보면 시차는 <b>'
+    return ' 참고로 같은 기준(' + s.thr + '°C)에서 비교하는 5년 구간 ' + s.n + '개를 옮겨 보면 늦어진 날수는 <b>'
       + fmt1(s.min) + '~' + fmt1(s.max) + '일</b> 사이에서 움직이고'
       + (s.long != null ? ', ' + s.longYears + '년(' + s.longSpan.join('–') + ')으로 보면 <b>' + fmt1(s.long) + '일</b>입니다.' : '입니다.');
   }
@@ -569,7 +617,9 @@
                  selfChecks: {}, freeDraft: '', zoom: false, view: 'chart',
                  missionStep: null, cerlStepById: {}, evidenceById: {}, introStep: 'landing', termIntroStep: 0,
                  completeStep: 0, freeTab: 0, labTab: 0,
-                 markDoy: null, lagRevealed: false, lagSeason: 'summer', winI: null, lab: null, labFrom: null, labSeen: false };
+                 markDoy: null, lagRevealed: false, lagSeason: 'summer', winI: null, lab: null, labFrom: null,
+                 labOpened: false, labSeen: false, selfCheckTries: {}, auditSeen: false,
+                 transferCheck: {}, transferTries: {} };
     try {
       /* v4는 ‘자료를 보기 전 예측’과 학생 CERL 필수 제출을 상태 스키마에 포함한다.
          이전 버전의 완료 기록을 그대로 살리면 빈 CERL로 완료 화면에 들어갈 수 있으므로
@@ -596,6 +646,15 @@
         if (o.labFrom && (typeof o.labFrom !== 'object'
             || ['intro', 'mission', 'complete', 'free'].indexOf(o.labFrom.phase) === -1)) o.labFrom = null;
         o.labSeen = !!o.labSeen;
+        /* R6: 새로 늘어난 상태 키를 타입까지 검증한다. 손상된 저장값이 그대로 흘러들면
+           진행 표시나 기록이 조용히 사라진다(예전 state.done가 그랬다). */
+        o.labOpened = !!o.labOpened || !!o.labSeen;
+        o.auditSeen = !!o.auditSeen;
+        if (!o.selfCheckTries || typeof o.selfCheckTries !== 'object' || Array.isArray(o.selfCheckTries)) o.selfCheckTries = {};
+        if (!o.transferCheck || typeof o.transferCheck !== 'object' || Array.isArray(o.transferCheck)) o.transferCheck = {};
+        if (!o.transferTries || typeof o.transferTries !== 'object' || Array.isArray(o.transferTries)) o.transferTries = {};
+        if (!Array.isArray(o.done)) o.done = [];
+        else o.done = o.done.filter(function (id) { return MISSIONS.some(function (mm) { return mm.id === id; }); });
         if (o.introStep !== 'method') o.introStep = 'landing';
         o.termIntroStep = Math.min(4, Math.max(0, Number(o.termIntroStep) || 0));
         o.completeStep = Math.min(3, Math.max(0, Number(o.completeStep) || 0));
@@ -636,7 +695,7 @@
     var touched = false;
     /* 미션 딥링크는 미션의 기본값(지표·기준·지역·절기)을 먼저 세운다.
        예전에는 phase와 mi만 바꿔 renderExplore를 불러서, 예컨대 #v=m3(강수 미션)이
-       직전 화면의 기온·25℃를 그대로 들고 열렸다 — 프리셋이 22/25/28로 뜨고
+       직전 화면의 기온·25°C를 그대로 들고 열렸다 — 프리셋이 22/25/28로 뜨고
        판정 게이트가 영원히 닫혀 있었다. 명시된 c·m·t·s는 그 뒤에 덮어쓴다. */
     if (/^m[0-9]+$/.test(q.v || '')) {
       var i = Number(q.v.slice(1));
@@ -668,7 +727,7 @@
   }
 
   /* y축은 기본적으로 연간 곡선 전체를 보여준다(계절 곡선의 형태가 학습 내용이므로 자르지 않는다).
-     '기준 구간 확대'를 켜면 기준선 주변으로 축을 좁혀 드래그 해상도를 크게 올린다 (UX-1). */
+     '기준선 주변 확대'를 켜면 기준선 주변으로 축을 좁혀 드래그 해상도를 크게 올린다 (UX-1). */
   function fullBounds(city, metric) {
     var all = series('past', city, metric).concat(series('present', city, metric));
     var lo = Math.min.apply(null, all), hi = Math.max.apply(null, all), pad = (hi - lo) * 0.08 || 1;
@@ -894,7 +953,7 @@
     return state.city + ' ' + mc.label + ' 연간 곡선. 과거 ' + PERIOD_PAST + '(회색 점선)과 현재 ' + PERIOD_NOW + '(빨간 실선), '
       + tm.name + ' ' + tm.date + ' 고정 세로선, ' + mc.verb + ' 기준 ' + state.thr + mc.unit + ' 가로선. '
       + '기준 이상 ' + dayLabel() + ' 연평균 과거 ' + fmtDays(n.pd) + ', 현재 ' + fmtDays(n.cd) + '.'
-      + (mc.showLast && n.drift != null ? ' ' + mc.last + ' 과거 ' + n.plStr + ', 현재 ' + n.clStr + ', 시차 ' + n.drift + '일.' : '');
+      + (mc.showLast && n.drift != null ? ' ' + mc.last + ' 과거 ' + n.plStr + ', 현재 ' + n.clStr + ', ' + n.drift + '일 늦어졌습니다.' : '');
   }
 
   /* 조작과 결과를 같은 화면에 둔다 (UX-2 / F-8) */
@@ -956,7 +1015,7 @@
   function renderReadouts() {
     var el = $('readouts'); if (!el) return;
     if (state.phase === 'mission' && !missionAsked(MISSIONS[state.mi])) {
-      el.innerHTML = '<div class="readout is-locked"><div class="ro-k">' + (isLagMode() ? '절기 → 실제 극값일의 시차' : '기준 이상 일수 · 마지막으로 기준을 넘은 날') + '</div>'
+      el.innerHTML = '<div class="readout is-locked"><div class="ro-k">' + (isLagMode() ? '절기 → 실제로 가장 더운(추운) 날까지의 날수' : '기준 넘은 날 수 · 마지막으로 기준을 넘은 날') + '</div>'
         + '<div class="ro-v">🔒 예측 봉인 후 공개</div>'
         + '<div class="ro-s">자료를 보고 답을 고르는 것이 아니라, 내 예측을 검증하는 순서입니다.</div></div>';
       return;
@@ -993,8 +1052,8 @@
     if (mc.showLast) {
       var note;
       if (n.pl > 0 && n.cl > 0) note = (n.drift >= 0 ? '+' : '') + n.drift + '일 늦게 그침';
-      else if (n.pl < 0 && n.cl > 0) note = '과거에는 이 기준을 넘은 날이 없어 시차를 계산할 수 없어요 — 기준선을 조금 낮추면 두 시기를 비교할 수 있어요.';
-      else if (n.pl > 0 && n.cl < 0) note = '현재에는 이 기준을 넘은 날이 없어 시차를 계산할 수 없어요 — 기준선을 조금 낮춰 보세요.';
+      else if (n.pl < 0 && n.cl > 0) note = '과거에는 이 기준을 넘은 날이 없어 며칠 늦어졌는지 계산할 수 없어요 — 기준선을 조금 낮추면 두 시기를 비교할 수 있어요.';
+      else if (n.pl > 0 && n.cl < 0) note = '현재에는 이 기준을 넘은 날이 없어 며칠 늦어졌는지 계산할 수 없어요 — 기준선을 조금 낮춰 보세요.';
       else note = '이 기준을 넘은 날이 과거·현재 모두 없어요 — 기준선을 낮추면 비교를 시작할 수 있어요.';
       cards += '<div class="readout"><div class="ro-k">' + mc.last + ' <small>(그해 마지막으로 기준을 넘은 날)</small></div>'
         + '<div class="ro-v"><span class="v-past">' + n.plStr + '</span> <i>→</i> <span class="v-now">' + n.clStr + '</span></div>'
@@ -1009,11 +1068,11 @@
     if (state.metric === 'temp' && state.thr <= 23) {
       el.hidden = false;
       var exn = extremesOf();
-      el.innerHTML = '<span aria-hidden="true">☀</span> 하루 <b>평균</b> ' + state.thr + '℃는 더위를 넓게 잡은 기준이에요. 기상청의 <b>열대야</b>는 밤 최저기온 25℃↑, <b>폭염</b>은 낮 최고기온 33℃↑로 정의합니다. '
+      el.innerHTML = '<span aria-hidden="true">☀</span> 하루 <b>평균</b> ' + state.thr + '°C는 더위를 넓게 잡은 기준이에요. 기상청의 <b>열대야</b>는 밤 최저기온 25°C↑, <b>폭염</b>은 낮 최고기온 33°C↑로 정의합니다. '
         + (exn
-            ? '이 기준으로 센 ' + state.city + '의 실측은 <b>기상청 기준표</b> 서랍에 있어요(폭염일 ' + fmtDays(exn.idx.heatwave.past) + ' → <b class="hot">' + fmtDays(exn.idx.heatwave.present) + '</b>, 열대야 ' + fmtDays(exn.idx.tropicalNight.past) + ' → <b class="hot">' + fmtDays(exn.idx.tropicalNight.present) + '</b>). 다만 <b>이 그래프의 곡선과 기준선은 일 평균기온</b>이라 서로 다른 값입니다. '
+            ? '이 기준으로 센 ' + state.city + '의 실측은 아래 <b>‘기상청은 어떤 기준을 쓸까?’</b>를 펼치면 볼 수 있어요(폭염일 ' + fmtDays(exn.idx.heatwave.past) + ' → <b class="hot">' + fmtDays(exn.idx.heatwave.present) + '</b>, 열대야 ' + fmtDays(exn.idx.tropicalNight.past) + ' → <b class="hot">' + fmtDays(exn.idx.tropicalNight.present) + '</b>). 다만 <b>이 그래프의 곡선과 기준선은 일 평균기온</b>이라 서로 다른 값입니다. '
             : '다만 이 지점은 최고·최저기온 수집분이 없어 그 두 지수를 셀 수 없어요. ')
-        + '평균 <b>25~28℃</b> 사이에서 비교하면 과거·현재 양쪽에 값이 나와요.';
+        + '평균 <b>25~28°C</b> 사이에서 비교하면 과거·현재 양쪽에 값이 나와요.';
     } else if (state.metric === 'precip' && state.thr > 18) {
       /* 축을 늘려 기준선은 보이지만, 곡선이 바닥에 눌린 이유를 말해 주지 않으면
          "그래프가 망가졌다"로 읽힌다. 눌림 자체가 이 미션의 논점이다. */
@@ -1084,12 +1143,12 @@
       + '<p><b>자료</b> 기상청 ASOS(전국 종관기상관측) 일자료. 16개 관측 지점의 하루 평균기온 · 하루 평균습도 · 일강수량.</p>'
       + '<p><b>지금 보는 지점</b> ' + state.city + ' = <b>' + c.station + ' 관측소</b>(지점번호 ' + c.sid + ')' + (c.type === 'do' ? ' — <b>‘' + state.city + '’' + eunNeun(state.city) + ' ' + c.station + ' 한 지점의 기록이고, 도 전체의 평균이 아닙니다.</b>' : '') + '</p>'
       + '<p class="method-stations"><b>전체 지점</b> ' + stations + '</p>'
-      + '<p><b>비교 기간과 표본 수</b> 과거 ' + y.past.length + '년(' + y.past.join(', ') + ') vs 현재 ' + y.present.length + '년(' + y.present.join(', ') + '). 관측일수가 350일 미만인 <b>불완결 연도는 제외</b>했습니다.</p>'
-      + '<p><b>계산 방법</b> ① 화면의 <b>곡선</b>은 완결 연도의 날짜별 평균에 15일 이동평균을 걸어 매끄럽게 다듬은 <b>보기용 평년 곡선</b>입니다(2월 29일 제외). ② <b>일수와 날짜</b>는 곡선에서 세지 않습니다 — <b>연도별 실제 관측값</b>으로 각각 센 뒤 평균한 값(연평균)입니다.</p>'
+      + '<p><b>비교 기간과 표본 수</b> 과거 ' + y.past.length + '년(' + y.past.join(', ') + ') vs 현재 ' + y.present.length + '년(' + y.present.join(', ') + '). 관측일수가 350일 미만인 <b>자료가 빠진 해는 제외</b>했습니다.</p>'
+      + '<p><b>계산 방법</b> ① 화면의 <b>곡선</b>은 자료가 온전한 해의 날짜별 평균에 15일 이동평균을 걸어 매끄럽게 다듬은 <b>보기용 평년 곡선</b>입니다(2월 29일 제외). ② <b>일수와 날짜</b>는 곡선에서 세지 않습니다 — <b>연도별 실제 관측값</b>으로 각각 센 뒤 평균한 값(연평균)입니다.</p>'
       + '<p class="method-warn"><b>이 방법의 한계 (반드시 함께 읽어 주세요)</b></p>'
       + '<ol>'
-      /* R4-P1-10: 예전에는 이 문장이 지표·기준과 무관하게 늘 '25℃ 기준 +13.2일'을 찍었다.
-         미션1의 판정 게이트가 기준 변경을 강제하므로, 28℃에서 서랍을 여는 학습자는
+      /* R4-P1-10: 예전에는 이 문장이 지표·기준과 무관하게 늘 '25°C 기준 +13.2일'을 찍었다.
+         미션1의 판정 게이트가 기준 변경을 강제하므로, 28°C에서 서랍을 여는 학습자는
          거의 항상 거짓 문장을 봤다. 강수 미션에는 시차 지표 자체가 없는데도 나왔다.
          또 '지금 화면의 값'은 판독 카드(+13일)와 반올림 시점이 달라 +13.2일로 어긋났다 —
          같은 통계를 한 화면에서 두 번 다르게 쓰지 않도록 stat().drift로 통일한다. */
@@ -1098,9 +1157,9 @@
           if (isSealed()) return ' <b>(구체적인 수치는 예측을 봉인한 뒤 열립니다.)</b>';
           if (state.metric !== 'temp') return ' (아래 창 민감도 분석은 <b>기온</b>에서만 계산했습니다 — 지금 보는 ' + mc.label + '에는 해당하지 않습니다.)';
           var s = sensitivityAt(state.city, state.thr);
-          if (!s) return ' (지금 기준에서는 두 시기 중 한쪽에 기준을 넘은 날이 없어 시차 민감도를 계산할 수 없습니다.)';
+          if (!s) return ' (지금 기준에서는 두 시기 중 한쪽에 기준을 넘은 날이 없어 늦어진 날수의 흔들림을 계산할 수 없습니다.)';
           var n = stat();
-          return ' 같은 ' + s.thr + '°C 기준으로 5년 창 ' + s.n + '개를 옮겨 보면 시차가 <b>' + fmt1(s.min) + '~' + fmt1(s.max) + '일</b> 사이에서 움직이고'
+          return ' 같은 ' + s.thr + '°C 기준으로 5년 구간 ' + s.n + '개를 옮겨 보면 늦어진 날수가 <b>' + fmt1(s.min) + '~' + fmt1(s.max) + '일</b> 사이에서 움직이고'
             + (s.long != null ? ', ' + s.longYears + '년(' + s.longSpan.join('–') + ')으로 보면 <b>' + fmt1(s.long) + '일</b>입니다.' : '입니다.')
             + (n.drift != null ? ' 지금 화면의 값은 <b>' + fmt1(n.drift) + '일</b>입니다.' : '');
         })() + '</li>'
@@ -1108,9 +1167,13 @@
          ASOS 원자료에는 있었고 통합 가공본에만 없었다. 사실대로 적는다. */
       + '<li>이 화면의 <b>곡선·기준선·일수</b>는 모두 <b>일 평균값</b>으로 계산합니다. 최고·최저기온은 통합 가공본(16지점 1969–2026)에 담지 않았기 때문입니다. '
       + '다만 <b>ASOS 원자료에는 최고·최저기온이 있어</b>, 8지점(' + CITIES.filter(function (c) { return extremesOf(c); }).join('·') + ')에 한해 '
-      + '<b>폭염일·열대야·결빙일</b>을 따로 세어 ‘기상청 기준표’ 서랍에 실었습니다. 그 표는 <b>비교 기간이 달라</b>(현재 2022–2025) 위 수치와 나란히 놓을 수 없습니다.</li>'
+      + '<b>폭염일·열대야·결빙일</b>은 ‘기상청은 어떤 기준을 쓸까?’ 항목에 따로 실었습니다. 그 표는 <b>비교 기간이 달라</b>(현재 2022–2025) 위 수치와 나란히 놓을 수 없습니다.</li>'
       + '<li>절기 날짜는 태양의 위치(황경)로 정해집니다. 화면에는 1969~2026년 <b>최빈 날짜</b>를 대표값으로 적었고, 해에 따라 하루 정도 다를 수 있습니다.</li>'
       + '<li>한 지점의 기록은 그 지점 주변의 신호입니다. 관측소 주변 <b>도시화</b>의 영향과 기후변화의 영향을 이 화면만으로 분리할 수는 없습니다.</li>'
+      /* R6: 관측 불연속(관측소 이전·장비 교체)에 대한 언급이 앱·문서 전체에 0건이었다.
+         1969~2025년 사이 여러 지점에 이전·환경 변화가 있었고, 지금의 결론(방향)은 그것으로
+         뒤집히지 않지만 "생각해 보지 않았다"가 되면 안 되는 항목이다(주최가 기상청이다). */
+      + '<li>같은 이름의 관측소라도 그 사이 <b>자리를 옮기거나 장비가 바뀐</b> 곳이 있습니다. 이 화면은 그 불연속을 보정하지 않았습니다 — 여러 해에 걸친 <b>방향</b>을 읽는 데는 쓸 수 있지만, 몇 도·며칠을 소수점까지 단정하는 근거로는 삼지 마세요.</li>'
       + '</ol>'
       /* R4-P1-7: 표·지도·판독 카드는 봉인 중 잠기는데 이 서랍만 열려 있었다.
          월별 표는 미션2~5의 봉인 문항이 묻는 '방향과 격차'를 그대로 보여 준다. */
@@ -1133,7 +1196,7 @@
       rows += '<tr><th scope="row">' + (m + 1) + '월</th><td>' + (a / nd).toFixed(1) + '</td><td>' + (b / nd).toFixed(1) + '</td><td>' + pa + '</td><td>' + pb + '</td></tr>';
     }
     return '<div class="table-wrap"><table class="method-table"><caption>보기용 평년 곡선의 월평균과, 그 곡선이 기준을 넘는 날수</caption>'
-      + '<thead><tr><th scope="col">월</th><th scope="col">과거 평균(' + mc.unit + ')</th><th scope="col">현재 평균(' + mc.unit + ')</th><th scope="col">과거 기준초과(일)</th><th scope="col">현재 기준초과(일)</th></tr></thead><tbody>'
+      + '<thead><tr><th scope="col">월</th><th scope="col">과거 평균(' + mc.unit + ')</th><th scope="col">현재 평균(' + mc.unit + ')</th><th scope="col">과거 기준 넘은 날(일)</th><th scope="col">현재 기준 넘은 날(일)</th></tr></thead><tbody>'
       + rows + '</tbody></table><p class="table-note">이 표의 일수는 <b>곡선</b>에서 센 값이라 위 카드의 <b>연평균 실측 일수</b>와 다릅니다 — 곡선은 오르내림이 줄어들어 있기 때문입니다.</p></div>';
   }
   /* 차트의 근거 데이터를 그대로 표로 — 스크린리더·저시력 사용자와 '숫자로 보고 싶은' 학습자 모두를 위한 대안 (UX-8) */
@@ -1182,13 +1245,13 @@
     temp: {
       title: '기온 — 기상청 특보·현상 기준',
       rows: [
-        ['폭염일', '일 <b>최고</b>기온 33℃ 이상 <small>(폭염주의보 기준온도)</small>', 'ext:heatwave'],
-        ['35℃ 이상', '일 <b>최고</b>기온 35℃ 이상 <small>(폭염경보 기준온도)</small>', 'ext:hot35'],
-        ['열대야', '밤 <b>최저</b>기온 25℃ 이상', 'ext:tropicalNight'],
-        ['결빙일', '일 <b>최고</b>기온 0℃ 미만 <small>(하루 종일 영하)</small>', 'ext:iceDay'],
+        ['폭염일', '일 <b>최고</b>기온 33°C 이상 <small>(폭염주의보 기준온도)</small>', 'ext:heatwave'],
+        ['35°C 이상', '일 <b>최고</b>기온 35°C 이상 <small>(폭염경보 기준온도)</small>', 'ext:hot35'],
+        ['열대야', '밤 <b>최저</b>기온 25°C 이상', 'ext:tropicalNight'],
+        ['결빙일', '일 <b>최고</b>기온 0°C 미만 <small>(하루 종일 영하)</small>', 'ext:iceDay'],
         ['폭염주의보·경보', '위 기준온도가 <b>2일 이상 지속</b>될 때 발표', 'no'],
-        ['한파주의보', '아침 <b>최저</b>기온이 전날보다 10℃ 이상 내려 3℃ 이하', 'no'],
-        ['이 화면의 기준선', '일 <b>평균</b>기온 20~34℃ 중 내가 고른 값', 'yes']
+        ['한파주의보', '아침 <b>최저</b>기온이 전날보다 10°C 이상 내려 3°C 이하', 'no'],
+        ['이 화면의 기준선', '일 <b>평균</b>기온 20~34°C 중 내가 고른 값', 'yes']
       ],
       note: '위 <b>폭염일·열대야·결빙일</b>은 기상청 원자료의 일 최고·최저기온으로 <b>실제로 세었습니다</b>(아래 표). '
         + '다만 <b>특보 발표</b>는 “2일 이상 지속” 같은 조건이 붙어 이 화면에서 재현하지 않습니다 — 기준온도를 넘은 <b>날수</b>만 셉니다. '
@@ -1248,7 +1311,7 @@
       + '<thead><tr><th scope="col">지수</th><th scope="col">과거</th><th scope="col">현재</th><th scope="col">변화</th></tr></thead>'
       + '<tbody>' + rows + '</tbody></table>'
       + '<p class="table-note"><b>주의 — 위쪽 미션들과 비교 기간이 다릅니다.</b> 미션의 5년 비교(' + PERIOD_NOW + ')와 달리 '
-      + '이 표의 현재는 <b>' + ex.periods.present + ' ' + ex.years.present.length + '년</b>입니다. 최고·최저기온은 8지점 별도 수집분에만 있어서예요. '
+      + '이 표의 현재는 <b>' + ex.periods.present + ' ' + ex.years.present.length + '년</b>입니다. 최고·최저기온은 8지점 별도 수집분에만 있기 때문이에요. '
       + '기간이 다르면 숫자를 나란히 놓고 비교할 수 없습니다 — 그것도 자료를 다루는 규칙입니다.</p></div>';
   }
 
@@ -1298,11 +1361,11 @@
     var L = cityOf().seasonalLag;
     var obs = [
       '이 그래프에서 <b>무엇이 보이나요?</b> 과거(회색)와 현재(주황) 두 선 중 <b>어느 계절에서 가장 벌어지나요?</b>',
-      '‘' + mc.verb + ' ' + thr + mc.unit + '’ 기준선을 지금 위치에서 <b>위아래로 3칸씩</b> 옮겨 보세요. 기준 이상 일수가 <b>가장 크게 바뀌는 구간</b>은 어디인가요?',
+      '‘' + mc.verb + ' ' + thr + mc.unit + '’ 기준선을 지금 위치에서 <b>위아래로 3칸씩</b> 옮겨 보세요. 기준 넘은 날 수가 <b>가장 크게 바뀌는 구간</b>은 어디인가요?',
       t ? '<b>' + t.name + '(' + t.date + ')</b> 날짜에 세로선이 서 있습니다. 그 지점에서 두 선의 <b>높이 차이</b>는 얼마나 되나요?' : null
     ].filter(Boolean);
     var why = [
-      dir ? '이 지역에서 기준 이상 일수가 <b>' + dir + '습니다.</b> <b>왜</b> 그럴까요? 떠오르는 이유를 <b>두 가지</b> 적어 보세요.' : null,
+      dir ? '이 지역에서 기준 넘은 날 수가 <b>' + dir + '습니다.</b> <b>왜</b> 그럴까요? 떠오르는 이유를 <b>두 가지</b> 적어 보세요.' : null,
       L ? '가장 더운 날은 하지보다 <b>약 ' + L.present.hotLag + '일 뒤</b>입니다. 해가 가장 높은 날과 가장 더운 날이 <b>다른 이유</b>는 무엇일까요?' : null,
       '지역을 <b>바다에 가까운 곳</b>(제주·부산·강릉)과 <b>내륙</b>(충북·경북)으로 바꿔 보세요. 차이가 있다면 <b>무엇 때문</b>일까요?'
     ].filter(Boolean);
@@ -1319,7 +1382,7 @@
     ];
   }
   function inquiryHTML() {
-    return '<div class="inq-panel"><p class="inq-head"><span aria-hidden="true">🔍</span> 탐구 질문 <small>순서대로 답해 보면 판정문이 저절로 만들어집니다</small></p>'
+    return '<div class="inq-panel"><p class="inq-head"><span aria-hidden="true">🔍</span> 탐구 질문 <small>순서대로 답해 보면 결론이 저절로 만들어집니다</small></p>'
       + inquiryQs().map(function (g) {
         return '<details class="inq-g"><summary><b>' + g.k + '</b> <small>' + g.s + '</small></summary>'
           + '<ul class="inq-list">' + g.qs.map(function (q) { return '<li>' + q + '</li>'; }).join('') + '</ul></details>';
@@ -1384,11 +1447,11 @@
       if (i % step && i !== vals.length - 1) return;
       out += '<text class="wa-tick" x="' + xf(i).toFixed(1) + '" y="' + (HH - B + 18) + '" text-anchor="middle">' + w.y0 + '</text>';
     });
-    out += '<text class="wa-tick" x="' + (WW / 2) + '" y="' + (HH - 6) + '" text-anchor="middle">← 5년 창의 시작 연도 →</text>';
+    out += '<text class="wa-tick" x="' + (WW / 2) + '" y="' + (HH - 6) + '" text-anchor="middle">← 고른 5년의 첫 해 →</text>';
     [lo, hi].forEach(function (v) {
       out += '<text class="wa-tick" x="' + (L - 8) + '" y="' + (yf(v) + 4).toFixed(1) + '" text-anchor="end">' + Math.round(v) + '일</text>';
     });
-    return '<svg viewBox="0 0 ' + WW + ' ' + HH + '" class="win-chart" role="img" aria-label="5년 창을 한 해씩 옮겼을 때의 일수 변화. 점선은 과거 기준입니다."></svg>'.replace('></svg>', '>' + out + '</svg>');
+    return '<svg viewBox="0 0 ' + WW + ' ' + HH + '" class="win-chart" role="img" aria-label="5년 구간을 한 해씩 옮겼을 때의 일수 변화. 점선은 과거 기준입니다."></svg>'.replace('></svg>', '>' + out + '</svg>');
   }
 
   /* R4-P1-5: 예전에는 input 이벤트마다 패널 전체를 innerHTML로 다시 만들었다.
@@ -1405,9 +1468,9 @@
     return '<div class="win-panel">'
       + '<div class="picker-block"><span class="picker-label">비교 기간 <small>(‘현재’로 쓸 5년을 직접 골라 보세요)</small></span></div>'
       + '<div class="win-row">'
-      + '<button type="button" class="step-btn" id="winPrev" aria-label="이전 5년 창">−</button>'
+      + '<button type="button" class="step-btn" id="winPrev" aria-label="이전 5년 구간">−</button>'
       + '<input type="range" id="winRange" min="0" max="' + (W.list.length - 1) + '" step="1" value="' + winIndex() + '" aria-label="비교 기간 창 선택" />'
-      + '<button type="button" class="step-btn" id="winNext" aria-label="다음 5년 창">+</button>'
+      + '<button type="button" class="step-btn" id="winNext" aria-label="다음 5년 구간">+</button>'
       + '<output class="win-out" id="winOut"></output>'
       + '</div>'
       + '<p class="win-read" id="winRead"></p>'
@@ -1430,14 +1493,14 @@
     var same = vals.length - above - below;
     var vlo = Math.min.apply(null, vals), vhi = Math.max.apply(null, vals);
     /* R4-P2: 예전에는 엄격 부등호 하나로 above만 세어, 동률이 하나라도 있으면
-       "결론이 갈린다"로 잘못 판정했다(서울 26℃: 위 25 · 동률 1 · 아래 0).
+       "결론이 갈린다"로 잘못 판정했다(서울 26°C: 위 25 · 동률 1 · 아래 0).
        '과거보다 적은 창이 하나도 없다'가 실제로 말할 수 있는 사실이다. */
     var verdict = below === 0
-      ? '<b>' + vals.length + '개 창 가운데 과거보다 적은 창은 <span class="hot">하나도 없습니다</span></b>'
-        + (same ? '(같은 창 ' + same + '개)' : '') + ' — <b class="hot">어느 5년을 골라도 방향은 같습니다.</b>'
+      ? '<b>' + vals.length + '개 구간 가운데 과거보다 적은 구간은 <span class="hot">하나도 없습니다</span></b>'
+        + (same ? '(같은 구간 ' + same + '개)' : '') + ' — <b class="hot">어느 5년을 골라도 방향은 같습니다.</b>'
       : above === 0
-        ? '<b>' + vals.length + '개 창 가운데 과거보다 많은 창이 하나도 없습니다</b>' + (same ? '(같은 창 ' + same + '개)' : '') + ' — 어느 5년을 골라도 방향은 같습니다.'
-        : '많은 창 <b>' + above + '개</b> · 적은 창 <b>' + below + '개</b>' + (same ? ' · 같은 창 ' + same + '개' : '')
+        ? '<b>' + vals.length + '개 구간 가운데 과거보다 많은 구간이 하나도 없습니다</b>' + (same ? '(같은 구간 ' + same + '개)' : '') + ' — 어느 5년을 골라도 방향은 같습니다.'
+        : '많아진 구간 <b>' + above + '개</b> · 적어진 구간 <b>' + below + '개</b>' + (same ? ' · 같은 구간 ' + same + '개' : '')
           + ' / 모두 ' + vals.length + '개 — <b>고른 5년에 따라 결론이 갈립니다.</b> 이 기준에서는 단정하면 안 됩니다.';
 
     $('winRange').max = W.list.length - 1;
@@ -1447,10 +1510,10 @@
     $('winRead').innerHTML = PERIOD_PAST + ' <b>' + fmtDays(past) + '</b> <i>→</i> ' + w.y0 + '–' + w.y1
       + ' <b class="hot">' + fmtDays(now) + '</b> <span class="win-delta">' + (d > 0 ? '+' : '') + fmtDays(d) + '</span>';
     $('winChart').innerHTML = windowSVG();
-    $('winVerdict').innerHTML = verdict + '<br><small>창마다 값은 ' + fmtDays(vlo) + '~' + fmtDays(vhi) + ' 사이에서 흔들립니다. '
-      + '<b>숫자는 흔들리고 방향은 남는 것</b> — 이 차이를 구별하는 게 기후를 읽는 방법입니다. '
+    $('winVerdict').innerHTML = verdict + '<br><small>구간마다 값은 ' + fmtDays(vlo) + '~' + fmtDays(vhi) + ' 사이에서 흔들립니다. '
+      + '<b>숫자는 흔들려도 방향은 남습니다.</b> 이 둘을 구별하는 것이 기후를 읽는 방법입니다. '
       + '30년으로 넓히면(' + W.long.y0 + '–' + W.long.y1 + ') ' + fmtDays(W.long.days[String(thr)]) + '입니다.</small>';
-    $('winNote').innerHTML = '기온 ' + thr + mc.unit + ' 기준 · ' + state.city + '(' + cityOf().station + ' 관측소) · 5년 창을 한 해씩 옮겨 가며 ' + W.list.length + '개 창을 계산했습니다. '
+    $('winNote').innerHTML = '기온 ' + thr + mc.unit + ' 기준 · ' + state.city + '(' + cityOf().station + ' 관측소) · 5년 구간을 한 해씩 옮겨 가며 ' + W.list.length + '개 구간을 계산했습니다. '
       + '위쪽 연간 곡선 그래프는 창을 바꿔도 그대로입니다 — 그 곡선은 두 시기(과거·현재)만 미리 계산해 두었기 때문입니다.';
   }
 
@@ -1532,21 +1595,43 @@
       }).join('');
     }).join('');
 
-    /* 라벨이 겹치지 않도록 동해/서해 쪽으로 밀어낸다 */
-    var dots = rows.map(function (r, i) {
+    /* 라벨이 겹치지 않도록 동해/서해 쪽으로 밀어낸다.
+       R6: 두 가지가 더 필요했다.
+       ① 지점명 y-2 / 값 y+11 은 baseline 간격이 13유닛뿐이라 자기 값과 3px 겹쳤다
+          (13px·12px 폰트 기준, 16지점 전부). 간격을 21유닛으로 벌린다.
+       ② 그래도 수도권(서울·인천·경기)과 충청(대전·충북)처럼 붙어 있는 지점끼리는 겹친다.
+          같은 쪽에 붙는 라벨을 위→아래로 훑으며 최소 간격 42유닛을 확보하도록 밀어낸다. */
+    var LBL_H = 42;
+    var placed = rows.map(function (r) {
       var x = P.x(r.lon), y = P.y(r.lat);
       var rad = 7 + Math.sqrt(Math.abs(r.d) / (maxAbs || 1)) * 13;
-      var on = r.city === state.city;
+      var right = r.lon >= 127.6;
+      return { r: r, x: x, y: y, rad: rad, right: right, lx: x + (right ? rad + 6 : -(rad + 6)), ly: y };
+    });
+    [true, false].forEach(function (side) {
+      var col = placed.filter(function (p) { return p.right === side; }).sort(function (a, b) { return a.ly - b.ly; });
+      for (var i = 1; i < col.length; i++) {
+        var prev = col[i - 1], cur = col[i];
+        /* 가로로 멀리 떨어진 라벨끼리는 세로가 같아도 안 겹친다 */
+        if (Math.abs(cur.lx - prev.lx) > 96) continue;
+        if (cur.ly - prev.ly < LBL_H) cur.ly = prev.ly + LBL_H;
+      }
+    });
+    var dots = placed.map(function (p) {
+      var r = p.r, on = r.city === state.city;
       var sign = r.d > 0 ? '▲' : r.d < 0 ? '▼' : '·';
       var lab = sign + fmtDays(Math.abs(r.d));
-      var right = r.lon >= 127.6;
-      var lx = x + (right ? rad + 6 : -(rad + 6));
-      var desc = r.city + ' ' + r.station + '관측소, ' + fmtDays(r.past) + '에서 ' + fmtDays(r.now) + '로 '
+      var desc = r.city + ' ' + r.station + ' 관측소, ' + fmtDays(r.past) + '에서 ' + fmtDays(r.now) + '로 '
         + (r.d > 0 ? fmtDays(Math.abs(r.d)) + ' 늘었습니다' : r.d < 0 ? fmtDays(Math.abs(r.d)) + ' 줄었습니다' : '변화가 없습니다');
+      /* 라벨을 밀어냈으면 점과 라벨을 가는 선으로 잇는다 — 어느 점의 라벨인지 잃지 않게 */
+      var leader = Math.abs(p.ly - p.y) > 6
+        ? '<line x1="' + p.x.toFixed(1) + '" y1="' + p.y.toFixed(1) + '" x2="' + p.lx.toFixed(1) + '" y2="' + (p.ly + 2).toFixed(1)
+          + '" stroke="rgba(var(--line-rgb),.45)" stroke-width="1"/>' : '';
       return '<g class="mapdot' + (on ? ' is-on' : '') + '" data-city="' + r.city + '" tabindex="0" role="button" aria-label="' + desc + '">'
-        + '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="' + rad.toFixed(1) + '" fill="' + mapColor(r.d, maxAbs) + '" stroke="' + (on ? 'var(--sun)' : 'rgba(var(--shade-rgb),.75)') + '" stroke-width="' + (on ? 3 : 1.4) + '"/>'
-        + '<text class="mapdot-city" x="' + lx.toFixed(1) + '" y="' + (y - 2).toFixed(1) + '" text-anchor="' + (right ? 'start' : 'end') + '">' + r.city + '</text>'
-        + '<text class="mapdot-val" x="' + lx.toFixed(1) + '" y="' + (y + 11).toFixed(1) + '" text-anchor="' + (right ? 'start' : 'end') + '">' + lab + '</text>'
+        + leader
+        + '<circle cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="' + p.rad.toFixed(1) + '" fill="' + mapColor(r.d, maxAbs) + '" stroke="' + (on ? 'var(--sun)' : 'rgba(var(--shade-rgb),.75)') + '" stroke-width="' + (on ? 3 : 1.4) + '"/>'
+        + '<text class="mapdot-city" x="' + p.lx.toFixed(1) + '" y="' + (p.ly - 6).toFixed(1) + '" text-anchor="' + (p.right ? 'start' : 'end') + '">' + r.city + '</text>'
+        + '<text class="mapdot-val" x="' + p.lx.toFixed(1) + '" y="' + (p.ly + 15).toFixed(1) + '" text-anchor="' + (p.right ? 'start' : 'end') + '">' + lab + '</text>'
         + '</g>';
     }).join('');
 
@@ -1639,7 +1724,7 @@
       + (hasMap() && !opts.lagMode ? '<button type="button" class="seg-btn" id="viewMap" aria-pressed="false">지도 <small>16지점</small></button>' : '')
       + '<button type="button" class="seg-btn" id="viewTable" aria-pressed="false">표</button>'
       + '</div>'
-      + '<label class="zoom-toggle"><input type="checkbox" id="zoomChk" /> 기준 구간 확대 <small>(조금씩 조절할 때)</small></label>'
+      + '<label class="zoom-toggle"><input type="checkbox" id="zoomChk" /> 기준선 주변 확대 <small>(조금씩 조절할 때)</small></label>'
       + '</div>')
       + '<div id="mapMount" hidden></div>'
       + '<div id="tableMount" hidden></div>'
@@ -1650,7 +1735,11 @@
       + '<input id="thrRange" type="range" aria-label="' + mc.verb + ' 기준(' + mc.basis + ')" />'
       + '<button class="step-btn" id="thrUp" type="button" aria-label="기준을 1 높이기">+</button>'
       + '<output id="thrOut"></output></div>'
-      + '<div class="presets" id="presets" aria-label="자주 쓰는 기준"' + (opts.lagMode ? ' hidden' : '') + '></div>'
+      /* R6: 지역·절기·지표 블록에는 화면 라벨(picker-label)이 있는데 이 버튼 줄만 aria-label뿐이었다.
+         그래서 안내문이 '프리셋을 누르세요'라고 쓸 수밖에 없었고, 화면에는 그 글자가 없어
+         미션 4의 판정 게이트를 여는 방법을 학습자가 알 수 없었다. 라벨을 화면에 보이게 둔다. */
+      + '<div class="preset-block"' + (opts.lagMode ? ' hidden' : '') + '><span class="picker-label picker-label-inline">자주 쓰는 기준</span>'
+      + '<div class="presets" id="presets"></div></div>'
       + legend
       + '</div>'
       + (opts.includeReadouts === false ? '' : '<div class="readouts" id="readouts"></div>')
@@ -1673,9 +1762,10 @@
       /* R4-P2: 임계값에는 슬라이더·스테퍼·프리셋 3종이 있는데 날짜에는 스테퍼뿐이었다.
          특히 겨울은 동지(356)에서 정답(1~2일)까지 스테퍼로만 가야 해 사실상 못 간다. */
       + '<div class="range-row"><span>날짜 고르기<b class="basis">(그래프를 끌어도 됩니다)</b></span>'
-      + '<input id="markRange" type="range" min="1" max="365" step="1" aria-label="가장 극값일 것 같은 날짜" />'
+      + '<input id="markRange" type="range" min="1" max="365" step="1" aria-label="가장 더울(추울) 것 같은 날짜" />'
       + '</div>'
-      + '<div class="presets" id="markPresets" aria-label="빠른 이동"></div>'
+      + '<div class="preset-block"><span class="picker-label picker-label-inline">빠른 이동</span>'
+      + '<div class="presets" id="markPresets"></div></div>'
       + '</div>';
   }
   function bindLagControls() {
@@ -1895,9 +1985,46 @@
   function stopTimers() {
     if (demoTimer) { clearInterval(demoTimer); demoTimer = null; }
   }
+  /* R6: 브라우저 뒤로가기가 없었다 — location.hash를 읽기만 하고 쓰지 않아
+     59화면짜리 레슨 중에 뒤로가기를 누르면 앱 밖으로 나갔다. 심사위원이 화면을 되짚어
+     볼 때 가장 먼저 하는 동작이다.
+     applyHash()는 미션 딥링크에서 city·metric·thr·moved를 미션 기본값으로 되돌리므로
+     뒤로가기에 그것을 쓰면 학습자가 정한 기준이 사라진다. 그래서 히스토리 항목에
+     화면 식별자와 값 스냅샷을 함께 넣고, popstate에서는 그 스냅샷으로만 복원한다. */
+  var HISTORY_KEYS = ['phase', 'mi', 'missionStep', 'introStep', 'termIntroStep', 'completeStep',
+                      'freeTab', 'labTab', 'city', 'metric', 'thr', 'ti', 'view'];
+  function historySnapshot() {
+    var o = {}; HISTORY_KEYS.forEach(function (k) { o[k] = state[k]; }); return o;
+  }
+  function screenId() {
+    return [state.phase, state.mi, state.missionStep, state.introStep,
+            state.termIntroStep, state.completeStep, state.freeTab, state.labTab].join('|');
+  }
+  var lastScreenId = null, restoringHistory = false, suppressHashChange = false;
+  function syncHistory() {
+    if (restoringHistory || !window.history || !history.pushState) return;
+    var id = screenId(), url = stateHash(), snap = { w24: historySnapshot() };
+    try {
+      if (lastScreenId === null || lastScreenId === id) history.replaceState(snap, '', url);
+      else history.pushState(snap, '', url);
+    } catch (e) { /* 파일 프로토콜 등에서 pushState가 막히면 조용히 넘어간다 */ }
+    lastScreenId = id;
+  }
+  window.addEventListener('popstate', function (ev) {
+    var snap = ev.state && ev.state.w24;
+    if (!snap) return;                       /* 앱이 만든 항목이 아니면 브라우저에 맡긴다 */
+    suppressHashChange = true;
+    restoringHistory = true;
+    HISTORY_KEYS.forEach(function (k) { if (snap[k] !== undefined) state[k] = snap[k]; });
+    save();
+    lastScreenId = screenId();
+    try { routeFromState(); } finally { restoringHistory = false; }
+  });
+
   function setStage(html) {
     stopTimers(); framed = false;
     stage.innerHTML = html;
+    syncHistory();
     renderProgress();
     document.querySelectorAll('[data-close]').forEach(function (b) { b.addEventListener('click', function () { $(b.dataset.close).close(); }); });
     /* 화면이 바뀌면 제목으로 포커스를 옮겨 키보드·스크린리더 사용자가 새 화면에서 시작하게 한다 */
@@ -1910,12 +2037,17 @@
     state.phase = 'intro'; state.introStep = 'landing'; save();
     setStage('<section class="card intro-card">'
       + '<p class="intro-badge">기상청 ASOS(전국 종관기상관측) 실측 · 1969–2026 · 16지역 × 24절기</p>'
-      + '<h1 class="intro-h">24절기의 약속은<br>아직 유효할까?</h1>'
+      /* R6: 하드코딩 <br>은 textContent에서 어절 경계가 사라져 '…약속은아직…'으로 붙었다
+         (스크린리더 낭독·복사·소셜 스크레이퍼 모두 붙은 문자열을 가져간다).
+         CSS text-wrap:balance 가 두 줄 길이를 알아서 맞추므로 <br>이 필요 없다. */
+      + '<h1 class="intro-h">24절기, 지금도 맞을까?</h1>'
       + '<div class="intro-actions"><button class="primary-btn" id="introStart">시작하기 →</button>'
       + '<button class="ghost-btn" id="introTerms">🌍 24절기가 뭐예요?</button>'
       + '<button class="ghost-btn" id="introLab">🔬 열관성 실험실</button>'
-      + '<button class="ghost-btn" id="introGuide"><span aria-hidden="true">✦</span> 가이드로 먼저 해볼게요</button></div>'
-      + '<p class="intro-lead intro-lead-compact">절기의 약속을 <b>실제 관측 자료</b>로 직접 검증하고, 내 근거로 결론을 만드는 기후 학습 도구입니다.</p>'
+      + '<button class="ghost-btn" id="introGuide"><span aria-hidden="true">✦</span> 가이드로 먼저 해 보기</button></div>'
+      /* 53자였던 리드가 620px 상자(한 줄 41자)에서 '도구입니다.'만 남기고 끊겼다(마지막 줄 14%). */
+      + '<p class="intro-lead intro-lead-compact">기상청 <b>실측 자료</b>로 절기가 지금도 맞는지 직접 확인하는 학습 도구입니다.</p>'
+      + '<p class="intro-lead intro-lead-compact intro-lead-sub">움직이지 않는 <b>절기</b>와 움직이는 <b>기후</b>를 나란히 놓고, 기준은 내가 정합니다.</p>'
       + '<p class="intro-teacher"><a href="./교사_학습지.html" target="_blank" rel="noopener">📄 교사용 학습지 — 수업 흐름·활동지·오개념 표·평가 루브릭 →</a></p>'
       + '</section>');
     $('introStart').addEventListener('click', renderIntroMethod);
@@ -1929,11 +2061,15 @@
     setStage('<section class="card intro-card intro-method-card">'
       + '<p class="intro-badge">시작 전 20초 · 학습 방법</p>'
       + '<h1 class="stage-h">정답을 읽지 않고, 내 생각을 검증합니다.</h1>'
-      + '<div class="intro-preview intro-seal" role="img" aria-label="1단계 자료 없이 예측, 2단계 관측 자료 조작, 3단계 내 CERL 작성">'
+      /* R6: 「관측 자료 조작」 — 과학 교육과정에는 '조작변인'이 표준어지만, '자료 조작'이라는
+         명사구는 일반 한국어에서 造作(날조)로 읽히는 쪽이 훨씬 흔하다. 기상청 주최 대회의
+         첫 화면 큰 글자 + 스크린리더 라벨로 쓸 표현이 아니다. 교체 비용은 0이다. */
+      + '<div class="intro-preview intro-seal" role="img" aria-label="1단계 자료 없이 예측, 2단계 관측 자료를 직접 다루기, 3단계 내 결론 작성">'
       + '<div class="seal-step is-first"><small>1 · 먼저</small><b>내 생각 예측</b><span>그래프·표 없음</span></div>'
-      + '<i aria-hidden="true">→</i><div class="seal-step"><small>2 · 다음</small><b>관측 자료 조작</b><span>기준·지역·기간</span></div>'
-      + '<i aria-hidden="true">→</i><div class="seal-step"><small>3 · 마지막</small><b>내 CERL 작성</b><span>주장·근거·추론·한계</span></div></div>'
-      + '<p class="intro-lead">“처서가 지나면 더위가 그친다” 같은 <b>절기의 약속</b>을, 내 지역의 <b>실제 기상 관측</b>으로 직접 검증하는 기후 학습 도구예요. 기준선을 손으로 정해 과거와 현재를 비교하며 <b>절기·날씨·기후</b>를 구분하는 힘을 기릅니다.</p>'
+      + '<i aria-hidden="true">→</i><div class="seal-step"><small>2 · 다음</small><b>관측 자료 직접 다루기</b><span>기준·지역·기간 바꿔 보기</span></div>'
+      + '<i aria-hidden="true">→</i><div class="seal-step"><small>3 · 마지막</small><b>내 결론 작성</b><span>주장·근거·추론·한계</span></div></div>'
+      + '<p class="intro-lead">“처서가 지나면 더위가 그친다” — <b>절기가 말하는 시기</b>가 우리 지역에서도 맞는지 <b>실제 기상 관측</b>으로 확인합니다.</p>'
+      + '<p class="intro-lead">기준선을 손으로 정해 과거와 지금을 비교하며 <b>절기·날씨·기후</b>를 구분하는 힘을 기릅니다.</p>'
       /* 5차 F01(P0): ①이 '절기와 기후는 어떻게 다를까'였는데, 이 화면 바로 다음이
          '처서가 지났는데도 덥다'의 사전 문항이고 그 정답이 절기와 기후를 구분한 보기다.
          목표를 숨기지 않되 결론을 앞질러 말하지 않는 발문으로 바꾼다. */
@@ -1941,7 +2077,7 @@
       /* 5차 F08: '핵심 2~3분 / 5미션 15~20분'은 측정한 값이 아니라 설계 목표였는데 완료 시간처럼
          읽혔다. 미션 하나가 8~10화면이고 필수 서술이 2~4칸이라 화면당 15초를 요구하는 수치다.
          설계 시간의 합(69~76분)은 그대로 밝히고, 실제 소요 시간은 재지 않았다고 적는다. */
-      + '<p class="intro-foot">미션 하나는 <b>예측 → 조작 → 내 CERL</b> 세 단계예요 · ' + MISSIONS.length + '개 미션 + 심화·자유탐구까지 <b>설계 시간 69~76분</b>(두 차시) · 실제로 걸리는 시간은 <b>아직 측정하지 않았어요</b> — 학생 파일럿으로 재는 중입니다 · 설치·로그인 없이, 폰에서도 됩니다</p>'
+      + '<p class="intro-foot">미션 하나는 <b>예측 → 직접 해 보기 → 내 결론</b> 세 단계예요 · ' + MISSIONS.length + '개 미션 + 심화·자유탐구까지 <b>설계 시간 69~76분</b>(두 차시) · 실제로 걸리는 시간은 <b>아직 측정하지 않았어요</b> — 학생 파일럿으로 재는 중입니다 · 설치·로그인 없이, 폰에서도 됩니다</p>'
       + '<div class="step-actions"><button class="ghost-btn" id="introBack">← 처음 화면</button><button class="primary-btn" id="introMission">첫 예측 시작 →</button></div>'
       + '</section>');
     $('introBack').addEventListener('click', renderIntro);
@@ -1967,20 +2103,32 @@
     setStage('<section class="card orbit-card"><h1 class="stage-h">24절기는 무엇일까?</h1>'
       + '<div class="micro-progress" aria-label="24절기 입문 진행"><b id="termStepLabel"></b><span><i id="termStepBar"></i></span></div>'
       + '<section class="micro-panel" data-term-panel="0"><p class="sub">조상들은 태양의 위치를 기준으로 1년을 <b>24칸</b>으로 나눴어요. 궤도에서 절기를 하나 골라 보세요.</p>'
-      + '<div class="orbit-wrap"><svg id="orbitSvg" viewBox="0 0 640 460" role="img" aria-label="지구 공전 궤도 위의 24절기 위치와 자전축 기울기"></svg></div></section>'
+      /* R6: viewBox 상단이 0이라 궤도 위쪽 절기 라벨 세 개가 잘렸다 —
+         추분은 통째로(bbox y=-15.2, 높이 14), 백로·한로는 절반 넘게. overflow:hidden이라
+         화면에서 사라졌고, 24절기를 다 보여 주는 것이 목적인 화면에서 24개 중 3개가 없었다.
+         위아래로 24유닛씩 여유를 둔다. 캡션은 SVG 밖 HTML로 뺐다(아래 fig-caption) —
+         SVG 안에 두면 축척과 함께 줄어 모바일에서 6.4px가 되고 춘분 라벨과도 겹쳤다. */
+      + '<div class="orbit-wrap"><svg id="orbitSvg" viewBox="0 -24 640 478" role="img" aria-label="지구 공전 궤도 위의 24절기 위치와 자전축 기울기"></svg></div>'
+      + '<p class="fig-caption">비스듬히 내려다본 모식도입니다. 거리 차이가 3.4%뿐이라 궤도를 거의 원으로 그렸습니다(실제 비율 아님).</p></section>'
       + '<section class="micro-panel" data-term-panel="1"><p class="sub">방금 고른 절기의 날짜·이름·천문 기준을 읽어 보세요.</p>'
       + '<div id="termCard" class="term-card" aria-live="polite"></div></section>'
       + '<section class="micro-panel why-box" data-term-panel="2">'
       + '<h2 class="why-h">왜 조상들은 24절기를 만들었을까?</h2>'
-      + '<p class="why-p">옛날 달력은 <b>달의 모양</b>을 기준으로 삼았어요(음력). 그런데 달 12번이 도는 데는 <b>354일</b>, 지구가 태양을 한 바퀴 도는 데는 <b>365.24일</b>이 걸립니다.</p>'
+      + '<p class="why-p">옛날 달력은 <b>달의 모양</b>을 기준으로 삼았어요(음력).</p>'
+      + '<p class="why-p">그런데 달이 12번 도는 데는 <b>354일</b>, 지구가 태양을 한 바퀴 도는 데는 <b>365.24일</b>이 걸립니다.</p>'
       + '<div id="driftViz"></div>'
       + '<p class="why-p">해마다 <b>약 11일</b>씩 어긋나서, <b>3년이면 한 달</b>이 밀립니다. 달력만 보고 씨를 뿌리면 해마다 시기가 달라져 농사를 망치죠.</p>'
-      + '<p class="why-p">그래서 <b>태양의 위치</b>로 1년을 24칸으로 나눈 <b>24절기</b>를 함께 썼습니다. 절기는 <b>날씨 예보가 아니라 농사 일정표</b>였어요 — “곡우에 못자리”, “망종에 모내기”처럼요.</p></section>'
+      + '<p class="why-p">그래서 <b>태양의 위치</b>로 1년을 24칸 나눈 <b>24절기</b>를 함께 썼습니다.</p>'
+      + '<p class="why-p">절기는 <b>날씨 예보가 아니라 농사 일정표</b>였어요. “곡우에 못자리”, “망종에 모내기”처럼요.</p></section>'
       + '<section class="micro-panel why-box" data-term-panel="3"><h2 class="why-h">여름은 태양에 가까워서 더울까?</h2>'
-      + '<p class="why-p">실제로 지구는 <b>가장 추운 1월 초에 태양과 가장 가깝고(0.983 AU)</b>, 7월 초에 가장 멉니다(1.017 AU). 거리 차이는 약 <b>3.4%</b>입니다.</p>'
-      + '<p class="why-p">계절을 만드는 핵심은 거리가 아니라 <b>자전축이 23.4° 기울어져 있다는 사실</b>입니다. 축은 늘 같은 방향을 가리켜 북반구가 태양 쪽으로 기울 때 여름, 반대일 때 겨울이 됩니다.</p></section>'
+      + '<p class="why-p">지구가 태양에 가장 가까운 때는 <b>가장 추운 1월 초</b>(0.983 AU)입니다.</p>'
+      + '<p class="why-p">가장 먼 때는 오히려 7월 초(1.017 AU)이고, 거리 차이는 <b>3.4%</b>뿐입니다.</p>'
+      + '<p class="why-p">계절을 만드는 것은 거리가 아니라 <b>23.4° 기울어진 자전축</b>입니다.</p>'
+      + '<p class="why-p">축은 늘 같은 방향을 가리킵니다.</p>'
+      + '<p class="why-p">그래서 북반구가 태양 쪽으로 기울면 여름, 반대로 기울면 겨울입니다.</p></section>'
       + '<section class="micro-panel why-box" data-term-panel="4"><h2 class="why-h">그럼 절기와 기후는 무슨 관계일까?</h2>'
-      + '<p class="why-p">절기 날짜는 <b>태양의 위치</b>로 정해져 해마다 거의 그대로입니다. 하지만 그 무렵의 <b>실제 날씨</b>는 해마다, 지역마다 다르고 <b>수십 년에 걸쳐 변합니다.</b></p>'
+      + '<p class="why-p">절기 날짜는 <b>태양의 위치</b>로 정해져 해마다 거의 그대로입니다.</p>'
+      + '<p class="why-p">반면 그 무렵의 <b>실제 날씨</b>는 해마다, 지역마다 다릅니다. 그리고 <b>수십 년에 걸쳐 변합니다.</b></p>'
       + '<p class="why-p">이 앱은 <b>움직이지 않는 절기</b>와 <b>움직이는 기후</b>를 나란히 놓고 비교합니다.</p></section>'
       + '<div class="orbit-actions"><button class="ghost-btn" id="termPrev">← 이전</button>'
       + '<button class="primary-btn" id="termNext">다음 →</button><button class="primary-btn" id="orbitStart" hidden>이제 검증하러 가기 →</button>'
@@ -1989,7 +2137,7 @@
     drawOrbit();
     drawDrift();
     function syncTermStep() {
-      var labels = ['1/5 · 궤도에서 고르기', '2/5 · 절기 읽기', '3/5 · 절기가 필요했던 이유', '4/5 · 계절 오개념 확인', '5/5 · 기후와 연결'];
+      var labels = ['1/5 · 궤도에서 고르기', '2/5 · 절기 읽기', '3/5 · 왜 절기가 필요했나', '4/5 · 계절은 왜 생길까', '5/5 · 기후와 연결'];
       stage.querySelectorAll('[data-term-panel]').forEach(function (p) { p.hidden = Number(p.dataset.termPanel) !== state.termIntroStep; });
       $('termStepLabel').textContent = labels[state.termIntroStep];
       $('termStepBar').style.width = ((state.termIntroStep + 1) / labels.length * 100) + '%';
@@ -1997,6 +2145,9 @@
       $('termNext').hidden = state.termIntroStep === labels.length - 1;
       $('orbitStart').hidden = state.termIntroStep !== labels.length - 1;
       save();
+      /* R6: 이 패널 전환은 setStage를 거치지 않고 hidden만 토글하므로 히스토리에 남지 않았다.
+         그래서 3/5에서 뒤로가기를 누르면 2/5·1/5를 건너뛰고 소개 화면으로 나갔다. */
+      syncHistory();
     }
     $('termPrev').addEventListener('click', function () { state.termIntroStep = Math.max(0, state.termIntroStep - 1); syncTermStep(); });
     $('termNext').addEventListener('click', function () { state.termIntroStep = Math.min(4, state.termIntroStep + 1); syncTermStep(); });
@@ -2029,7 +2180,7 @@
     }
     /* 태양 */
     g += '<circle cx="' + CX + '" cy="' + CY + '" r="' + sunR + '" fill="url(#sunG)"/>'
-      + '<text x="' + CX + '" y="' + (CY + 5) + '" text-anchor="middle" font-size="13" font-weight="800" fill="var(--ink-on-accent)">태양</text>';
+      + '<text class="orb-sun" x="' + CX + '" y="' + (CY + 5) + '" text-anchor="middle" font-size="13" font-weight="800" fill="var(--ink-on-accent)">태양</text>';
     /* 절기 점 + 이름 */
     for (var i = 0; i < 24; i++) {
       var pt = pos(i), t = D.terms[i], on = i === orbitSel;
@@ -2053,12 +2204,38 @@
       + '<line x1="' + (e.x - ax).toFixed(1) + '" y1="' + (e.y + ay).toFixed(1) + '" x2="' + (e.x + ax).toFixed(1) + '" y2="' + (e.y - ay).toFixed(1)
       + '" stroke="var(--ink-max)" stroke-width="2.4"/>'
       + '<circle cx="' + (e.x + ax).toFixed(1) + '" cy="' + (e.y - ay).toFixed(1) + '" r="3.4" fill="var(--ink-max)"/>'
-      + '<text x="' + (e.x + ax + 8).toFixed(1) + '" y="' + (e.y - ay - 4).toFixed(1) + '" font-size="11.5" fill="var(--ink2)">북극</text>';
-    /* 근일점·원일점 — 거리 오개념 교정의 근거 */
+      + poleLabel(e);
+    /* 자전축 끝 바깥쪽에 두면 이웃 절기 이름과, 축 옆에 두면 선택된 절기 자신의 이름과 부딪힌다
+       (24개 전부 눌러 실측: 처서·백로·추분·한로에서 충돌, 추분에서는 viewBox 밖으로 잘림).
+       절기 이름은 반지름 1.13배 자리에만 있으므로, 라벨을 지구에서 타원 중심 쪽으로 36유닛
+       들여놓으면 어느 절기를 골라도 빈 곳에 놓인다. 축과 극점 표시가 바로 옆에 보이므로
+       무엇을 가리키는지도 그대로 읽힌다. */
+    function poleLabel(p) {
+      var dx = CX - p.x, dy = CY - p.y, len = Math.sqrt(dx * dx + dy * dy) || 1;
+      var ux = dx / len, uy = dy / len;
+      /* 근일점·원일점 라벨은 궤도 좌우 끝에 고정되어 있어, 그 근처 절기(대한·소서)를 고르면
+         안쪽 자리가 이미 차 있다. 안쪽 → 안쪽+접선 양방향 → 더 안쪽 순으로 빈 자리를 찾는다. */
+      var per2 = pos(0.13), aph2 = pos(12.13);
+      var boxes = [{ x: per2.x, y: per2.y + 30, w: 105 }, { x: aph2.x, y: aph2.y - 22, w: 95 }];
+      function free(x, y) {
+        for (var i = 0; i < boxes.length; i++) {
+          var b = boxes[i];
+          if (Math.abs(x - b.x) < b.w + 18 && Math.abs(y - b.y) < 18) return false;
+        }
+        return true;
+      }
+      var cand = [[ux * 36, uy * 36], [ux * 36 - uy * 32, uy * 36 + ux * 32], [ux * 36 + uy * 32, uy * 36 - ux * 32], [ux * 66, uy * 66]];
+      var o = cand[0];
+      for (var i = 0; i < cand.length; i++) { if (free(p.x + cand[i][0], p.y + cand[i][1] + 4)) { o = cand[i]; break; } }
+      return '<text class="orb-aux" x="' + (p.x + o[0]).toFixed(1) + '" y="' + (p.y + o[1] + 4).toFixed(1)
+        + '" text-anchor="middle" font-size="11.5" fill="var(--ink2)">북극</text>';
+    }
+    /* 근일점·원일점 — 거리 오개념 교정의 근거.
+       R6: 이 세 라벨(태양·북극·AU 두 개)만 모바일 확대 규칙(.orb-name)에서 빠져 있어
+       390px에서 화면상 6.4~7.5px로 줄었다. orb-aux 클래스를 달아 같이 키운다. */
     var per = pos(0.13), aph = pos(12.13);
-    g += '<text x="' + per.x.toFixed(1) + '" y="' + (per.y + 30).toFixed(1) + '" text-anchor="middle" font-size="11.5" fill="var(--sky)">1월 초 · 가장 가까움(0.983 AU)</text>'
-      + '<text x="' + aph.x.toFixed(1) + '" y="' + (aph.y - 22).toFixed(1) + '" text-anchor="middle" font-size="11.5" fill="var(--on-coral)">7월 초 · 가장 멂(1.017 AU)</text>'
-      + '<text x="' + CX + '" y="452" text-anchor="middle" font-size="11" fill="var(--muted2)">비스듬히 내려다본 모식도입니다 — 거리 차이가 3.4%뿐이라 궤도를 거의 원으로 그렸습니다(실제 비율 아님).</text>';
+    g += '<text class="orb-aux" x="' + per.x.toFixed(1) + '" y="' + (per.y + 30).toFixed(1) + '" text-anchor="middle" font-size="11.5" fill="var(--sky)">1월 초 · 가장 가까움(0.983 AU)</text>'
+      + '<text class="orb-aux" x="' + aph.x.toFixed(1) + '" y="' + (aph.y - 22).toFixed(1) + '" text-anchor="middle" font-size="11.5" fill="var(--on-coral)">7월 초 · 가장 멂(1.017 AU)</text>';
     svg.innerHTML = '<defs><radialGradient id="sunG"><stop offset="0%" stop-color="var(--on-sun)"/><stop offset="100%" stop-color="var(--sun)"/></radialGradient></defs>'
       + '<ellipse cx="' + CX + '" cy="' + CY + '" rx="' + RX + '" ry="' + RY + '" fill="none" stroke="rgba(var(--line-rgb),.18)" stroke-width="1.5"/>' + g;
     svg.querySelectorAll('[data-term]').forEach(function (el) {
@@ -2092,20 +2269,26 @@
   /* 음력과 태양년의 어긋남 — 24절기가 필요했던 이유를 막대로 */
   function drawDrift() {
     var el = $('driftViz'); if (!el) return;
-    var W = 640, H = 118, L = 92, R = 18, maxD = 400;
+    /* R6: 라벨 열 L=92인데 '태양년 (지구 한 바퀴)'의 실측 폭이 111.6유닛이었다.
+       <text> 다음에 <rect x=92>를 그리므로 막대가 라벨 위를 덮었고(opacity .8이라 비쳐 보임),
+       화면에는 '태양년 (지구 한 바'까지만 읽혔다. 라벨을 우측 정렬해 막대 시작점과 맞추고
+       (막대 차트의 표준 관례), '(지구 한 바퀴)'는 바로 위 본문이 이미 설명하므로 뺀다. */
+    var W = 640, H = 122, L = 108, R = 18, maxD = 400;
     function w(d) { return (W - L - R) * d / maxD; }
-    var rows = [['태양년 (지구 한 바퀴)', 365.24, 'var(--sun)'], ['음력 12달', 354.37, 'var(--sky)']];
+    var rows = [['태양년', 365.24, 'var(--sun)'], ['음력 12달', 354.37, 'var(--sky)']];
     var g = '';
     rows.forEach(function (r, k) {
       var y = 14 + k * 34;
-      g += '<text x="0" y="' + (y + 14) + '" font-size="11.5" fill="var(--muted2)">' + r[0] + '</text>'
+      g += '<text x="' + (L - 10) + '" y="' + (y + 14) + '" text-anchor="end" font-size="11.5" fill="var(--muted2)">' + r[0] + '</text>'
         + '<rect x="' + L + '" y="' + y + '" width="' + w(r[1]).toFixed(1) + '" height="20" rx="5" fill="' + r[2] + '" opacity="0.8"/>'
         + '<text x="' + (L + w(r[1]) + 7).toFixed(1) + '" y="' + (y + 15) + '" font-size="11.5" font-weight="700" fill="var(--ink2)">' + r[1] + '일</text>';
     });
     var gap = 365.24 - 354.37;
+    /* --on-coral 은 coral 面 위에 얹는 색인데, 이 글자는 coral 사각형(y 10~68) 밖인 y=107에 있었다.
+       카드 배경 위에서는 --coral 계열이 맞다. */
     g += '<rect x="' + (L + w(354.37)).toFixed(1) + '" y="10" width="' + w(gap).toFixed(1) + '" height="58" fill="var(--coral)" opacity="0.25"/>'
       + '<text x="' + (L + w(354.37) + w(gap) / 2).toFixed(1) + '" y="90" text-anchor="middle" font-size="11.5" font-weight="800" fill="var(--coral)">해마다 ' + gap.toFixed(1) + '일 어긋남</text>'
-      + '<text x="' + (L + w(354.37) + w(gap) / 2).toFixed(1) + '" y="107" text-anchor="middle" font-size="11" fill="var(--on-coral)">3년이면 약 한 달</text>';
+      + '<text x="' + (L + w(354.37) + w(gap) / 2).toFixed(1) + '" y="110" text-anchor="middle" font-size="11" fill="var(--muted2)">3년이면 약 한 달</text>';
     el.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="태양년 365.24일과 음력 12달 354.37일의 차이 약 11일" class="drift-svg">' + g + '</svg>';
   }
 
@@ -2114,10 +2297,10 @@
   var tutStep = 0;
   var TUT_STEPS = [
     { html: '이 그래프는 <b>대구</b>의 하루 기온이에요. <b class="tc-past">회색 점선</b> = 옛날(' + PERIOD_PAST + '), <b class="tc-now">빨강</b> = 지금(' + PERIOD_NOW + ').', btn: '다음' },
-    { html: '보라색 <b>‘덥다’ 기준선</b>의 <b>⇅ 손잡이</b>를 잡아 위아래로 <b>끌어 보세요.</b> (슬라이더·＋−·프리셋으로도 됩니다)', wait: true, highlight: 'chart' },
+    { html: '보라색 <b>‘덥다’ 기준선</b>의 <b>⇅ 손잡이</b>를 잡아 위아래로 <b>끌어 보세요.</b> (슬라이더, ＋− 단추, ‘자주 쓰는 기준’으로도 됩니다)', wait: true, highlight: 'chart' },
     { html: '기준이 바뀌는 순간 <b>차트 위의 숫자</b>가 과거 → 현재로 즉시 바뀌죠? 만지면 0초로 반응해요.', btn: '다음', highlight: 'live' },
     { html: '노란 세로선은 <b>소서(절기)</b>예요. 태양 위치로 정한 날짜라 <b>해마다 거의 움직이지 않아요</b> — 움직이는 건 기후(곡선)입니다.', btn: '다음' },
-    { html: '조작법은 이게 전부예요! 이제 진짜 임무 <b>‘처서’</b>로 가 볼까요?', btn: '진짜 임무 시작 →', done: true }
+    { html: '조작법은 이게 전부예요! 이제 <b>첫 미션 ‘처서’</b>로 가 볼까요?', btn: '첫 미션 시작 →', done: true }
   ];
   function renderTutorial() {
     state.phase = 'tutorial'; state.city = TUT.city; state.ti = TUT.ti; state.metric = TUT.metric; state.thr = TUT.thr;
@@ -2143,7 +2326,7 @@
   }
   function tutNext() { if (tutStep < TUT_STEPS.length - 1) { tutStep++; renderCoach(); } }
 
-  var HEADLINES = { chuseo: '처서의 약속은 아직 유효할까?', summer: '‘여름’은 며칠이 되었을까?', region: '이 변화, 우리 지역만 그럴까?', rain: '비는 줄었을까, 늘었을까?', lag: '가장 더운 날은 왜 하지가 아닐까?' };
+  var HEADLINES = { chuseo: '처서가 지나면 정말 더위가 그칠까?', summer: '‘여름’은 며칠이 되었을까?', region: '이 변화, 우리 지역만 그럴까?', rain: '비는 줄었을까, 늘었을까?', lag: '가장 더운 날은 왜 하지가 아닐까?' };
 
   /* R4-P1-3: 미션5는 계절 토글로 묻는 대상이 바뀐다. 예측 문항·판정문·판독 카드는
      이미 계절로 분기하는데 화면에서 가장 큰 글자(제목)와 지시문·배경설명만 여름
@@ -2218,6 +2401,14 @@
       var u = state.usedThr && state.usedThr[m.id];
       return !!(u && u['1'] && Object.keys(u).some(function (k) { return Number(k) >= 30; }));
     }
+    /* R6: 미션 2는 '기준을 25°C→28°C로 올리면 격차가 어떻게 되나'를 봉인해 놓고,
+       게이트는 state.moved(한 칸이라도 움직였는가)만 봤다. 24→25 한 칸으로 판정이 열려
+       28°C를 한 번도 보지 않고 미션을 끝낼 수 있었다 — 봉인한 예측을 검증할 방법이
+       필수 경로에 없었다는 뜻이다. 시작값 25°C는 화면에 이미 떠 있으므로, 28°C 쪽만 요구한다. */
+    if (m.id === 'summer') {
+      var us = state.usedThr && state.usedThr[m.id];
+      return !!(us && Object.keys(us).some(function (k) { return Number(k) >= 28; }));
+    }
     return true;
   }
   function canJudge(m) {
@@ -2229,14 +2420,83 @@
     if (m.id === 'region') {
       var v = (state.visited && state.visited[m.id]) || {};
       var need = ['제주', '강원'].filter(function (c) { return !v[c]; });
-      return need.length ? '<b>' + need.join('·') + '</b> 칩을 눌러 두 지역을 모두 비교해 보세요.' : '';
+      return need.length ? '위쪽 <b>지역</b>에서 <b>' + need.join('·') + '</b>을 눌러 두 지역을 모두 비교해 보세요.' : '';
     }
     if (m.id === 'rain') {
       var u = (state.usedThr && state.usedThr[m.id]) || {};
-      if (!u['1']) return '<b>1mm</b> 프리셋으로 ‘비 온 날’을 먼저 확인해 보세요.';
-      if (!Object.keys(u).some(function (k) { return Number(k) >= 30; })) return '<b>30mm 또는 50mm</b> 프리셋으로 큰비도 확인해 보세요 — 방향이 뒤집히는지가 이 미션의 질문입니다.';
+      if (!u['1']) return '먼저 <b>1mm</b>를 눌러 ‘비 온 날’을 확인해 보세요.';
+      if (!Object.keys(u).some(function (k) { return Number(k) >= 30; })) return '이번엔 <b>30mm</b>나 <b>50mm</b>를 눌러 큰비도 확인해 보세요 — 방향이 뒤집히는지가 이 미션의 질문입니다.';
+    }
+    if (m.id === 'summer') {
+      var us2 = (state.usedThr && state.usedThr[m.id]) || {};
+      if (!Object.keys(us2).some(function (k) { return Number(k) >= 28; }))
+        return '기준선을 <b>28°C 이상</b>으로도 올려 보세요 — 예측한 <b>격차</b>가 어떻게 되는지가 이 미션의 질문입니다.';
     }
     return '';
+  }
+  function pickText(list, v) {
+    for (var i = 0; i < (list || []).length; i++) if (list[i].v === v) return list[i].t;
+    return null;
+  }
+  /* R6: 예측을 '봉인'만 하고 대조하지 않으면 예측–관찰–설명(POE) 루프의 '관찰'이 빈다.
+     미션 2~4의 봉인 예측은 앱 어느 화면에서도 정오 대조되지 않았고(state.predicts를 읽는
+     렌더 지점이 orient 한 곳뿐이었다), 완료 화면도 예측 문장만 인쇄하고 맞았는지 말하지 않았다.
+     학습자가 자기 결론을 먼저 쓴 뒤 모범 예시를 보기 직전이 대조의 자리다.
+     각 미션의 '자료가 말한 답'은 그 미션의 판정문이 이미 쓰는 값으로만 계산한다 —
+     화면에 없는 숫자로 채점하지 않는다. */
+  function predictCheck(m) {
+    var a = missionAsk(m), picked = a.get();
+    if (picked == null || !a.options.length) return null;
+    var n = stat(), truth = null, why = '';
+    if (m.id === 'chuseo') {
+      if (n.drift == null || n.drift <= 0) return null;
+      truth = 'b';
+      why = '서울에서 ‘' + n.thr + '°C’ 기준으로 더위가 그치는 날이 과거 ' + n.plStr + ' → 지금 ' + n.clStr
+        + '으로 <b>' + n.drift + '일</b> 늦어졌습니다. 절기 날짜(8/23)는 그대로입니다.';
+    } else if (m.id === 'summer') {
+      var g25 = exceed('present', 25) - exceed('past', 25);
+      var g28 = exceed('present', 28) - exceed('past', 28);
+      truth = g28 > g25 ? 'wide' : 'narrow';
+      why = state.city + '에서 25°C 기준 격차는 <b>' + fmt1(g25) + '일</b>, 28°C 기준 격차는 <b>' + fmt1(g28)
+        + '일</b>입니다 — 기준을 올리면 두 시기 모두 0에 가까워져 격차가 ' + (g28 > g25 ? '커집니다' : '줄어듭니다') + '.';
+    } else if (m.id === 'region') {
+      var A = n.regionOf('제주'), B = n.regionOf('강원');
+      if (A.drift == null || B.drift == null) return null;
+      truth = Math.abs(A.drift - B.drift) >= 5 ? 'diff' : 'same';
+      why = '‘' + n.thr + '°C’ 기준으로 제주는 ' + A.driftStr + ', 강원(춘천)은 ' + B.driftStr
+        + ' — 두 지역의 차이가 <b>' + Math.abs(A.drift - B.drift) + '일</b>입니다.';
+    } else if (m.id === 'rain') {
+      var lo = rainAt(state.city, 1), hi = rainAt(state.city, 50);
+      truth = (lo.d < 0 && hi.d > 0) ? 'flip' : 'same';
+      why = state.city + '에서 비 온 날(1mm 이상)은 ' + lo.dStr + ', 하루 50mm 넘는 큰비는 ' + hi.dStr + '입니다.';
+    } else if (m.lagMode) {
+      var Li = lagInfo(); if (!Li || !state.lagRevealed) return null;
+      truth = Li.lag > 0 ? 'later' : 'same';
+      why = state.city + '에서 가장 ' + Li.word + ' 날은 ' + doyStr(Li.actDoy) + ' — ' + Li.solName
+        + '보다 <b>' + Li.lag + '일</b> 늦습니다.';
+    }
+    if (!truth) return null;
+    return {
+      picked: picked, pickedText: pickText(a.options, picked),
+      truth: truth, truthText: pickText(a.options, truth),
+      why: why, ok: picked === truth,
+      unsure: picked === 'unknown' || (m.id === 'chuseo' && picked === 'c')
+    };
+  }
+  function predictRevealHTML(m) {
+    var p = predictCheck(m); if (!p) return '';
+    var head = p.ok ? '예측과 자료가 같은 방향입니다'
+      : p.unsure ? '예측을 유보했었죠 — 자료는 이렇게 말합니다'
+      : '예측과 자료가 갈렸습니다';
+    return '<div class="predict-reveal' + (p.ok ? ' is-ok' : '') + '">'
+      + '<p class="eyebrow"><span aria-hidden="true">🔓</span> 봉인 해제 · ' + head + '</p>'
+      + '<dl><dt>내가 예측한 것</dt><dd>“' + escapeHTML(p.pickedText || '—') + '”</dd>'
+      + '<dt>자료가 말한 것</dt><dd><b>“' + escapeHTML(p.truthText || '—') + '”</b></dd></dl>'
+      + '<p class="pr-why">' + p.why + '</p>'
+      + '<p class="pr-note">' + (p.ok
+          ? '방향은 맞혔습니다. 이제 <b>얼마나</b>까지 숫자로 말할 수 있는지 아래에서 확인하세요.'
+          : '예측과 자료가 어긋난 지점이 오늘 배운 것입니다. 왜 갈렸는지 아래 모범 예시와 견줘 보세요.') + '</p>'
+      + '</div>';
   }
   function markVisited(kind, key) {
     if (state.phase !== 'mission') return;
@@ -2265,8 +2525,8 @@
   function flash(el) { if (!el) return; el.classList.remove('is-flash'); void el.offsetWidth; el.classList.add('is-flash'); }
 
   var STEP_LABELS = {
-    predict: '예측', lens: '개념 준비', orient: '탐구 방향', explore: '직접 조작', evidence: '증거 확보',
-    write: '내 CERL', check: '자가진단', expert: '전문가 비교', transfer: '다른 절기에 적용', audit: '감사·완료'
+    predict: '예측', lens: '개념 정리', orient: '탐구 방향', explore: '직접 해 보기', evidence: '증거 읽기',
+    write: '내 CERL', check: '이해 확인', expert: '모범 예시 비교', transfer: '다른 절기에 적용', audit: '점검·완료'
   };
   function missionSequence(m) {
     var seq = ['predict'];
@@ -2311,8 +2571,10 @@
     if (['check', 'expert', 'transfer', 'audit'].indexOf(step) !== -1 && (!state.cerlSubmitted[m.id] || cerlErrors(m).length)) step = 'write';
     if (['expert', 'transfer', 'audit'].indexOf(step) !== -1 && !state.selfChecks[m.id]) step = 'check';
     if (step === 'transfer' && !m.askPost) step = 'audit';
-    /* 5차 F14: 미션 5는 실험실을 한 번 열어 본 뒤에 감사·완료로 간다(목표 ⑤). */
-    if (step === 'audit' && m.lagMode && !state.labSeen) step = 'expert';
+    /* 5차 F14: 미션 5는 실험실을 한 번 열어 본 뒤에 점검·완료로 간다(목표 ⑤).
+       R6: 관문은 '열었는가'(labOpened)로 두어 진행이 막히지 않게 하고,
+       배지·기록은 '실제로 조작했는가'(labSeen)로 분리한다. */
+    if (step === 'audit' && m.lagMode && !state.labOpened) step = 'expert';
     if (step === 'audit' && m.askPost && state.post == null) step = 'transfer';
     state.missionStep = step; state.phase = 'mission'; save();
     if (step === 'orient') renderMissionOrient(m);
@@ -2331,12 +2593,12 @@
     setStage('<section class="card predict-card" aria-labelledby="predictTitle">'
       + missionStepHeader(m, 'predict')
       + '<p class="po-eyebrow">🔒 아직 이 미션의 관측 자료를 열지 않았습니다</p>'
-      + '<h1 class="stage-h" id="predictTitle">먼저 내 생각을 봉인하세요.</h1>'
-      + '<p class="predict-contract">다음 화면에서 그래프를 조작해 이 생각을 검증합니다. 지금은 정답을 맞히려 하지 말고, <b>현재 생각</b>을 고르세요.</p>'
+      + '<h1 class="stage-h" id="predictTitle">먼저 내 생각을 정해 두세요.</h1>'
+      + '<p class="predict-contract">다음 화면에서 직접 확인합니다. 지금은 맞히려 하지 말고, <b>지금 생각</b>을 그대로 고르세요.</p>'
       + '<p class="po-q">' + a.q + '</p><div class="po-choices">'
       /* 선택지의 보조 필드는 정답 성격이나 예상 메커니즘을 암시할 수 있어 의도적으로 렌더하지 않는다. */
       + a.options.map(function (o) { return '<button class="po-choice" data-v="' + o.v + '"><b>' + o.t + '</b></button>'; }).join('')
-      + '</div><p class="po-note">선택은 정답 채점이 아니라 생각의 출발점으로 기록됩니다. 검증이 끝난 뒤 처음 생각과 비교할 수 있어요.</p>'
+      + '</div><p class="po-note">채점하지 않아요. 지금 생각을 그대로 기록해 둡니다. 검증이 끝난 뒤 처음 생각과 비교할 수 있어요.</p>'
       + '</section>');
     var first = stage.querySelector('.po-choice'); if (first) try { first.focus(); } catch (e) {}
     stage.querySelectorAll('[data-v]').forEach(function (btn) {
@@ -2392,7 +2654,7 @@
       + '<p class="orient-brief">' + briefOf(m) + '</p>'
       + '<div class="orient-action"><span class="step-tag">직접 할 일</span><p>' + taskOf(m) + '</p></div>'
       + '<p class="orient-contract">다음 화면에서는 <b>한 가지 조작</b>에 집중합니다. 자세한 출처·계산·심화 자료는 증거를 확보한 뒤 확인할 수 있습니다.</p>'
-      + '<div class="step-actions"><button class="primary-btn" id="orientGo">직접 조작하기 →</button></div>'
+      + '<div class="step-actions"><button class="primary-btn" id="orientGo">직접 움직여 보기 →</button></div>'
       + '</section>');
     $('orientGo').addEventListener('click', function () { setMissionStep('explore'); });
   }
@@ -2412,7 +2674,7 @@
     return (s / a.length).toFixed(1);
   }
   var LENS = {
-    title: '30초 분류 — 같은 주제인데 층이 다릅니다',
+    title: '30초 분류 — 같은 주제인데 종류가 다릅니다',
     lead: '아래 세 문장을 <b>절기 · 날씨 · 기후</b> 중 하나로 나눠 보세요. 이 구분이 이 앱 전체의 뼈대예요.',
     kinds: [
       { k: 'term', t: '절기', s: '태양 위치로 정한 천문 날짜' },
@@ -2424,9 +2686,15 @@
       { id: 'b', t: '어제 서울 낮 기온이 31°C였다.', k: 'weather', why: '<b>하루</b>의 관측입니다. 하루 값으로는 경향을 말할 수 없어요.' },
       /* 5차 F01(P0): 이전 문장은 '서울에서 25°C를 넘는 날이 68일 vs 31일'이었다 —
          미션 1의 기본 지역·기본 기준의 결론 수치를 조작 전에 인쇄해, 사전 예측과
-         자가진단의 답을 함께 흘렸다. 어떤 미션도 결론으로 쓰지 않는 '한 해 평균기온'으로
+         이해 확인의 답을 함께 흘렸다. 어떤 미션도 결론으로 쓰지 않는 '한 해 평균기온'으로
          바꾸고, 값은 하드코딩하지 않고 데이터에서 계산해 재빌드 때 어긋나지 않게 한다. */
-      { id: 'c', t: '서울의 한 해 평균기온이 ' + PERIOD_PAST + '년 ' + yearMean('서울', 'temp', 'past') + '°C에서 ' + PERIOD_NOW + '년 ' + yearMean('서울', 'temp', 'present') + '°C로 높아졌다.', k: 'climate', why: '<b>여러 해</b>를 모아 평균한 값이라 경향을 말하는 문장이에요. 다만 5년은 관측 신호일 뿐, 30년 기후평년은 아니에요.' }
+      { id: 'c', t: '서울의 한 해 평균기온이 ' + PERIOD_PAST + '년 ' + yearMean('서울', 'temp', 'past') + '°C에서 ' + PERIOD_NOW + '년 ' + yearMean('서울', 'temp', 'present') + '°C로 높아졌다.', k: 'climate', why: '<b>여러 해</b>를 모아 평균한 값이라 경향을 말하는 문장이에요. 다만 5년은 관측 신호일 뿐, 30년 기후평년은 아니에요.' },
+      /* R6: 세 문장이 전부 키워드('어제'↔하루, '한 해 평균…에서…로'↔여러 해)로 갈려서,
+         정작 이 앱이 잡으려는 오개념 — 절기 이름이 들어간 문장을 절기에 관한 문장으로,
+         또는 절기를 기후에 맞춰 옮길 수 있는 것으로 보는 혼동 — 을 검사하는 문항이 없었다.
+         목표 ①을 실제로 재는 두 문항을 더한다. 사전·사후 문항의 오답과 같은 진단축이다. */
+      { id: 'd', t: '처서가 지났는데도 어제 낮 기온이 31°C였다.', k: 'weather', why: '‘처서’는 <b>날짜</b>를 가리키는 말일 뿐이고, 이 문장이 실제로 말하는 것은 <b>그날 하루의 기온</b>이에요. 절기 이름이 들어 있다고 절기에 관한 문장이 되는 것은 아닙니다.' },
+      { id: 'e', t: '처서 무렵 더위가 그치지 않으니 처서를 9월로 옮겨야 한다.', k: 'term', why: '이 문장은 <b>절기(천문 날짜)</b>를 기후에 맞춰 바꾸자는 주장이에요. 절기는 태양의 황경으로 정해지므로 기온으로 옮길 수 있는 날짜가 아닙니다 — 달라진 것은 그 무렵 <b>관측된</b> 기온입니다.' }
     ]
   };
   function lensDone() { return !!(state.lens && Object.keys(state.lens).length >= LENS.items.length); }
@@ -2561,7 +2829,7 @@
       + missionStepHeader(m, 'evidence')
       + '<p class="eyebrow">증거 조건 변경 감지</p>'
       + '<h1 class="stage-h">이전 글과 새 숫자를 조용히 섞지 않을게요.</h1>'
-      + '<p class="sub">CERL을 쓴 뒤 조작 조건이 바뀌었습니다. 어느 증거를 사용할지 먼저 정하세요. 작성한 글은 어느 쪽을 골라도 지우지 않습니다.</p>'
+      + '<p class="sub">내 결론을 쓴 뒤 조건이 바뀌었습니다. 어느 증거를 사용할지 먼저 정하세요. 작성한 글은 어느 쪽을 골라도 지우지 않습니다.</p>'
       + '<div class="evidence-change-grid"><div><b>이 글을 쓸 때의 조건</b><p>' + escapeHTML(evidenceConfigLabel(savedCfg)) + '</p></div>'
       + '<div><b>방금 바꾼 조건</b><p>' + escapeHTML(evidenceConfigLabel(currentCfg)) + '</p></div></div>'
       + '<div class="step-actions"><button class="ghost-btn" id="restoreEvidence">이전 조건 복원</button>'
@@ -2601,7 +2869,7 @@
       + '<div id="kmaRefMount"></div><div id="methodMount"></div>'
       + (m.id === 'chuseo' ? '<details class="brief-box"><summary>결론은 다른 5년에도 남을까? · 비교 기간 26창</summary><div id="winMount"></div></details>' : '')
       + '</div>'
-      + '<div class="step-actions"><button class="ghost-btn" id="evidenceBack">← 다시 조작하기</button>'
+      + '<div class="step-actions"><button class="ghost-btn" id="evidenceBack">← 다시 해 보기</button>'
       + '<button class="primary-btn" id="evidenceWrite">이 증거로 CERL 쓰기 →</button></div>'
       + '</section>');
     renderReadouts(); updateKmaRef(); updateMethod(); updateWindow();
@@ -2618,10 +2886,14 @@
       + '<p class="cerl cerl-l"><span class="t t-l">한계</span> ' + v.l + '</p>';
   }
   var CERL_FIELDS = [
-    { k: 'c', label: '주장', min: 5, prompt: '자료를 보고 내린 판단을 한 문장으로 쓰세요.', placeholder: '나는 이 절기의 약속이 …라고 판단한다.' },
-    { k: 'e', label: '근거', min: 12, prompt: '지역·기간·기준과 화면에서 읽은 숫자를 넣으세요.', placeholder: '서울, 과거 …년과 현재 …년, …°C 기준에서 …' },
+    /* R6: placeholder에 '절기의 약속'·'서울'·'°C'가 박혀 있어 (a) 학습자가 가장 처음 쓰는 문장부터
+       의인화 어휘를 복제하고 (b) 부산·제주를 고른 학습자에게도 '서울'이, 강수 미션에도 '°C'가 떴다.
+       prompt 문구에서도 정답 어휘를 뺐다 — '지역·기간·기준'과 '말할 수 없는'이 각각 미션 2·3의
+       이해 확인 문항 정답을 직전 화면에 그대로 인쇄하고 있었다. */
+    { k: 'c', label: '주장', min: 5, prompt: '자료를 보고 내린 판단을 한 문장으로 쓰세요.', placeholder: '나는 …라고 판단합니다.' },
+    { k: 'e', label: '근거', min: 12, prompt: '화면에서 읽은 숫자를 그대로 옮기고, 그 숫자가 어떤 조건에서 나온 값인지 함께 쓰세요.', placeholder: '내가 고른 지역에서 과거 …, 지금 … 이었습니다.' },
     { k: 'r', label: '추론', min: 8, prompt: '그 숫자가 왜 내 주장을 뒷받침하는지 연결하세요.', placeholder: '이 차이는 …을 뜻하므로 …' },
-    { k: 'l', label: '한계', min: 8, prompt: '이 자료만으로 말할 수 없는 범위를 쓰세요.', placeholder: '다만 이 자료만으로 전국이나 원인을 …' }
+    { k: 'l', label: '한계', min: 8, prompt: '이 결론이 어디까지 통하는지 적어 보세요.', placeholder: '다만 이 자료는 …' }
   ];
   function missionCerl(m) {
     if (!state.missionCerl || typeof state.missionCerl !== 'object') state.missionCerl = {};
@@ -2711,7 +2983,7 @@
       var lg = lagInfo();
       rows = [
         ['내가 찍은 날', state.markDoy ? doyStr(state.markDoy) : '—'],
-        ['실제 기록의 극값일', lg ? doyStr(lg.actDoy) + ' · ' + lg.solName + ' 뒤 ' + lg.lag + '일' : '—'],
+        ['실제로 가장 ' + (lg ? lg.word : '더운') + ' 날', lg ? doyStr(lg.actDoy) + ' · ' + lg.solName + ' 뒤 ' + lg.lag + '일' : '—'],
         ['과거 같은 비교', lg ? lg.solName + ' 뒤 ' + lg.pastLag + '일' : '—']
       ];
     } else {
@@ -2729,7 +3001,7 @@
     return studentEvidenceHTML(m, n) + '<div class="student-cerl" id="studentCerl">'
       + '<p class="eyebrow">내 CERL 먼저 쓰기 · 필수</p>'
       + '<h2 class="cerl-title">한 번에 한 요소씩, 내 근거로 설명하세요.</h2>'
-      + '<p class="cerl-intro">전문가 문장을 보기 전에 <b>주장 → 근거 → 추론 → 한계</b> 순서로 씁니다. '
+      + '<p class="cerl-intro">모범 예시를 보기 전에 <b>주장 → 근거 → 추론 → 한계</b> 순서로 씁니다. '
       + (m.id === 'chuseo'
           ? '이 미션은 <b>네 요소 모두</b> 필수예요.'
           : '이 미션은 <b>근거·한계</b>가 필수이고, 주장·추론은 쓰고 싶으면 쓰는 칸이에요.')
@@ -2751,7 +3023,7 @@
         }).join('')
       + '</div><p class="cerl-error" id="cerlError" role="alert"></p>'
       + '<div class="step-actions"><button class="ghost-btn" id="cerlPrev" type="button"' + (ci === 0 ? ' hidden' : '') + '>← 이전 요소</button>'
-      + '<button class="primary-btn" id="cerlNext" type="button">' + (ci === CERL_FIELDS.length - 1 ? '내 CERL 봉인하고 자가진단 →' : '다음 요소 →') + '</button></div>'
+      + '<button class="primary-btn" id="cerlNext" type="button">' + (ci === CERL_FIELDS.length - 1 ? '내 결론 저장하고 이해 확인 →' : '다음 요소 →') + '</button></div>'
       + '</div>';
   }
   function bindStudentCerl(m) {
@@ -2827,31 +3099,46 @@
 
   function onSelfCheck(btn, sc, m) {
     var right = btn.dataset.v === sc.correct;
-    state.selfChecks[m.id] = { picked: btn.dataset.v, correct: right }; save();
+    if (!state.selfCheckTries || typeof state.selfCheckTries !== 'object') state.selfCheckTries = {};
+    var tries = (state.selfCheckTries[m.id] || 0) + 1;
+    state.selfCheckTries[m.id] = tries;
+    /* 1차 오답은 정답을 공개하지 않고 자료로 되돌린다(개발계획서 §3 형성평가 원칙). */
+    if (!right && tries === 1) { save(); renderSelfCheckStep(m); return; }
+    state.selfChecks[m.id] = { picked: btn.dataset.v, correct: right, tries: tries }; save();
     renderSelfCheckStep(m);
   }
 
   function studentCerlReviewHTML(m) {
     var d = missionCerl(m);
-    return '<div class="student-review"><p class="eyebrow">내가 먼저 쓴 CERL</p><div class="cerl-compare-grid">'
+    return '<div class="student-review"><p class="eyebrow">내가 먼저 쓴 결론</p><div class="cerl-compare-grid">'
       + CERL_FIELDS.map(function (f) { return '<div><b class="t t-' + f.k + '">' + f.label + '</b><p>' + escapeHTML(d[f.k] || '') + '</p></div>'; }).join('')
       + '</div></div>';
   }
 
   function renderSelfCheckStep(m) {
     var sc = checkOf(m), ans = state.selfChecks[m.id];
+    /* R6: 개발계획서(고도화).md가 '피해야 할 실패'로 못박은 것이 "오답에 정답을 고지"하는 설계인데,
+       코드가 정확히 그것을 하고 있었다 — 클릭 즉시 모든 보기를 disabled로 잠그고 정답 하이라이트와
+       해설 전문을 함께 출력했다. 1차 오답에서는 정답을 공개하지 않고 자료로 되돌린다.
+       기록에는 몇 번째 시도에 맞혔는지 남겨 교사가 난이도를 읽을 수 있게 한다. */
+    var tries = (state.selfCheckTries && state.selfCheckTries[m.id]) || 0;
+    var retrying = !ans && tries > 0;
+    var hint = sc.retryHint || '방금 만진 그래프로 돌아가, 그 숫자가 어느 방향으로 움직였는지 다시 보고 오세요.';
     setStage('<section class="card verdict-card check-step-card">'
       + missionStepHeader(m, 'check')
-      + '<p class="eyebrow">내 CERL을 봉인했습니다</p><h1 class="stage-h">설명하기 전에, 이해를 한 번 꺼내 보세요.</h1>'
-      + '<p class="sc-q"><b>자가진단</b> — ' + sc.q + '</p><div class="choice-row" id="scChoices">'
+      + '<p class="eyebrow">내 결론을 저장했습니다</p><h1 class="stage-h">설명을 보기 전에, 스스로 한 번 답해 보세요.</h1>'
+      + '<p class="sc-q"><b>이해 확인</b> — ' + sc.q + '</p><div class="choice-row" id="scChoices">'
       + sc.options.map(function (o) {
           var cls = ans ? (o.v === sc.correct ? ' is-right' : (o.v === ans.picked ? ' is-wrong' : '')) : '';
           return '<button class="choice' + cls + '" data-v="' + o.v + '"' + (ans ? ' disabled' : '') + '><b>' + o.t + '</b></button>';
         }).join('') + '</div>'
+      + (retrying
+          ? '<p class="sc-retry"><b>아직이에요.</b> 정답을 알려 드리기 전에 한 번 더 볼까요? ' + hint + '</p>'
+          : '')
       + (ans ? '<p class="sc-explain">' + (ans.correct ? '<b class="ok">맞아요.</b> ' : '<b class="no">다시 볼까요.</b> ') + sc.explain + '</p>' : '')
-      + '<div class="step-actions"><button class="ghost-btn" id="checkBack">← CERL 수정</button>'
-      + (ans && !ans.correct ? '<button class="ghost-btn" id="checkRevisit">그래프에서 다시 확인</button>' : '')
-      + (ans ? '<button class="primary-btn" id="checkNext">전문가 예시와 비교 →</button>' : '') + '</div></section>');
+      + '<div class="step-actions"><button class="ghost-btn" id="checkBack">← 내 결론 수정</button>'
+      + ((retrying || (ans && !ans.correct)) ? '<button class="ghost-btn" id="checkRevisit">그래프에서 다시 확인</button>' : '')
+      + (ans ? '<button class="primary-btn" id="checkNext">모범 예시와 비교 →</button>' : '') + '</div></section>');
     $('scChoices').querySelectorAll('[data-v]').forEach(function (btn) { btn.addEventListener('click', function () { onSelfCheck(btn, sc, m); }); });
     /* 5차 F03: CERL 수정으로 돌아갈 때 cerlStepById를 되돌리지 않아, 마지막 칸(한계)만
        열린 채로 '수정' 화면이 열렸다 — 학생이 주장·근거를 고치려 해도 그 칸에 닿지 못한다.
@@ -2864,25 +3151,26 @@
   function renderExpertStep(m, v) {
     setStage('<section class="card verdict-card expert-step-card">'
       + missionStepHeader(m, 'expert')
-      + '<h1 class="stage-h">내 설명과 전문가 예시를 요소별로 비교하세요.</h1>'
+      + '<h1 class="stage-h">내 설명과 모범 예시를 요소별로 비교하세요.</h1>'
+      + predictRevealHTML(m)
       + studentCerlReviewHTML(m)
-      + '<details class="expert-example" open><summary>전문가 CERL 전체 보기</summary><div class="expert-cerl">'
+      + '<details class="expert-example" open><summary>모범 예시 전체 보기</summary><div class="expert-cerl">'
       + cerlHTML(v) + '</div></details>'
       + '<details class="expert-long"><summary>이 5년은 긴 흐름에서 어디일까?</summary>' + sparkBlock(state.city, state.metric) + '</details>'
       /* 5차 F14: 학습목표 ⑤(관측과 모형)만 필수 동선 밖에 있었다 — 유일한 시뮬레이션 자산인
          열관성 실험실이 여섯 곳의 '선택' 링크로만 열렸고, 완료 배지에도 ⑤가 없었다.
          계절 지연을 배운 직후가 '왜 그런가'를 모형으로 확인할 자리이므로,
          미션 5에서는 실험실을 한 번 열어 본 뒤에 감사·완료로 넘어가게 한다. */
-      + (m.lagMode && !state.labSeen
+      + (m.lagMode && !state.labOpened
           ? '<p class="optional-next"><b>다음은 왜 그런지 직접 계산해 봅니다.</b> 관측이 아니라 물리 법칙으로 계절을 만들어 보고, 열용량과 온실효과 중 무엇이 지연을 만드는지 확인해요.</p>'
           : '')
-      + '<div class="step-actions"><button class="ghost-btn" id="expertBack">← 자가진단</button>'
+      + '<div class="step-actions"><button class="ghost-btn" id="expertBack">← 이해 확인</button>'
       + '<button class="primary-btn" id="expertNext">'
-      + (m.lagMode && !state.labSeen ? '🔬 열관성 실험실로 확인하기 →' : (m.askPost ? '다른 절기에 적용 →' : '감사하고 완료하기 →'))
+      + (m.lagMode && !state.labOpened ? '🔬 열관성 실험실로 확인하기 →' : (m.askPost ? '다른 절기에 적용 →' : '내 결론 점검하고 마치기 →'))
       + '</button></div></section>');
     $('expertBack').addEventListener('click', function () { setMissionStep('check'); });
     $('expertNext').addEventListener('click', function () {
-      if (m.lagMode && !state.labSeen) { renderLab(); return; }
+      if (m.lagMode && !state.labOpened) { renderLab(); return; }
       setMissionStep(m.askPost ? 'transfer' : 'audit');
     });
   }
@@ -2908,7 +3196,7 @@
         }).join('') + '</div>'
       + (answered ? '<p class="post-growth">' + postGrowthHTML() + '</p>' : '')
       + '<div class="step-actions"><button class="ghost-btn" id="transferBack">← 전문가 비교</button>'
-      + (answered ? '<button class="primary-btn" id="transferNext">감사하고 완료하기 →</button>' : '') + '</div></section>');
+      + (answered ? '<button class="primary-btn" id="transferNext">내 결론 점검하고 마치기 →</button>' : '') + '</div></section>');
     $('postChoices').querySelectorAll('[data-v]').forEach(function (btn) {
       btn.addEventListener('click', function () { state.post = btn.dataset.v; save(); renderTransferStep(m); });
     });
@@ -2921,24 +3209,33 @@
     var next = state.mi + 1;
     setStage('<section class="card verdict-card audit-step-card">'
       + missionStepHeader(m, 'audit')
-      + '<h1 class="stage-h">미션을 완료했습니다.</h1>'
-      + '<p class="sub">핵심 학습은 끝났습니다. 내 CERL을 점검하거나 바로 다음 미션으로 갈 수 있습니다.</p>'
-      + '<div class="judge-box"><p class="eyebrow">✦ 증거 감사관 · 선택 심화</p>'
-      + '<label class="draft-label" for="freeDraft">내가 먼저 쓴 CERL <small>감사 기능은 이 글을 고쳐 쓰지 않고 과장 · 범위 · 인과만 점검합니다.</small></label>'
+      /* R6: 예전 문구는 "핵심 학습은 끝났습니다"와 "선택 심화"로 이 화면을 건너뛰어도 되는 것으로
+         규정했다. 그 결과 앱이 가진 유일한 오개념 검출기(localAudit)가 필수 경로에서 한 번도
+         돌지 않았고 — 학습목표 ④('근거만큼만 결론 쓰기')를 확인하는 장치가 사실상 없었다.
+         빠른 점검은 오프라인·무료·즉시이므로 화면 진입 시 자동 1회 실행한다.
+         외부 AI 요청만 동의 뒤 선택으로 남긴다. */
+      + '<h1 class="stage-h">마지막으로 내 결론을 점검합니다.</h1>'
+      + '<p class="sub">범위 · 과장 · 인과 세 가지만 봅니다. 글을 고쳐 쓰지는 않아요.</p>'
+      + '<div class="judge-box"><p class="eyebrow">✦ 내 결론 점검</p>'
+      + '<label class="draft-label" for="freeDraft">내가 쓴 결론 <small>이 점검은 글을 고쳐 쓰지 않고 과장 · 범위 · 인과만 봅니다.</small></label>'
       + '<textarea id="freeDraft" maxlength="900" readonly aria-readonly="true"></textarea>'
-      + '<div class="ai-row"><button class="ghost-btn small-btn" id="localAudit" type="button">기기 안에서 빠른 점검</button>'
-      + '<button class="ghost-btn small-btn" id="editCerl" type="button">내 CERL 수정하기</button></div>'
-      + '<div class="ai-consent"><label><input type="checkbox" id="aiConsent"> <span><b>선택 동의:</b> AI 감사를 요청하면 위 CERL과 화면의 관측 근거가 OpenAI API로 전송됩니다. 이름·학교·연락처는 입력하지 마세요.</span></label>'
-      + '<button class="ai-btn" id="askAudit" disabled><span aria-hidden="true">✦</span> 외부 AI 감사 요청</button></div>'
-      + '<p class="audit-status" id="auditStatus">기본 점검은 외부 전송 없이 이 기기에서 작동합니다. 외부 AI 감사는 동의한 경우에만 요청됩니다.</p>'
+      + '<div class="ai-row"><button class="ghost-btn small-btn" id="localAudit" type="button">다시 점검</button>'
+      + '<button class="ghost-btn small-btn" id="editCerl" type="button">내 결론 고치기</button></div>'
+      + '<div class="ai-consent"><label><input type="checkbox" id="aiConsent"> <span><b>선택 동의:</b> AI 점검을 요청하면 위 결론과 화면의 관측 근거가 OpenAI API로 전송됩니다. 이름·학교·연락처는 입력하지 마세요.</span></label>'
+      + '<button class="ai-btn" id="askAudit" disabled><span aria-hidden="true">✦</span> 외부 AI 점검 요청</button></div>'
+      + '<p class="audit-status" id="auditStatus">아래는 <b>외부 전송 없이 이 기기에서</b> 본 결과입니다. 같은 항목을 AI에게도 물어볼 수 있어요(동의 필요).</p>'
       + '<div class="audit-result" id="auditResult" hidden></div></div>'
       + (m.lagMode ? '<div class="optional-next"><p class="eyebrow">선택 확장</p><button class="ghost-btn" id="auditWinter">겨울·동지에도 적용해 보기</button> <button class="ghost-btn" id="auditLab">🔬 열관성 실험실</button></div>' : '')
-      + '<div class="step-actions"><button class="ghost-btn" id="retry">기준 다시 조작하기 <small>(판정문은 유지)</small></button>'
+      + '<div class="step-actions"><button class="ghost-btn" id="retry">기준 다시 맞춰 보기 <small>(내 결론은 유지)</small></button>'
       + (next < MISSIONS.length ? '<button class="primary-btn" id="nextMission">다음 미션 →</button>' : '<button class="primary-btn" id="toFree">검증 마치고 결과 받기 →</button>')
       + '</div></section>');
     renderProgress();
     var ta = $('freeDraft'); ta.value = state.missionDraft[m.id] || cerlText(m);
-    $('localAudit').addEventListener('click', function () { renderAudit(localAudit(ta.value), true); $('auditStatus').textContent = '기기 안 규칙 점검 완료 — 글과 자료는 외부로 전송되지 않았습니다.'; });
+    /* 진입 즉시 1회 자동 실행 — 학습자의 문장에 남은 과장·범위 확대·인과 단정이
+       필수 경로에서 반드시 한 번 검사된다(목표 ④). 외부 전송은 없다. */
+    renderAudit(localAudit(ta.value), true);
+    state.auditSeen = true; save();
+    $('localAudit').addEventListener('click', function () { renderAudit(localAudit(ta.value), true); $('auditStatus').textContent = '다시 점검했어요 — 글과 자료는 외부로 전송되지 않았습니다.'; });
     $('editCerl').addEventListener('click', function () { state.cerlSubmitted[m.id] = false; state.cerlStepById[m.id] = 0; setMissionStep('write'); });
     var consent = $('aiConsent'), ask = $('askAudit');
     consent.addEventListener('change', function () { ask.disabled = !consent.checked; });
@@ -2953,7 +3250,49 @@
     });
   }
 
-  /* ---------- 완료 · 고향 기후 카드 ---------- */
+  /* R6: 전이 확인 3문항 — 앱에 나오지 않은 새 상황으로 목표 ②③④를 묻는다.
+     이해 확인과 같은 규칙을 쓴다: 1차 오답에는 정답을 공개하지 않고 한 번 더 기회를 준다. */
+  function transferQuizHTML() {
+    var done = TRANSFER_Q.filter(function (q) { return state.transferCheck[q.id] != null; }).length;
+    return '<section class="transfer-quiz"><p class="eyebrow">전이 확인 3문항 <small>· 약 90초 · 오늘 배운 것을 새 상황에 적용해 봅니다</small></p>'
+      + '<p class="tq-lead">' + (done === TRANSFER_Q.length
+          ? '세 문항을 모두 풀었습니다. 결과는 아래 <b>내 기록</b>에 함께 남습니다.'
+          : '앱에 나오지 않은 상황입니다. 자료가 어디까지 말할 수 있는지 떠올려 보세요.') + '</p>'
+      + TRANSFER_Q.map(function (q, i) {
+          var picked = state.transferCheck[q.id];
+          var tries = (state.transferTries && state.transferTries[q.id]) || 0;
+          var retry = picked == null && tries > 0;
+          return '<div class="tq-item"><p class="tq-q"><b>' + (i + 1) + '.</b> ' + q.q + '</p>'
+            + '<div class="choice-row" data-tq="' + q.id + '">'
+            + q.options.map(function (o) {
+                var cls = picked != null ? (o.v === q.correct ? ' is-right' : (o.v === picked ? ' is-wrong' : '')) : '';
+                return '<button class="choice' + cls + '" data-v="' + o.v + '"' + (picked != null ? ' disabled' : '') + '>' + o.t + '</button>';
+              }).join('')
+            + '</div>'
+            + (retry ? '<p class="sc-retry"><b>아직이에요.</b> 정답을 알려 드리기 전에 한 번 더 골라 보세요.</p>' : '')
+            + (picked != null ? '<p class="sc-explain">' + (picked === q.correct ? '<b class="ok">맞아요.</b> ' : '<b class="no">다시 볼까요.</b> ') + q.explain + '</p>' : '')
+            + '</div>';
+        }).join('')
+      + '</section>';
+  }
+  function bindTransferQuiz() {
+    document.querySelectorAll('[data-tq]').forEach(function (row) {
+      var q = TRANSFER_Q.filter(function (x) { return x.id === row.dataset.tq; })[0];
+      if (!q) return;
+      row.querySelectorAll('[data-v]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          if (!state.transferTries || typeof state.transferTries !== 'object') state.transferTries = {};
+          var tries = (state.transferTries[q.id] || 0) + 1;
+          state.transferTries[q.id] = tries;
+          var right = btn.dataset.v === q.correct;
+          if (!right && tries === 1) { save(); renderComplete(); return; }
+          state.transferCheck[q.id] = btn.dataset.v; save(); renderComplete();
+        });
+      });
+    });
+  }
+
+  /* ---------- 완료 · 내 기후 카드 ---------- */
   function renderComplete() {
     var missingCerl = MISSIONS.filter(function (m) { return !state.cerlSubmitted[m.id] || cerlErrors(m).length; });
     if (missingCerl.length) {
@@ -3002,9 +3341,16 @@
           parts.push('내가 찍은 날 ' + doyStr(state.markDoy) + ' → 실제 ' + doyStr(act) + '(' + off + '일 차이)');
         }
       }
-      parts.push(s ? (s.correct ? '자가진단 정답' : '자가진단 다시 확인') : '자가진단 미응답');
+      /* R6: 정답/오답 2분기로만 남기면 교사가 난이도를 읽을 수 없다. 몇 번째 시도였는지 함께 남긴다. */
+      parts.push(s ? (s.correct ? (s.tries > 1 ? '이해 확인 정답(2차 시도)' : '이해 확인 정답(1차)') : '이해 확인 미해결') : '이해 확인 미응답');
       return '<li><b>' + m.title + '</b><br>' + parts.join(' · ') + '</li>';
     }).join('');
+    /* R6: 목표 ②③이 전이로 확인된 적이 없었다(askPost는 미션 1 단독). 완료 화면에
+       동형 문항 3개를 두어 '학습 효과를 어떻게 측정했나'에 제시할 지표를 만든다. */
+    var tOk = TRANSFER_Q.filter(function (q) { return state.transferCheck[q.id] === q.correct; }).length;
+    var tAns = TRANSFER_Q.filter(function (q) { return state.transferCheck[q.id] != null; }).length;
+    if (tAns) sc += '<li><b>전이 확인 3문항</b><br>' + tOk + ' / ' + TRANSFER_Q.length + '문항 정확'
+      + (tAns < TRANSFER_Q.length ? ' (미응답 ' + (TRANSFER_Q.length - tAns) + '문항)' : '') + '</li>';
     /* 5차 F14: 목표 ⑤을 실제로 수행했다는 기록이 내 기록에 없었다. 학습자가 고른 물리량과
        그때의 계절 지연을 남겨, 교사가 회수하는 산출물에 모형 실험이 드러나게 한다. */
     if (state.labSeen) {
@@ -3015,27 +3361,32 @@
     }
     var drafts = MISSIONS.filter(function (m) { return (state.missionDraft[m.id] || '').trim(); })
       .map(function (m) { return '<li><b>' + m.title + '</b><br>' + escapeHTML(state.missionDraft[m.id]) + '</li>'; }).join('');
+    /* R6: 자유탐구에서 쓴 결론(freeDraft)이 '내 기록'에 들어가지 않아, 교사가 회수할 산출물에서
+       가장 자유도가 높은 활동의 결과물이 빠져 있었다. */
+    if ((state.freeDraft || '').trim())
+      drafts += '<li><b>자유탐구 — 내가 고른 조건</b><br>' + escapeHTML(state.freeDraft) + '</li>';
     var yrs = D.cities['서울'].timeline.years;
     var completeStep = Math.max(0, Math.min(3, Number(state.completeStep) || 0));
     setStage('<section class="card done-card"><div class="burst" aria-hidden="true">✦</div><p class="eyebrow">' + MISSIONS.length + '개 미션 · CERL ' + MISSIONS.length + '편 완료</p>'
       + '<h1 class="stage-h">검증을 마쳤어요.</h1>'
-      + '<p class="sub">자료를 보기 전에 예측하고, 기준을 직접 조작해 확인한 뒤, 미션마다 주장·근거·추론·한계를 스스로 작성했습니다.</p>'
+      + '<p class="sub">자료를 보기 전에 예측하고, 기준을 직접 정해 확인한 뒤, 미션마다 주장·근거·추론·한계를 스스로 작성했습니다.</p>'
       + '<div class="skill-row"><span>① 절기≠기후</span><span>② 자료의 범위</span><span>③ 기준 정의</span><span>④ 근거만큼 결론</span>'
       + (state.labSeen ? '<span>⑤ 관측과 모형</span>' : '') + '</div>'
       + '<nav class="panel-tabs" aria-label="완료 활동"><button data-complete-step="0" aria-current="' + (completeStep === 0 ? 'step' : 'false') + '">1. 내 기록</button>'
       + '<button data-complete-step="1" aria-current="' + (completeStep === 1 ? 'step' : 'false') + '">2. 기후 카드</button>'
-      + '<button data-complete-step="2" aria-current="' + (completeStep === 2 ? 'step' : 'false') + '">3. 지구 맥락</button>'
+      + '<button data-complete-step="2" aria-current="' + (completeStep === 2 ? 'step' : 'false') + '">3. 지구 전체와 비교</button>'
       + '<button data-complete-step="3" aria-current="' + (completeStep === 3 ? 'step' : 'false') + '">4. 더 탐구하기</button></nav>'
       + '<div class="learning-panel" data-complete-panel="0"' + (completeStep === 0 ? '' : ' hidden') + '>'
+      + transferQuizHTML()
       + '<div class="record"><p class="eyebrow">내 기록 <small>(수업에 제출할 때 아래 기록을 복사하거나 인쇄하세요)</small></p><ul class="rec-list">' + sc + '</ul>'
-      + (drafts ? '<p class="eyebrow">내가 쓴 판정문</p><ul class="rec-list">' + drafts + '</ul>' : '')
+      + (drafts ? '<p class="eyebrow">내가 쓴 결론</p><ul class="rec-list">' + drafts + '</ul>' : '')
       + '<p class="eyebrow">한 문장 정리</p><label class="draft-label" for="canDo">나는 이제 <b>___</b> 할 수 있다 <small>(수업에 제출할 때 함께 내세요)</small></label>'
       + '<textarea id="canDo" maxlength="200" placeholder="예: 나는 이제 ‘덥다’를 몇 도로 정하느냐에 따라 결론이 달라진다는 것을 자료로 보일 수 있다."></textarea>'
       + '</div>'
       /* 복사·인쇄 버튼을 .record 밖으로 뺀다 — 안에 두면 innerText에 버튼 라벨이 섞여 복사된다 */
       + '<div class="rec-actions"><button class="ghost-btn" id="copyRec">기록 복사</button><button class="ghost-btn" id="printRec">인쇄 / PDF로 저장</button><button class="primary-btn panel-next" data-complete-step="1">기후 카드 만들기 →</button></div></div>'
       + '<div class="learning-panel" data-complete-panel="1"' + (completeStep === 1 ? '' : ' hidden') + '>'
-      + '<div class="cardmaker"><p class="eyebrow">내 고향 기후 카드 · 공유용</p>'
+      + '<div class="cardmaker"><p class="eyebrow">내가 태어난 해 기후 카드 · 공유용</p>'
       + '<p class="cardmaker-sub">내가 태어난 무렵과 지금, 우리 지역 기후가 어떻게 달라졌는지 실측 자료로 확인하는 카드를 만들어요. (태어난 해 <b>±2년 평균</b>과 <b>최근 5년 평균</b>을 비교합니다 — 한 해만 비교하면 그 해 날씨에 휘둘리기 때문입니다.)</p>'
       + '<div class="cardmaker-row"><label>지역<select id="cardCity"></select></label><label>태어난 해<input id="cardYear" type="number" min="' + yrs[0] + '" max="' + yrs[yrs.length - 1] + '" value="2008" inputmode="numeric" /></label><button class="primary-btn" id="makeCard">카드 만들기</button></div>'
       + '<p class="card-hint" id="cardHint"></p>'
@@ -3087,6 +3438,7 @@
       } catch (e) { done('복사가 안 돼요 — 직접 선택해 복사하세요'); }
     });
     $('printRec').addEventListener('click', function () { window.print(); });
+    bindTransferQuiz();
     $('startFree').addEventListener('click', renderFree);
     if ($('startLab')) $('startLab').addEventListener('click', renderLab);
     bindPanelTabs('complete', 4);
@@ -3135,8 +3487,8 @@
   }
   /* R4-P1-2: 끝단에서는 중심평균을 쓸 수 없다. meanAround(vals, last, 2)는 상한이 잘려
      마지막 3년만 평균하는데 카드에는 '최근 5년(2021–2025)'이라고 인쇄했다.
-     16지점 전부 온난화 방향으로 과대했고(+0.18~+0.37℃), 2008년생 서울 카드는
-     ΔT를 +1.2℃가 아니라 +1.5℃로 출하했다 — 25% 부풀린 값이 '기상청 ASOS 실측'
+     16지점 전부 온난화 방향으로 과대했고(+0.18~+0.37°C), 2008년생 서울 카드는
+     ΔT를 +1.2°C가 아니라 +1.5°C로 출하했다 — 25% 부풀린 값이 '기상청 ASOS 실측'
      표기를 달고 PNG로 공유된다. 끝단은 후행 n년 평균으로 계산한다. */
   function meanTrailing(vals, endIdx, n) {
     var a = [];
@@ -3155,7 +3507,7 @@
     var grad = g.createLinearGradient(0, 0, 1080, 1080); grad.addColorStop(0, '#0e3350'); grad.addColorStop(1, '#071726');
     g.fillStyle = grad; g.fillRect(0, 0, 1080, 1080);
     cardText(g, 'WEATHER24', 80, 108, '#ffbe58', '800', 34);
-    cardText(g, '절기의 약속 검증소 · 내 고향 기후 카드', 80, 150, '#a7bdc5', '400', 24);
+    cardText(g, 'WEATHER24 · 내 기후 카드', 80, 150, '#a7bdc5', '400', 24);
     cardText(g, city + ' (' + st.station + ' 관측소)', 80, 262, '#ffffff', '800', 62);
     cardText(g, '내가 태어난 ' + year + '년 무렵(±2년) 연평균 기온', 80, 360, '#dfeaee', '400', 34);
     cardText(g, tBirth.toFixed(1) + '°C', 80, 438, '#a7bdc5', '800', 62);
@@ -3276,7 +3628,7 @@
     var comp = g.combined && g.combined.meta && g.combined.meta.completeness;
     if (!rows.length) return '';
     return '<div class="global-src"><p class="gs-h">이 화면의 자료 출처</p><ul>' + rows.join('') + '</ul>'
-      + (comp ? '<p class="gs-note">' + escapeHTML(comp) + ' — 한국 자료에 적용한 <b>완결 연도 규칙</b>을 전지구 자료에도 똑같이 적용했습니다.</p>' : '')
+      + (comp ? '<p class="gs-note">' + escapeHTML(comp) + ' — 한국 자료에 적용한 <b>자료가 온전한 해만 쓰는 규칙</b>을 전지구 자료에도 똑같이 적용했습니다.</p>' : '')
       + '</div>';
   }
 
@@ -3352,8 +3704,8 @@
   }
 
   /* 모형 상수. B는 복사 냉각과 대기의 열 수송을 하나로 묶은 감쇠 계수다.
-     A는 서울(37.57°N)·두께 5m에서 연평균 12.5℃·지연 40일이 나오도록 맞췄고,
-     그 조합이 실제 서울 평년(지연 40일, 최고 29.4℃)과 겹친다. */
+     A는 서울(37.57°N)·두께 5m에서 연평균 12.5°C·지연 40일이 나오도록 맞췄고,
+     그 조합이 실제 서울 평년(지연 40일, 최고 29.4°C)과 겹친다. */
   var EBM = { albedo: 0.30, B: 5.2, A: 172, rho_c: 4.18e6 };
 
   var labCache = {};
@@ -3415,7 +3767,7 @@
     { v: 2, t: '내륙 2m', s: '땅이 얕게 데워짐' },
     { v: 5, t: '한반도 5m', s: '땅 + 얕은 바다' },
     { v: 15, t: '연안 15m', s: '바다의 영향이 큼' },
-    { v: 50, t: '대양 50m', s: '깊은 혼합층' }
+    { v: 50, t: '먼바다 50m', s: '물이 깊게 섞임' }
   ];
 
   function renderLab() {
@@ -3427,8 +3779,11 @@
     if (state.phase !== 'lab') {
       state.labFrom = { phase: state.phase, mi: state.mi, missionStep: state.missionStep, introStep: state.introStep };
     }
-    /* 목표 ⑤을 실제로 밟았다는 기록. 미션 5의 감사·완료 관문이 이 값을 본다(5차 F14). */
-    state.labSeen = true;
+    /* 목표 ⑤을 실제로 밟았다는 기록. 미션 5의 점검·완료 관문이 이 값을 본다(5차 F14).
+       R6: 예전에는 '화면을 열었다'만으로 true가 되어, 조작 0회에도 목표 ⑤ 배지와
+       "내가 고른 값" 기록이 기본값 그대로 발급됐다. 진입은 labOpened로만 남기고,
+       배지·기록은 실제로 물리량을 한 번이라도 바꿨을 때(labSeen)만 준다. */
+    state.labOpened = true;
     state.phase = 'lab'; document.body.classList.remove('lag-mode'); save();
     var L = labState();
     var labTab = Math.max(0, Math.min(3, Number(state.labTab) || 0));
@@ -3438,7 +3793,7 @@
       + '<span class="goal-chip">목표 ① 계절 지연을 만들 수 있는 <b>메커니즘</b> 시험</span>'
       + '<span class="time-chip">핵심 <b>3분</b></span></div>'
       + '<nav class="panel-tabs" aria-label="열관성 실험 단계"><button data-lab-step="0" aria-current="' + (labTab === 0 ? 'step' : 'false') + '">1. 모형 이해</button>'
-      + '<button data-lab-step="1" aria-current="' + (labTab === 1 ? 'step' : 'false') + '">2. 조건 조작</button>'
+      + '<button data-lab-step="1" aria-current="' + (labTab === 1 ? 'step' : 'false') + '">2. 조건 바꾸기</button>'
       + '<button data-lab-step="2" aria-current="' + (labTab === 2 ? 'step' : 'false') + '">3. 결과 해석</button>'
       + '<button data-lab-step="3" aria-current="' + (labTab === 3 ? 'step' : 'false') + '">4. 한계 확인</button></nav>'
       + '<div class="learning-panel" data-lab-panel="0"' + (labTab === 0 ? '' : ' hidden') + '>'
@@ -3475,7 +3830,7 @@
       + '<div class="step-actions"><button class="ghost-btn" data-lab-step="0">← 모형 이해</button><button class="primary-btn" data-lab-step="2">결과 해석하기 →</button></div></div>'
       + '<div class="learning-panel" data-lab-panel="2"' + (labTab === 2 ? '' : ' hidden') + '>'
       + '<p class="panel-kicker">내 조작이 만든 결과</p><div class="lab-findings" id="labFindings"></div>'
-      + '<div class="step-actions"><button class="ghost-btn" data-lab-step="1">← 조건 조작</button><button class="primary-btn" data-lab-step="3">모형의 한계 확인 →</button></div></div>'
+      + '<div class="step-actions"><button class="ghost-btn" data-lab-step="1">← 조건 바꾸기</button><button class="primary-btn" data-lab-step="3">모형의 한계 확인 →</button></div></div>'
       + '<div class="learning-panel" data-lab-panel="3"' + (labTab === 3 ? '' : ' hidden') + '>'
       + '<div class="lab-actions"><button class="primary-btn" id="labBack">← 미션으로 돌아가기</button>'
       + '<button class="ghost-btn" id="labFree">자유탐구로 →</button></div>'
@@ -3487,7 +3842,7 @@
       + '<li><b>나가는 열을 직선으로 근사</b>했습니다(A + B×기온). 실제 복사는 T⁴에 비례하고, 대기의 열 수송도 함께 일어납니다. 두 가지를 <b>감쇠 계수 B 하나</b>로 묶었습니다(B = ' + EBM.B + ' W/m²/K).</li>'
       + '<li><b>구름·눈·알베도 변화가 없습니다.</b> 햇빛 반사율을 ' + EBM.albedo + '로 고정했습니다.</li>'
       + '<li>그래서 <b>맞히는 것은 계절의 리듬(지연과 진폭)</b>이고, 특정 해의 날씨나 정확한 기온값이 아닙니다.</li>'
-      + '<li>그런데도 <b>서울에서 유효 깊이 5m를 넣으면 지연 40일 · 최고 28℃</b>가 나옵니다 — 실측(40일 · 29.4℃)과 거의 같습니다. 이것은 원인을 확정한 결과가 아니라, <b>단순한 모형이 큰 그림을 재현할 수 있는지 본 적합 사례</b>입니다.</li>'
+      + '<li>그런데도 <b>서울에서 유효 깊이 5m를 넣으면 지연 40일 · 최고 28°C</b>가 나옵니다 — 실측(40일 · 29.4°C)과 거의 같습니다. 이것은 원인을 확정한 결과가 아니라, <b>단순한 모형이 큰 그림을 재현할 수 있는지 본 적합 사례</b>입니다.</li>'
       + '</ol>'
       + '<p><b>햇빛 Q의 출처</b> 관측이 아니라 천문 계산입니다 — 태양 적위와 지구–태양 거리(Spencer 1971 근사)로 위도별 하루 평균 일사량을 구했습니다. 태양상수 1361 W/m².</p>'
       + '</div></details>'
@@ -3543,14 +3898,15 @@
   function setLabDepth(v) {
     var L = labState();
     L.depth = Math.max(0.5, Math.min(60, v));
-    L.touched = true; save();
+    /* R6: 목표 ⑤ 배지·기록은 여기서만 켠다 — 화면을 여는 것과 물리량을 바꾸는 것은 다르다. */
+    L.touched = true; state.labSeen = true; save();
     var r = $('labDepth'); if (r) r.value = Math.round(L.depth * 10);
     drawLab();
   }
   function setLabGhg(v) {
     var L = labState();
     L.ghg = Math.max(0, Math.min(12, Math.round(v)));
-    L.touched = true; save();
+    L.touched = true; state.labSeen = true; save();
     var r = $('labGhg'); if (r) r.value = L.ghg;
     drawLab();
   }
@@ -3581,7 +3937,7 @@
       var v = lo + (hi - lo) * f, yy = y(v);
       g += '<line x1="' + L2 + '" y1="' + yy.toFixed(1) + '" x2="' + (W2 - R2) + '" y2="' + yy.toFixed(1)
         + '" stroke="rgba(var(--line-rgb),' + (f === 0 || f === 1 ? '.2' : '.11') + ')"/>'
-        + '<text x="6" y="' + (yy + 4).toFixed(1) + '" fill="var(--muted2)" font-size="11">' + (Math.round(v * 10) / 10) + (f === 1 ? '℃' : '') + '</text>';
+        + '<text x="6" y="' + (yy + 4).toFixed(1) + '" fill="var(--muted2)" font-size="11">' + (Math.round(v * 10) / 10) + (f === 1 ? '°C' : '') + '</text>';
     });
     var narrow = window.innerWidth && window.innerWidth < 620;
     (narrow ? [1, 3, 5, 7, 9, 11] : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]).forEach(function (m) {
@@ -3600,7 +3956,15 @@
     var hx = x(sim.hotDoy - 1), hy = y(sim.curve[sim.hotDoy - 1]);
     g += '<circle cx="' + hx.toFixed(1) + '" cy="' + hy.toFixed(1) + '" r="8" fill="var(--sky)" stroke="var(--ink-on-accent)" stroke-width="1.8"/>';
     var lx = hx > W2 - 120 ? hx - 8 : hx + 8, anch = hx > W2 - 120 ? 'end' : 'start';
-    g += '<text x="' + lx.toFixed(1) + '" y="' + (hy - 12).toFixed(1) + '" fill="var(--on-sky)" font-size="12.5" font-weight="800" text-anchor="' + anch + '">모형의 가장 더운 날 ' + doyStr(sim.hotDoy) + '</text>';
+    /* R6: 이 라벨은 곡선 정점에 붙어 있어서, 열용량이 작을수록(정점이 높고 하지에 가까울수록)
+       위 '하지 6/21 …' 라벨과 겹쳤다 — 실측 0.5m 174×16px, 2m 146×16px, 기본값 5m도 100×8px.
+       두 상자가 실제로 만나면 모형 라벨을 마커 아래 단으로 내린다. */
+    var solLeft = sx + 5, solRight = sx + 5 + 172, solTop = T2 + 11 - 12, solBot = T2 + 11 + 4;
+    var modW = 172, modLeft = anch === 'end' ? lx - modW : lx, modRight = modLeft + modW;
+    var modTop = hy - 12 - 13, modBot = hy - 12 + 4;
+    var clash = modLeft < solRight && modRight > solLeft && modTop < solBot && modBot > solTop;
+    var modY = clash ? hy + 25 : hy - 12;
+    g += '<text x="' + lx.toFixed(1) + '" y="' + modY.toFixed(1) + '" fill="var(--on-sky)" font-size="12.5" font-weight="800" text-anchor="' + anch + '">모형의 가장 더운 날 ' + doyStr(sim.hotDoy) + '</text>';
     var x1 = Math.min(sx, hx), x2 = Math.max(sx, hx), my = T2 + 34;
     if (x2 - x1 > 14) {
       g += '<line x1="' + x1.toFixed(1) + '" y1="' + my + '" x2="' + x2.toFixed(1) + '" y2="' + my + '" stroke="var(--green)" stroke-width="1.6"/>'
@@ -3621,14 +3985,14 @@
     var obsLag = c.seasonalLag ? c.seasonalLag.present.hotLag : null;
     $('labNums').innerHTML = '<b>모형의 지연</b> <span class="v-now">' + sim.lag + '일</span>'
       + (obsLag != null ? ' <span class="ln-sep">·</span> <b>' + L.city + ' 실측 지연</b> <span class="v-past">' + obsLag + '일</span>' : '')
-      + ' <span class="ln-sep">·</span> <b>연평균</b> <span class="v-now">' + num1(sim.mean) + '℃</span>'
-      + ' <span class="ln-sep">·</span> <b>진폭</b> <span class="v-now">±' + num1(sim.amp) + '℃</span>';
+      + ' <span class="ln-sep">·</span> <b>연평균</b> <span class="v-now">' + num1(sim.mean) + '°C</span>'
+      + ' <span class="ln-sep">·</span> <b>진폭</b> <span class="v-now">±' + num1(sim.amp) + '°C</span>';
 
     var fit = labFit(sim.curve, L.city);
     var lagGap = obsLag == null ? null : Math.abs(sim.lag - obsLag);
     $('labReadouts').innerHTML =
       '<div class="readout"><div class="ro-k">모형 vs ' + L.city + ' 실측 <small>(365일 평균 차이)</small></div>'
-      + '<div class="ro-v"><span class="' + (fit < 2.5 ? 'v-now' : 'v-none') + '">' + num1(fit) + '℃</span></div>'
+      + '<div class="ro-v"><span class="' + (fit < 2.5 ? 'v-now' : 'v-none') + '">' + num1(fit) + '°C</span></div>'
       + '<div class="ro-s">' + (fit < 2.0 ? '아주 잘 맞습니다 — 이 모형에서는 이 유효 두께가 지역의 계절 곡선을 가장 가깝게 흉내 냅니다.'
           : fit < 3.5 ? '제법 맞습니다. 유효 두께를 조금씩 바꿔 오차를 더 줄여 보세요.'
           : '아직 많이 다릅니다. 두께와 온실효과를 함께 조절해 보세요.') + '</div></div>'
@@ -3657,14 +4021,14 @@
       + '<button class="inline-btn" type="button" data-labset="0.5">0.5m로 보기</button> '
       + '<button class="inline-btn" type="button" data-labset="50">50m로 보기</button></div>'
       + '<div class="lf-item is-key"><b>② 온실효과는 지연을 바꾸지 않는다</b>'
-      + '<p>온실효과를 <b>0 → +12 W/m²</b>로 올리면 연평균은 <b>' + num1(g0.mean) + '℃ → <span class="hot">' + num1(g12.mean) + '℃</span></b>로 오르는데, '
+      + '<p>온실효과를 <b>0 → +12 W/m²</b>로 올리면 연평균은 <b>' + num1(g0.mean) + '°C → <span class="hot">' + num1(g12.mean) + '°C</span></b>로 오르는데, '
       + '가장 더운 날은 <b>' + g0.lag + '일 → ' + g12.lag + '일</b>로 <b class="hot">' + (g12.lag === g0.lag ? '전혀 움직이지 않습니다' : Math.abs(g12.lag - g0.lag) + '일밖에 안 움직입니다') + '</b>.<br>'
       + '<b>그래서 “절기가 안 맞는다”를 전부 기후변화로 설명하면 틀립니다</b> — 지연은 늘 있던 물리이고, 온난화는 곡선 전체를 밀어 올립니다. 미션 5에서 관측으로 본 것을 모형이 다시 확인해 줍니다.</p>'
       + '<button class="inline-btn" type="button" data-labghg="0">온실효과 0</button> '
       + '<button class="inline-btn" type="button" data-labghg="12">온실효과 +12</button></div>'
       + '<div class="lf-item"><b>③ ' + L.city + '에 가장 잘 맞는 유효 두께는?</b>'
-      + '<p>지금 고른 값은 <b>' + num1(L.depth) + 'm</b>(평균 오차 ' + num1(labFit(sim.curve, L.city)) + '℃). '
-      + '이 단순 모형에서 실측과 가장 잘 맞는 값은 <b class="hot">' + num1(best.depth) + 'm</b>(오차 ' + num1(best.fit) + '℃)입니다. '
+      + '<p>지금 고른 값은 <b>' + num1(L.depth) + 'm</b>(평균 오차 ' + num1(labFit(sim.curve, L.city)) + '°C). '
+      + '이 단순 모형에서 실측과 가장 잘 맞는 값은 <b class="hot">' + num1(best.depth) + 'm</b>(오차 ' + num1(best.fit) + '°C)입니다. '
       + '지역을 바꿔 값이 달라지는지 확인하되, 차이를 해안 거리 하나의 원인으로 해석하지 마세요. 고도·바람·도시화 등 빠진 과정도 이 값에 함께 흡수됩니다.</p>'
       + '<button class="inline-btn" type="button" data-labset="' + best.depth + '">가장 잘 맞는 값으로</button></div>'
       + '</div>'
@@ -3685,7 +4049,7 @@
       + '<div class="mhead"><span class="mno">자유탐구</span><span class="goal-chip">내 지역 · 절기 · 지표를 자유롭게</span></div>'
       + '<nav class="panel-tabs panel-tabs-3" aria-label="자유탐구 단계"><button data-free-step="0" aria-current="' + (freeTab === 0 ? 'step' : 'false') + '">1. 질문 만들기</button>'
       + '<button data-free-step="1" aria-current="' + (freeTab === 1 ? 'step' : 'false') + '">2. 증거 읽기</button>'
-      + '<button data-free-step="2" aria-current="' + (freeTab === 2 ? 'step' : 'false') + '">3. 판정·감사</button></nav>'
+      + '<button data-free-step="2" aria-current="' + (freeTab === 2 ? 'step' : 'false') + '">3. 결론 쓰기</button></nav>'
       + '<div class="learning-panel" data-free-panel="0"' + (freeTab === 0 ? '' : ' hidden') + '>'
       + '<p class="task"><b>지금 할 일 하나:</b> 지역·절기·지표를 바꾸고 기준선을 옮겨, 내가 검증할 질문을 만드세요.</p>'
       + heroShell({ cityChips: true, termStrip: true, metricTabs: true, includeReadouts: false, includeMethod: false, compactIntegrity: true })
@@ -3701,15 +4065,15 @@
       + '<div id="winMount"></div>'
       + '<div id="sparkMount"></div>'
       + '<div id="methodMount"></div>'
-      + '<div class="step-actions"><button class="ghost-btn" data-free-step="0">← 조건 다시 조작</button><button class="primary-btn" data-free-step="2">내 판정 쓰기 →</button></div></div>'
+      + '<div class="step-actions"><button class="ghost-btn" data-free-step="0">← 조건 다시 고르기</button><button class="primary-btn" data-free-step="2">내 결론 쓰기 →</button></div></div>'
       + '<div class="learning-panel" data-free-panel="2"' + (freeTab === 2 ? '' : ' hidden') + '>'
-      + '<div class="judge-box"><label class="draft-label" for="freeDraft">내 판정문 <small>지역 · 기간 · 기준 · 한계를 넣어 한 문장으로</small></label>'
+      + '<div class="judge-box"><label class="draft-label" for="freeDraft">내 결론 <small>지역 · 기간 · 기준 · 한계를 넣어 한 문장으로</small></label>'
       + '<textarea id="freeDraft" maxlength="400" placeholder="예: 서울에서 ‘덥다’를 25°C로 정하면, 처서 무렵 더위가 그치는 날이 과거보다 13일 늦어졌다. 다만 이는 5년 관측 신호로, 전국이나 원인으로 넓혀 말하기는 어렵다."></textarea>'
-      + '<div class="ai-row"><button class="ghost-btn small-btn" id="localAudit" type="button">기기 안에서 빠른 점검</button>'
-      + '<button class="ai-btn" id="askAudit" disabled><span aria-hidden="true">✦</span> AI 감사 요청</button></div>'
-      + '<div class="ai-consent"><label><input type="checkbox" id="aiConsent"> <span><b>선택 동의:</b> AI 감사를 요청하면 위 판정문과 화면의 관측 근거가 OpenAI API로 전송됩니다. 이름·학교·연락처는 입력하지 마세요.</span></label>'
+      + '<div class="ai-row"><button class="ghost-btn small-btn" id="localAudit" type="button">이 기기에서 빠른 점검</button>'
+      + '<button class="ai-btn" id="askAudit" disabled><span aria-hidden="true">✦</span> AI 점검 요청</button></div>'
+      + '<div class="ai-consent"><label><input type="checkbox" id="aiConsent"> <span><b>선택 동의:</b> AI 점검을 요청하면 위 결론과 화면의 관측 근거가 OpenAI API로 전송됩니다. 이름·학교·연락처는 입력하지 마세요.</span></label>'
       + '<small>동의하지 않아도 기기 안 빠른 점검으로 같은 핵심 항목을 확인할 수 있습니다.</small></div>'
-      + '<p class="audit-status" id="auditStatus">판정문을 쓰면 과장 · 범위 · 인과를 점검합니다. AI가 응답하지 않아도 같은 항목을 규칙 점검이 확인합니다.</p>'
+      + '<p class="audit-status" id="auditStatus">결론을 쓰면 과장 · 범위 · 인과를 점검합니다. AI가 응답하지 않아도 같은 항목을 규칙 점검이 확인합니다.</p>'
       + '<div class="audit-result" id="auditResult" hidden></div></div>'
       + '<div class="step-actions"><button class="ghost-btn" data-free-step="1">← 증거 다시 읽기</button></div></div></section>');
     bindCityChips(); bindTermStrip(); bindMetricTabs(); bindThreshold(); bindViewTools();
@@ -3719,7 +4083,7 @@
     $('localAudit').addEventListener('click', function () {
       var draft = ($('freeDraft').value || '').trim();
       if (draft.replace(/\s/g, '').length < 12) {
-        $('auditStatus').textContent = '판정문을 12자 이상 써 주세요 (지역 · 기간 · 기준을 넣어 한 문장으로).';
+        $('auditStatus').textContent = '결론을 12자 이상 써 주세요 (지역 · 기간 · 기준을 넣어 한 문장으로).';
         $('freeDraft').focus(); return;
       }
       renderAudit(localAudit(draft), true);
@@ -3732,18 +4096,18 @@
     bindPanelTabs('free', 3);
   }
 
-  /* ---------- AI 감사관 (+ 규칙 점검) ---------- */
+  /* ---------- AI 점검 (+ 규칙 점검) ---------- */
   function buildEvidence() {
     var n = stat(), mc = metricOf(), tm = term(), y = yearsOf(), ev = [];
-    var period = PERIOD_PAST + ' vs ' + PERIOD_NOW + ' (완결 ' + y.past.length + '년/' + y.present.length + '년)';
-    ev.push({ id: 'E-1', statement: n.city + '(' + cityOf().station + ' 관측소)의 ‘' + mc.verb + ' ' + n.thr + mc.unit + '’ 기준 ' + dayLabel() + eunNeun(dayLabel()) + ' 연평균 과거 ' + n.pdStr + ', 현재 ' + n.cdStr + '이다.', source: '기상청 ASOS 일자료(연도별 실측 집계)', period: period, kind: mc.label + ' · 기준 이상 일수' });
-    if (mc.showLast && n.pl > 0 && n.cl > 0) ev.push({ id: 'E-2', statement: n.city + '의 ' + mc.last + '은 과거 ' + n.plStr + ', 현재 ' + n.clStr + '로 ' + n.drift + '일 늦어졌다.', source: '기상청 ASOS 일자료(연도별 실측 집계)', period: period, kind: tm.name + ' · 마지막 기준초과일' });
+    var period = PERIOD_PAST + ' vs ' + PERIOD_NOW + ' (자료가 온전한 ' + y.past.length + '년/' + y.present.length + '년)';
+    ev.push({ id: 'E-1', statement: n.city + '(' + cityOf().station + ' 관측소)의 ‘' + mc.verb + ' ' + n.thr + mc.unit + '’ 기준 ' + dayLabel() + eunNeun(dayLabel()) + ' 연평균 과거 ' + n.pdStr + ', 현재 ' + n.cdStr + '이다.', source: '기상청 ASOS 일자료(연도별 실측 집계)', period: period, kind: mc.label + ' · 기준 넘은 날 수' });
+    if (mc.showLast && n.pl > 0 && n.cl > 0) ev.push({ id: 'E-2', statement: n.city + '의 ' + mc.last + '은 과거 ' + n.plStr + ', 현재 ' + n.clStr + '로 ' + n.drift + '일 늦어졌다.', source: '기상청 ASOS 일자료(연도별 실측 집계)', period: period, kind: tm.name + ' · 마지막으로 기준을 넘은 날' });
     else ev.push({ id: 'E-2', statement: '이 비교는 ' + n.city + '의 ' + n.sampleText + ' 관측 신호이며, 30년 기후평년이나 전국을 뜻하지 않는다.', source: '해석 범위', period: period, kind: '자료의 한계' });
     return ev;
   }
   function renderAudit(fb, viaLocal) {
     var el = $('auditResult'); el.hidden = false;
-    var parts = '<div class="audit-head"><b>증거 감사관 ' + (viaLocal ? '(규칙 점검)' : '(AI)') + '</b><span class="audit-badge ' + (fb.evidence_status || 'revise') + '">'
+    var parts = '<div class="audit-head"><b>내 결론 점검 ' + (viaLocal ? '(이 기기)' : '(AI)') + '</b><span class="audit-badge ' + (fb.evidence_status || 'revise') + '">'
       + ({ ready: '근거 충분', revise: '보완 필요', insufficient: '근거 부족' }[fb.evidence_status] || '보완 필요') + '</span></div>';
     if (fb.feedback) parts += '<p>' + escapeHTML(fb.feedback) + '</p>';
     if (fb.overclaim_warning) parts += '<p class="audit-warn"><span aria-hidden="true">⚠</span> ' + escapeHTML(fb.overclaim_warning) + '</p>';
@@ -3784,7 +4148,7 @@
     var injection = /규칙[^.!?]{0,6}무시|프롬프트[^.!?]{0,4}무시|시스템[^.!?]{0,4}(무시|프롬프트)|지시[^.!?]{0,8}무시|위(에|에서)?[^.!?]{0,6}무시|무시하고|정답[^.!?]{0,8}(불러|알려|말해|줘|주라|달라|내놔|찍어|처리)|대신[^.!?]{0,4}(써|작성|적어)|써\s*줘|적어\s*줘|너는?\s*이제|지금부터[^.!?]{0,6}(교사|선생|채점|심사|모드)|(교사|선생|채점|심사|채점쌤|심사위원)[^.!?]{0,6}(모드|쌤|해|시켜|하)|역할[^.!?]{0,8}(바꿔|변경|해줘|맡|그만)|(100\s*점|만점|점수)[^.!?]{0,8}(줘|주라|주면|달라|매겨|처리)|무조건[^.!?]{0,5}(만점|합격|통과|정답|맞)|(ready|통과|맞다고|합격|우승|만점)[^.!?]{0,8}(해|처리|시켜|줘|주라|해줘|만)|위키(백과|피디아)|네이버|구글|검색(해|결과)|기사(에|에서)|나오(던데|더라)|출처[^.!?]{0,6}삽입/i.test(t);
     var hasRegion = t.indexOf(n.city) !== -1 || /지역|동네|서울|부산|인천|대구|광주|대전|제주|강릉|수원|청주|서산|전주|목포|포항|진주|춘천|경기|충북|충남|전북|전남|경북|경남|강원/.test(t);
     var hasPeriod = /과거|현재|예전|옛날|요즘|최근|\d{4}|5년|4년|기간|1969|1970|2021|2025/.test(t);
-    var hasCriterion = /기준|°|℃|이상|\d\s*도|mm|%|더위|폭염|열대야|여름|밤|습|비|강수|기온|온도|최고기온|평균기온|최저기온/.test(t);
+    var hasCriterion = /기준|°|°C|이상|\d\s*도|mm|%|더위|폭염|열대야|여름|밤|습|비|강수|기온|온도|최고기온|평균기온|최저기온/.test(t);
     var cautious = hasLimitation || climateLimit || /판단(을)?\s*(보류|유보|어렵|힘들|못|안)|단정(하기|짓기)?[^.!?]{0,5}(어렵|무리|힘들|못|안)|무리(인|다|라|고)|부족|섣부르|성급|충분(하지|치)\s*(않|못)|우연인지|진짜\s*(추세|변화)인지|근거가\s*부족|애매|모호|짧아|적어(서|어)|한\s*곳|한\s*지점/.test(t);
     var fb = { evidence_status: 'ready', flags: [] }, warns = [], missing = [];
     if (injection) { warns.push('프롬프트 지시·정답 요구·외부 자료 삽입은 따르지 않아요. 화면의 관측 자료 범위 안에서 스스로 결론을 써 주세요.'); fb.evidence_status = 'revise'; fb.flags.push('injection'); }
@@ -3836,29 +4200,37 @@
   async function doAudit() {
     var ta = $('freeDraft'), draft = (ta.value || '').trim(), btn = $('askAudit'), status = $('auditStatus');
     var consent = $('aiConsent');
-    if (!consent || !consent.checked) { status.textContent = '외부 전송 동의를 확인한 뒤 AI 감사를 요청해 주세요. 기기 안 빠른 점검은 동의 없이 사용할 수 있습니다.'; if (consent) consent.focus(); return; }
-    if (draft.replace(/\s/g, '').length < 12) { status.textContent = '판정문을 12자 이상 써 주세요 (지역 · 기간 · 기준을 넣어 한 문장으로).'; ta.focus(); return; }
-    btn.disabled = true; status.textContent = '증거 감사관에게 확인 중…';
-    var payload = { case: { id: 'FREE', title: '판정문 감사', question: '선택한 지역·기간·기준으로 어디까지 말할 수 있는가?' }, verdict: 'free', draft: draft, evidence: buildEvidence() };
-    var res = null;
+    if (!consent || !consent.checked) { status.textContent = '외부 전송 동의를 확인한 뒤 AI 점검을 요청해 주세요. 기기 안 빠른 점검은 동의 없이 사용할 수 있습니다.'; if (consent) consent.focus(); return; }
+    if (draft.replace(/\s/g, '').length < 12) { status.textContent = '결론을 12자 이상 써 주세요 (지역 · 기간 · 기준을 넣어 한 문장으로).'; ta.focus(); return; }
+    btn.disabled = true; status.textContent = 'AI에게 확인 중… (최대 12초)';
+    var payload = { case: { id: 'FREE', title: '결론 점검', question: '선택한 지역·기간·기준으로 어디까지 말할 수 있는가?' }, verdict: 'free', draft: draft, evidence: buildEvidence() };
+    var res = null, timedOut = false;
+    /* R6: 클라이언트 타임아웃이 없어 최악의 경우 vercel.json 의 maxDuration(30초)까지
+       버튼이 잠긴 채 아무 안내도 없었다. 서버는 16초/9초로 끊는데 화면만 무한정 기다렸다.
+       12초에서 끊고 즉시 기기 안 점검 결과로 대체한다 — 라이브 데모에서 정지가 없어야 한다. */
+    var ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    var timer = setTimeout(function () { timedOut = true; if (ctrl) ctrl.abort(); }, 12000);
     try {
       res = await fetch('/api/ai-turn', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Learning-Session': auditSessionId() },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
+        signal: ctrl ? ctrl.signal : undefined
       });
       var data = await res.json();
       if (!res.ok || !data.feedback) throw new Error(data && data.error ? data.error : 'ai');
       renderAudit(data.feedback, false);
-      status.textContent = 'AI 감사 완료 — 필요하면 판정문을 고쳐 다시 요청하세요.';
+      status.textContent = 'AI 점검 완료 — 필요하면 결론을 고쳐 다시 요청하세요.';
     } catch (e) {
       /* 실패 원인을 추측해 단정하지 않는다 (F-1) */
       renderAudit(localAudit(draft), true);
-      status.textContent = !res
-        ? '네트워크가 불안정해 규칙 점검으로 확인했어요 — AI와 같은 항목(범위 · 과장 · 인과)을 봅니다.'
-        : res.status === 429 ? '요청이 몰려 잠시 대기 중이에요 — 규칙 점검으로 같은 항목을 방금 확인했어요. 잠시 후 다시 요청할 수 있어요.'
-        : '지금은 규칙 점검으로 확인했어요 — AI와 같은 항목(범위 · 과장 · 인과)을 봅니다.';
-    } finally { btn.disabled = !(consent && consent.checked); }
+      status.textContent = timedOut
+        ? 'AI 응답이 12초를 넘어 이 기기의 점검 결과로 대체했어요 — AI와 같은 항목(범위 · 과장 · 인과)을 봅니다. 잠시 후 다시 요청할 수 있어요.'
+        : !res
+        ? '네트워크가 불안정해 이 기기에서 확인했어요 — AI와 같은 항목(범위 · 과장 · 인과)을 봅니다.'
+        : res.status === 429 ? '요청이 몰려 잠시 대기 중이에요 — 같은 항목을 이 기기에서 방금 확인했어요. 잠시 후 다시 요청할 수 있어요.'
+        : '지금은 이 기기에서 확인했어요 — AI와 같은 항목(범위 · 과장 · 인과)을 봅니다.';
+    } finally { clearTimeout(timer); btn.disabled = !(consent && consent.checked); }
   }
 
   /* ---------- 부팅 ---------- */
@@ -3921,19 +4293,27 @@
   bindTheme();
 
   $('openGuide').addEventListener('click', function () { var d = $('guideDialog'); if (d.showModal) d.showModal(); else d.setAttribute('open', ''); });
+  /* R6: 로고를 누를 때마다 OS 기본 confirm() 팝업이 떴다. 진행 기록은 어차피 유지되므로
+     묻지 않고 소개 화면으로 간다 — 되돌아오는 것도 뒤로가기 한 번이다. */
   $('homeLink').addEventListener('click', function (e) {
     e.preventDefault();
-    if (confirm('처음(소개)으로 돌아갈까요? 진행 기록은 유지됩니다.')) renderIntro();
+    renderIntro();
   });
+  /* 기록 삭제만 확인을 받는다. 라이브 데모에서 OS 팝업이 뜨면 완성도 인상이 깎이므로
+     앱 안의 <dialog>로 묻는다(index.html의 resetDialog). */
   var rb = $('resetBtn');
+  function doReset() {
+    try { localStorage.removeItem('weather24_verify_v4'); localStorage.removeItem('weather24_verify_v3'); localStorage.removeItem('weather24_verify_v2'); } catch (e) {}
+    /* R4-P2: reload()는 해시를 남긴다. 앱이 배부하는 링크에는 항상 &v=free가 붙어 있어
+       applyHash가 다음 학생을 자유탐구(사실상 종료 화면)에서 시작시켰다. */
+    location.replace(location.pathname + location.search);
+  }
   if (rb) rb.addEventListener('click', function () {
-    if (confirm('기록을 지우고 처음부터 시작할까요?\n(공용 컴퓨터에서 다음 사람을 위해 초기화합니다)')) {
-      try { localStorage.removeItem('weather24_verify_v4'); localStorage.removeItem('weather24_verify_v3'); localStorage.removeItem('weather24_verify_v2'); } catch (e) {}
-      /* R4-P2: reload()는 해시를 남긴다. 앱이 배부하는 링크에는 항상 &v=free가 붙어 있어
-         applyHash가 다음 학생을 자유탐구(사실상 종료 화면)에서 시작시켰다. */
-      location.replace(location.pathname + location.search);
-    }
+    var d = $('resetDialog');
+    if (!d || !d.showModal) { doReset(); return; }
+    d.showModal();
   });
+  if ($('resetConfirm')) $('resetConfirm').addEventListener('click', doReset);
   var resizeTimer = null;
   window.addEventListener('resize', function () {
     if (resizeTimer) clearTimeout(resizeTimer);
@@ -3953,12 +4333,17 @@
     else { state.phase = 'mission'; renderMissionFlow(); }
   }
   window.addEventListener('hashchange', function () {
+    /* 뒤로/앞으로 이동은 popstate가 이미 스냅샷으로 복원했다. 같은 이동에서 이어 오는
+       hashchange까지 applyHash()로 처리하면 학습자가 정한 기준·지역이 미션 기본값으로
+       되돌아간다(applyHash는 딥링크용이라 값을 초기화한다). 그 한 번을 건너뛴다. */
+    if (suppressHashChange) { suppressHashChange = false; return; }
     if (applyHash()) routeFromState();
   });
 
   /* R4-P2(SHARE-01): 20분 넘게 방치된 기록이 남아 있으면 '이어서 / 새로 시작'을 묻는다.
      교실 공용 PC에서 앞 사람 진행을 그대로 물려받는 것이 가장 흔한 사고다.
      ↺ 처음부터 버튼은 그대로 두고, 묻지 않고 지우지도 않는다. */
+  var resumePrompt = false;
   (function askResume() {
     var idle = state.savedAt && (Date.now() - state.savedAt) > 20 * 60 * 1000;
     /* 5차 F11: '미션 1개 완료'를 진행으로 셌더니 가장 흔한 사고를 놓쳤다 —
@@ -3973,14 +4358,11 @@
     var progressed = (state.done && state.done.length) || state.phase === 'complete' || state.phase === 'free'
       || state.phase === 'lab' || wrote || answered || midMission;
     if (!idle || !progressed) return;
-    /* 파괴적인 쪽을 [확인]에 둔다. 예전에는 [취소]와 Esc가 기록 영구 삭제여서,
-       2차시 수업에서 무심코 Esc를 누른 학생이 쓴 글을 전부 잃었다. */
-    if (confirm('이 컴퓨터에 20분 넘게 멈춰 있던 학습 기록이 있어요.\n\n'
-      + '[확인] 기록을 지우고 새로 시작하기 — 지금까지 쓴 글이 모두 사라져요\n'
-      + '[취소] 이어서 하기')) {
-      try { localStorage.removeItem('weather24_verify_v4'); localStorage.removeItem('weather24_verify_v3'); } catch (e) {}
-      location.replace(location.pathname + location.search);
-    }
+    /* R6: 예전에는 부팅을 막는 OS confirm()이었다. 라이브 데모에서 첫 화면 전에 OS 팝업이
+       뜨는 것은 완성도 인상에 손해이고, [확인]이 '영구 삭제'라 오조작 위험도 남는다.
+       기본값(이어서 하기)으로 화면을 먼저 띄우고, 앱 안 대화상자로 '새로 시작'을 제안한다 —
+       파괴적인 쪽은 눌러야만 실행되고, Esc·바깥 클릭은 안전한 쪽이 된다. */
+    resumePrompt = true;
   })();
 
   applyHash();
@@ -3992,4 +4374,17 @@
   else if (state.phase === 'intro') state.introStep === 'method' ? renderIntroMethod() : renderIntro();
   else if (state.phase === 'tutorial') renderTutorial();
   else { state.phase = 'mission'; renderMissionFlow(); }
+
+  /* 화면을 먼저 띄운 뒤(=이어서 하기가 기본) 앱 안 대화상자로 '새로 시작'을 제안한다. */
+  if (resumePrompt) {
+    var rd = $('resetDialog');
+    if (rd && rd.showModal) {
+      var h = rd.querySelector('.reset-h'), p = rd.querySelector('p');
+      if (h) h.textContent = '이 컴퓨터에 이전 학습 기록이 남아 있어요.';
+      if (p) p.innerHTML = '20분 넘게 멈춰 있던 기록입니다. 그대로 <b>이어서 해도 되고</b>, 다음 사람을 위해 지우고 새로 시작할 수도 있어요.';
+      var keep = rd.querySelector('.reset-actions .ghost-btn');
+      if (keep) keep.textContent = '내 기록이에요 · 이어서 하기';
+      try { rd.showModal(); } catch (e) {}
+    }
+  }
 })();
