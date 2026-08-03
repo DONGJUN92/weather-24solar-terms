@@ -270,6 +270,37 @@
 .intro-actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; align-items: center; }
 .intro-actions .primary-btn { font-size: 15px; padding: 12px 22px; }
 .intro-foot { font-size: 12px; color: var(--muted3); margin: 18px 0 4px; }
+/* ── 열관성 실험실: 예측하고 확인하기 ─────────────────────── */
+.lf-ask { border-style: dashed; }
+.lf-q { margin: 0 0 var(--sp-3); color: var(--ink2); font-size: 13.5px; line-height: 1.75; text-wrap: pretty; }
+.lf-opts { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-bottom: var(--sp-3); }
+.lf-opts .choice { font-size: 12.5px; }
+.lf-note { margin: 0; color: var(--muted3); font-size: 11.5px; line-height: 1.7; }
+.lf-verdict { margin: 0 0 var(--sp-3); padding: var(--sp-2) var(--sp-3); border-radius: 10px;
+  font-size: 12.5px; line-height: 1.7; text-wrap: pretty; }
+.lf-verdict.is-ok { background: rgba(var(--green-rgb),.12); color: var(--on-green); }
+.lf-verdict.is-diff { background: rgba(var(--sun-rgb),.14); color: var(--on-sun); }
+.lf-verdict b { font-weight: 800; }
+.inline-btn.is-quiet { opacity: .72; font-weight: 400; }
+
+/* ── 자유탐구 질문 조립기 ─────────────────────────────────── */
+.qbuild { margin: var(--sp-4) 0 0; padding: var(--sp-4); border: 1px solid var(--line);
+  border-radius: 16px; background: var(--panel2); }
+.qb-head { display: flex; align-items: baseline; gap: var(--sp-2); flex-wrap: wrap;
+  margin: 0 0 var(--sp-3); color: var(--sea); font-size: 13.5px; font-weight: 800; }
+.qb-head small { color: var(--muted2); font-size: 11.5px; font-weight: 400; }
+.qb-auto { margin: 0 0 var(--sp-3); padding: var(--sp-3); border-left: 3px solid rgba(var(--sea-rgb),.5);
+  border-radius: 0 10px 10px 0; background: rgba(var(--sea-rgb),.07);
+  color: var(--ink2); font-size: 14px; line-height: 1.75; max-width: 46em; text-wrap: pretty; }
+.qb-why { margin: 0 0 var(--sp-3); max-width: 46em; color: var(--muted); font-size: 12.5px; line-height: 1.7; }
+.qb-why b { color: var(--ink2); }
+.qb-hint { margin: 0; color: var(--muted2); font-size: 12px; }
+.qb-hint.is-urge { color: var(--on-coral); font-weight: 700; }
+.qb-recall { margin: 0 0 var(--sp-3); padding: var(--sp-2) var(--sp-3); border-radius: 10px;
+  background: rgba(var(--sun-rgb),.09); color: var(--ink2); font-size: 13px; line-height: 1.7; text-wrap: pretty; }
+.qb-recall b { color: var(--on-sun); margin-right: 6px; }
+@media (max-width: 560px) { .qbuild { padding: var(--sp-3); } .qb-auto { font-size: 13.5px; } }
+
 .intro-teacher { margin: var(--sp-3) 0 0; font-size: 12.5px; }
 /* R6: 이 링크는 클래스가 없어 버튼 타깃 규칙이 닿지 않았고, 배포본 실측 높이가 19px로
    WCAG 2.5.8(AA)의 최소 24×24조차 밑돌았다. 글자 크기는 그대로 두고 히트 영역만 넓힌다. */

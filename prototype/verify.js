@@ -1381,6 +1381,31 @@
       { k: '③ 믿어도 될까', s: '검증 — 내 결론을 스스로 흔들어 보세요', qs: test }
     ];
   }
+  /* 지금 고른 조건으로 '자료가 답할 수 있는 질문'을 조립한다.
+     학습 내용은 문장 자체가 아니라, 어디·언제·무엇을·어떤 기준으로 네 조각이 모두 있어야
+     검증이 시작된다는 사실이다. */
+  function autoQuestion() {
+    var mc = metricOf(), tm = term(), n = stat();
+    /* 조사를 붙이지 않는 문형을 골랐다 — ‘…26°C’ 뒤에 을/를을 붙이면 단위(°C·mm)에 따라
+       읽는 소리가 달라져 어느 쪽을 써도 어색해진다. '기준을 …로 두면'은 두 단위 모두 자연스럽다. */
+    return n.city + '에서 기준을 ‘' + mc.verb + ' ' + n.thr + mc.unit + '’로 두면, '
+      + tm.name + '(' + tm.date + ') 무렵의 ' + dayLabel() + eunNeun(dayLabel()) + ' 과거(' + PERIOD_PAST + ')와 지금(' + PERIOD_NOW + ') 사이에 얼마나 달라졌을까?';
+  }
+  function syncQBuild() {
+    var auto = $('qbAuto'); if (auto) auto.textContent = autoQuestion();
+    var recall = $('qbRecall');
+    if (recall) {
+      var q = (state.freeQuestion || '').trim();
+      /* 탭 이동은 막지 않는다(둘러보는 것도 탐구다). 대신 질문 없이 증거를 보고 있으면
+         무엇이 비어 있는지 알려 준다 — 증거는 질문에 답할 때만 근거가 된다. */
+      recall.innerHTML = q ? '<b>내 질문</b> ' + escapeHTML(q)
+        : '<b>내 질문</b> 아직 없어요 — <b>1. 질문 만들기</b>로 돌아가 한 문장 적으면, 아래 숫자가 그 질문의 답이 됩니다.';
+    }
+    var hint = $('qbHint'); if (!hint) return;
+    var len = (state.freeQuestion || '').trim().replace(/\s/g, '').length;
+    hint.classList.remove('is-urge');
+    hint.textContent = len === 0 ? '' : len < 15 ? (15 - len) + '자 더 쓰면 증거로 넘어갈 수 있어요.' : '좋아요 — 이 질문으로 증거를 읽어 봅시다.';
+  }
   function inquiryHTML() {
     return '<div class="inq-panel"><p class="inq-head"><span aria-hidden="true">🔍</span> 탐구 질문 <small>순서대로 답해 보면 결론이 저절로 만들어집니다</small></p>'
       + inquiryQs().map(function (g) {
@@ -2026,7 +2051,9 @@
     stage.innerHTML = html;
     syncHistory();
     renderProgress();
-    document.querySelectorAll('[data-close]').forEach(function (b) { b.addEventListener('click', function () { $(b.dataset.close).close(); }); });
+    /* R6: 예전에는 여기서 [data-close]를 매번 다시 바인딩했다. 대화상자는 #stage 밖에 있으므로
+       화면이 바뀔 때마다 같은 닫기 버튼에 리스너가 하나씩 쌓였다(60화면 세션이면 60개).
+       close()가 멱등이라 증상은 없었지만 누수는 누수다 — 부팅 때 한 번만 묶는다(bindDialogs). */
     /* 화면이 바뀌면 제목으로 포커스를 옮겨 키보드·스크린리더 사용자가 새 화면에서 시작하게 한다 */
     var h = stage.querySelector('h1');
     if (h) { h.setAttribute('tabindex', '-1'); try { h.focus({ preventScroll: true }); } catch (e) { h.focus(); } }
@@ -2696,7 +2723,7 @@
   }
   var LENS = {
     title: '30초 분류 — 같은 주제인데 종류가 다릅니다',
-    lead: '아래 세 문장을 <b>절기 · 날씨 · 기후</b> 중 하나로 나눠 보세요. 이 구분이 이 앱 전체의 뼈대예요.',
+    lead: '아래 네 문장을 <b>절기 · 날씨 · 기후</b> 중 하나로 나눠 보세요. 이 구분이 이 앱 전체의 뼈대예요.',
     kinds: [
       { k: 'term', t: '절기', s: '태양 위치로 정한 천문 날짜' },
       { k: 'weather', t: '날씨', s: '하루·한때의 관측' },
@@ -2704,7 +2731,9 @@
     ],
     items: [
       { id: 'a', t: '처서는 양력 8월 23일 무렵이다.', k: 'term', why: '태양의 황경으로 정해진 <b>날짜</b>입니다. 더운지 아닌지와 무관하게 해마다 거의 같아요.' },
-      { id: 'b', t: '어제 서울 낮 기온이 31°C였다.', k: 'weather', why: '<b>하루</b>의 관측입니다. 하루 값으로는 경향을 말할 수 없어요.' },
+      /* R6: 원래 여기에 '어제 서울 낮 기온이 31°C였다'가 있었다. '어제'라는 낱말만 보고 날씨로
+         갈리는 문항이라, 아래 d(절기 이름이 들어 있는데 실은 날씨 문장)가 같은 축을 더 잘 검사한다.
+         5문항 → 4문항으로 줄이면서 판별력이 낮은 이 문항을 뺐다(미션 1이 17화면 → 16화면). */
       /* 5차 F01(P0): 이전 문장은 '서울에서 25°C를 넘는 날이 68일 vs 31일'이었다 —
          미션 1의 기본 지역·기본 기준의 결론 수치를 조작 전에 인쇄해, 사전 예측과
          이해 확인의 답을 함께 흘렸다. 어떤 미션도 결론으로 쓰지 않는 '한 해 평균기온'으로
@@ -2784,7 +2813,7 @@
       + '<div class="focus-task"><span class="step-tag">지금 한 가지만</span><p id="missionTask">' + taskOf(m) + '</p></div>'
       + heroShell({ cityChips: !m.lockCity || useCompare, termStrip: !m.lockTerm, lagMode: !!m.lagMode,
                     includeReadouts: false, includeMethod: false, compactIntegrity: true })
-      + '<div class="explore-actions"><small id="touchHint"></small><div class="step-actions">'
+      + '<div class="explore-actions"><small id="touchHint" role="status"></small><div class="step-actions">'
       + '<button class="ghost-btn" id="backOrient">← 탐구 방향</button><button class="primary-btn is-muted" id="toVerdict">증거 정리하기 →</button></div></div>'
       + '</section>');
     if (useCompare) bindCityChips(m.compare); else if (!m.lockCity) bindCityChips();
@@ -2911,10 +2940,13 @@
        의인화 어휘를 복제하고 (b) 부산·제주를 고른 학습자에게도 '서울'이, 강수 미션에도 '°C'가 떴다.
        prompt 문구에서도 정답 어휘를 뺐다 — '지역·기간·기준'과 '말할 수 없는'이 각각 미션 2·3의
        이해 확인 문항 정답을 직전 화면에 그대로 인쇄하고 있었다. */
-    { k: 'c', label: '주장', min: 5, prompt: '자료를 보고 내린 판단을 한 문장으로 쓰세요.', placeholder: '나는 …라고 판단합니다.' },
-    { k: 'e', label: '근거', min: 12, prompt: '화면에서 읽은 숫자를 그대로 옮기고, 그 숫자가 어떤 조건에서 나온 값인지 함께 쓰세요.', placeholder: '내가 고른 지역에서 과거 …, 지금 … 이었습니다.' },
-    { k: 'r', label: '추론', min: 8, prompt: '그 숫자가 왜 내 주장을 뒷받침하는지 연결하세요.', placeholder: '이 차이는 …을 뜻하므로 …' },
-    { k: 'l', label: '한계', min: 8, prompt: '이 결론이 어디까지 통하는지 적어 보세요.', placeholder: '다만 이 자료는 …' }
+    /* R6: 글자 수만으로는 미션 2~5가 근거 12자 + 한계 8자 = 20자면 통과했다. 길이는 우회할 수 있으므로
+       요소마다 '들어 있어야 하는 것'을 함께 본다(아래 cerlContentError) — 근거에는 숫자와 단위,
+       한계에는 범위를 가리키는 말. 최소 길이도 한 어절만큼 올렸다. */
+    { k: 'c', label: '주장', min: 8, prompt: '자료를 보고 내린 판단을 한 문장으로 쓰세요.', placeholder: '나는 …라고 판단합니다.' },
+    { k: 'e', label: '근거', min: 16, prompt: '화면에서 읽은 숫자를 그대로 옮기고, 그 숫자가 어떤 조건에서 나온 값인지 함께 쓰세요.', placeholder: '내가 고른 지역에서 과거 …, 지금 … 이었습니다.' },
+    { k: 'r', label: '추론', min: 12, prompt: '그 숫자가 왜 내 주장을 뒷받침하는지 연결하세요.', placeholder: '이 차이는 …을 뜻하므로 …' },
+    { k: 'l', label: '한계', min: 14, prompt: '이 결론이 어디까지 통하는지 적어 보세요.', placeholder: '다만 이 자료는 …' }
   ];
   function missionCerl(m) {
     if (!state.missionCerl || typeof state.missionCerl !== 'object') state.missionCerl = {};
@@ -2952,7 +2984,17 @@
       if (v === w || (v.length >= 12 && w.length >= 12 && (v.indexOf(w) !== -1 || w.indexOf(v) !== -1))) dup = g.label;
     });
     if (dup) return '‘' + dup + '’ 칸과 같은 문장이에요. ' + f.label + eulReul(f.label) + ' 다른 내용으로 써 주세요.';
-    if (f.k === 'e' && !/[0-9]/.test(String(val))) return '근거에는 화면에서 읽은 숫자를 넣어 주세요. (지역·기간·기준과 함께)';
+    /* R6: 근거는 숫자만으로는 근거가 되지 않는다 — 무엇을 센 숫자인지(단위·기간)가 있어야 한다.
+       '31' 하나로 통과하던 것을 막는다. */
+    if (f.k === 'e') {
+      if (!/[0-9]/.test(String(val))) return '근거에는 화면에서 읽은 숫자를 넣어 주세요. (지역·기간·기준과 함께)';
+      if (!/(°C|℃|도|mm|일|날|년|%)/.test(String(val)))
+        return '그 숫자가 무엇을 센 값인지 단위나 기간을 함께 써 주세요. (예: …일, …°C, …년)';
+    }
+    /* 한계 칸은 '어디까지 통하는가'를 쓰는 자리다. 범위를 가리키는 말이 하나도 없으면
+       한계 진술이 아니라 감상문이 된다. 앱이 이미 가르친 세 축(지역·기간·기준)을 인정한다. */
+    if (f.k === 'l' && !/(지역|지점|관측소|전국|우리나라|한 곳|한곳|기간|해|년|기준|표본|원인|모형|평년|일반화)/.test(String(val)))
+      return '한계에는 어디까지 통하는지가 들어가야 해요 — 지역·기간·기준·원인 중 무엇을 넘어 말할 수 없는지 적어 보세요.';
     var srcs = [taskOf(m), briefOf(m)];
     for (var i = 0; i < srcs.length; i++) {
       var s = cerlNorm(String(srcs[i]).replace(/<[^>]*>/g, ''));
@@ -3244,7 +3286,7 @@
       + '<button class="ghost-btn small-btn" id="editCerl" type="button">내 결론 고치기</button></div>'
       + '<div class="ai-consent"><label><input type="checkbox" id="aiConsent"> <span><b>선택 동의:</b> AI 점검을 요청하면 위 결론과 화면의 관측 근거가 OpenAI API로 전송됩니다. 이름·학교·연락처는 입력하지 마세요.</span></label>'
       + '<button class="ai-btn" id="askAudit" disabled><span aria-hidden="true">✦</span> 외부 AI 점검 요청</button></div>'
-      + '<p class="audit-status" id="auditStatus">아래는 <b>외부 전송 없이 이 기기에서</b> 본 결과입니다. 같은 항목을 AI에게도 물어볼 수 있어요(동의 필요).</p>'
+      + '<p class="audit-status" id="auditStatus" role="status">아래는 <b>외부 전송 없이 이 기기에서</b> 본 결과입니다. 같은 항목을 AI에게도 물어볼 수 있어요(동의 필요).</p>'
       + '<div class="audit-result" id="auditResult" hidden></div></div>'
       + (m.lagMode ? '<div class="optional-next"><p class="eyebrow">선택 확장</p><button class="ghost-btn" id="auditWinter">겨울·동지에도 적용해 보기</button> <button class="ghost-btn" id="auditLab">🔬 열관성 실험실</button></div>' : '')
       + '<div class="step-actions"><button class="ghost-btn" id="retry">기준 다시 맞춰 보기 <small>(내 결론은 유지)</small></button>'
@@ -3384,6 +3426,8 @@
       .map(function (m) { return '<li><b>' + m.title + '</b><br>' + escapeHTML(state.missionDraft[m.id]) + '</li>'; }).join('');
     /* R6: 자유탐구에서 쓴 결론(freeDraft)이 '내 기록'에 들어가지 않아, 교사가 회수할 산출물에서
        가장 자유도가 높은 활동의 결과물이 빠져 있었다. */
+    if ((state.freeQuestion || '').trim())
+      drafts += '<li><b>자유탐구 — 내가 만든 질문</b><br>' + escapeHTML(state.freeQuestion) + '</li>';
     if ((state.freeDraft || '').trim())
       drafts += '<li><b>자유탐구 — 내가 고른 조건</b><br>' + escapeHTML(state.freeDraft) + '</li>';
     var yrs = D.cities['서울'].timeline.years;
@@ -4028,32 +4072,103 @@
   }
 
   /* 학습자가 '직접 확인'해야 열리는 발견 카드 — 읽는 것이 아니라 하는 것 */
+  /* R6: 이 탭은 학생이 조작하기 **전에** 세 실험의 결과와 결론을 이미 계산해 인쇄했다
+     (실측 835자 — 교사 학습지 활동 6의 빈칸 답이 화면에 그대로 떠 있었다).
+     앱의 나머지 전부가 '예측 먼저, 확인 나중'인데 이 화면만 반대였다.
+     실험마다 예측을 먼저 받고, 답한 뒤에만 학생 자신의 슬라이더 값으로 계산한 결과를 연다. */
+  var LAB_PROBES = [
+    {
+      id: 'f1', title: '① 열을 머금는 두께를 키우면?',
+      q: '햇빛은 그대로 두고 <b>열을 머금는 두께</b>만 0.5m → 50m로 키우면, 가장 더운 날은 어떻게 될까?',
+      opts: [{ v: 'late', t: '더 늦어진다' }, { v: 'early', t: '더 빨라진다' }, { v: 'same', t: '거의 그대로다' }],
+      correct: function () { return 'late'; }
+    },
+    {
+      id: 'f2', title: '② 온실효과만 올리면?', key: true,
+      q: '두께는 그대로 두고 <b>온실효과</b>만 0 → +12 W/m²로 올리면, <b>가장 더운 날의 날짜</b>는 어떻게 될까?',
+      opts: [{ v: 'move', t: '많이 늦어진다' }, { v: 'stay', t: '거의 그대로다' }, { v: 'early', t: '빨라진다' }],
+      correct: function () { return 'stay'; }
+    },
+    {
+      id: 'f3', title: '③ 우리 지역에 맞는 두께는?',
+      q: '이 단순한 모형으로 <b>{city}</b>의 실측을 가장 잘 맞히는 두께는 어디쯤일까?',
+      opts: [{ v: 'shallow', t: '1m 안팎 · 마른 땅' }, { v: 'mid', t: '5m 안팎 · 땅과 얕은 바다' }, { v: 'deep', t: '15m 이상 · 바다의 영향' }],
+      correct: function (ctx) { return ctx.best.depth < 3 ? 'shallow' : ctx.best.depth < 15 ? 'mid' : 'deep'; }
+    }
+  ];
+  function labPredictOf() {
+    if (!state.labPredict || typeof state.labPredict !== 'object') state.labPredict = {};
+    return state.labPredict;
+  }
   function renderLabFindings(sim) {
     var el = $('labFindings'); if (!el) return;
     var L = labState(), c = cityOf(L.city);
     var thin = runEBM(0.5, L.ghg, c.lat), thick = runEBM(50, L.ghg, c.lat);
     var g0 = runEBM(L.depth, 0, c.lat), g12 = runEBM(L.depth, 12, c.lat);
     var best = labBestDepth(L.city);
-    el.innerHTML = '<p class="lf-head"><span aria-hidden="true">✦</span> 직접 확인해 보세요 <small>(값을 바꾸면 아래 숫자가 즉시 다시 계산됩니다)</small></p>'
+    var ctx = { best: best };
+    var pk = labPredictOf();
+    var answered = LAB_PROBES.filter(function (p) { return pk[p.id]; }).length;
+
+    /* 예측한 뒤에만 여는 본문 — 숫자는 전부 지금 화면의 값으로 계산한 것이다 */
+    function reveal(pid) {
+      if (pid === 'f1') return '<p>같은 햇빛인데 <b>0.5m</b>면 지연 <b class="hot">' + thin.lag + '일</b>, <b>50m</b>면 <b class="hot">' + thick.lag + '일</b>입니다.</p>'
+        + '<p>이 모형의 “깊이”는 실제 수심이 아니라 땅·바다·대기·혼합 같은 효과를 한 값에 모은 <b>유효 열용량 매개변수</b>입니다. '
+        + '값이 클수록 지연이 길어진다는 것은 보여 주지만, 이것만으로 “바닷가라서 늦다”고 단정할 수는 없습니다.</p>'
+        + '<button class="inline-btn" type="button" data-labset="0.5">0.5m로 보기</button> '
+        + '<button class="inline-btn" type="button" data-labset="50">50m로 보기</button>';
+      if (pid === 'f2') return '<p>온실효과를 <b>0 → +12 W/m²</b>로 올리면 연평균은 <b>' + num1(g0.mean) + '°C → <span class="hot">' + num1(g12.mean) + '°C</span></b>로 오릅니다. '
+        + '그런데 가장 더운 날은 <b>' + g0.lag + '일 → ' + g12.lag + '일</b>로 <b class="hot">'
+        + (g12.lag === g0.lag ? '전혀 움직이지 않습니다' : Math.abs(g12.lag - g0.lag) + '일밖에 움직이지 않습니다') + '</b>.</p>'
+        + '<p><b>그래서 “절기가 안 맞는다”를 전부 기후변화로 설명하면 틀립니다.</b> '
+        + '계절 지연은 늘 있던 물리이고, 온난화는 곡선 전체를 밀어 올립니다. 미션 5에서 관측으로 본 것을 모형이 다시 확인해 줍니다.</p>'
+        + '<button class="inline-btn" type="button" data-labghg="0">온실효과 0</button> '
+        + '<button class="inline-btn" type="button" data-labghg="12">온실효과 +12</button>';
+      return '<p>지금 고른 값은 <b>' + num1(L.depth) + 'm</b>(평균 오차 ' + num1(labFit(sim.curve, L.city)) + '°C)입니다. '
+        + '이 단순한 모형에서 실측과 가장 잘 맞는 값은 <b class="hot">' + num1(best.depth) + 'm</b>(오차 ' + num1(best.fit) + '°C)이에요.</p>'
+        + '<p>지역을 바꿔 값이 달라지는지 확인하되, 그 차이를 해안 거리 하나의 원인으로 해석하지 마세요. '
+        + '고도·바람·도시화처럼 이 모형에 빠진 과정도 이 한 값에 함께 흡수됩니다.</p>'
+        + '<button class="inline-btn" type="button" data-labset="' + best.depth + '">가장 잘 맞는 값으로</button>';
+    }
+
+    el.innerHTML = '<p class="lf-head"><span aria-hidden="true">✦</span> 예측하고 확인하기'
+      + '<small>(' + answered + ' / ' + LAB_PROBES.length + ' — 먼저 고르면 내가 고른 값으로 계산한 결과가 열립니다)</small></p>'
       + '<div class="lf-grid">'
-      + '<div class="lf-item"><b>① 열을 머금을수록 늦다</b>'
-      + '<p>같은 햇빛인데 <b>0.5m</b>면 지연 <b class="hot">' + thin.lag + '일</b>, <b>50m</b>면 <b class="hot">' + thick.lag + '일</b>입니다. '
-      + '이 모형의 “깊이”는 실제 수심이 아니라 땅·바다·대기·혼합 같은 효과를 한 값에 모은 <b>유효 열용량 매개변수</b>입니다. 값이 클수록 지연이 길어진다는 가설은 보여 주지만, 이것만으로 “바닷가라서 늦다”고 단정할 수는 없습니다.</p>'
-      + '<button class="inline-btn" type="button" data-labset="0.5">0.5m로 보기</button> '
-      + '<button class="inline-btn" type="button" data-labset="50">50m로 보기</button></div>'
-      + '<div class="lf-item is-key"><b>② 온실효과는 지연을 바꾸지 않는다</b>'
-      + '<p>온실효과를 <b>0 → +12 W/m²</b>로 올리면 연평균은 <b>' + num1(g0.mean) + '°C → <span class="hot">' + num1(g12.mean) + '°C</span></b>로 오르는데, '
-      + '가장 더운 날은 <b>' + g0.lag + '일 → ' + g12.lag + '일</b>로 <b class="hot">' + (g12.lag === g0.lag ? '전혀 움직이지 않습니다' : Math.abs(g12.lag - g0.lag) + '일밖에 안 움직입니다') + '</b>.<br>'
-      + '<b>그래서 “절기가 안 맞는다”를 전부 기후변화로 설명하면 틀립니다</b> — 지연은 늘 있던 물리이고, 온난화는 곡선 전체를 밀어 올립니다. 미션 5에서 관측으로 본 것을 모형이 다시 확인해 줍니다.</p>'
-      + '<button class="inline-btn" type="button" data-labghg="0">온실효과 0</button> '
-      + '<button class="inline-btn" type="button" data-labghg="12">온실효과 +12</button></div>'
-      + '<div class="lf-item"><b>③ ' + L.city + '에 가장 잘 맞는 유효 두께는?</b>'
-      + '<p>지금 고른 값은 <b>' + num1(L.depth) + 'm</b>(평균 오차 ' + num1(labFit(sim.curve, L.city)) + '°C). '
-      + '이 단순 모형에서 실측과 가장 잘 맞는 값은 <b class="hot">' + num1(best.depth) + 'm</b>(오차 ' + num1(best.fit) + '°C)입니다. '
-      + '지역을 바꿔 값이 달라지는지 확인하되, 차이를 해안 거리 하나의 원인으로 해석하지 마세요. 고도·바람·도시화 등 빠진 과정도 이 값에 함께 흡수됩니다.</p>'
-      + '<button class="inline-btn" type="button" data-labset="' + best.depth + '">가장 잘 맞는 값으로</button></div>'
+      + LAB_PROBES.map(function (p) {
+          var picked = pk[p.id], right = p.correct(ctx), ok = picked === right;
+          var title = p.title.replace('{city}', L.city), q = p.q.replace('{city}', L.city);
+          if (!picked) {
+            return '<div class="lf-item lf-ask' + (p.key ? ' is-key' : '') + '"><b>' + title + '</b>'
+              + '<p class="lf-q">' + q + '</p>'
+              + '<div class="lf-opts">' + p.opts.map(function (o) {
+                  return '<button class="choice" type="button" data-labp="' + p.id + '" data-labv="' + o.v + '">' + o.t + '</button>';
+                }).join('') + '</div>'
+              + '<p class="lf-note">채점하지 않아요. 고른 뒤에 <b>왜 그렇게 되는지</b>를 보는 것이 이 실험의 목적입니다.</p></div>';
+          }
+          var mine = p.opts.filter(function (o) { return o.v === picked; })[0];
+          var truth = p.opts.filter(function (o) { return o.v === right; })[0];
+          return '<div class="lf-item' + (p.key ? ' is-key' : '') + '"><b>' + title + '</b>'
+            + '<p class="lf-verdict ' + (ok ? 'is-ok' : 'is-diff') + '">'
+            + (ok ? '내 예측 <b>“' + mine.t + '”</b> — 모형도 같은 방향입니다.'
+                  : '내 예측 <b>“' + mine.t + '”</b> · 모형의 결과 <b>“' + truth.t + '”</b> — 어긋난 지점이 배울 곳입니다.')
+            + '</p>' + reveal(p.id)
+            + ' <button class="inline-btn is-quiet" type="button" data-labreset="' + p.id + '">다시 예측</button></div>';
+        }).join('')
       + '</div>'
-      + '<p class="lf-foot"><b>여기서 배우는 것</b> 기후를 이해한다는 것은 자료를 보는 일만이 아니라, <b>가장 단순한 법칙 하나로 자연을 다시 만들어 보고 어디까지 맞는지 확인하는 일</b>입니다. 이 모형은 열을 머금으면 계절 반응이 늦어질 수 있다는 메커니즘을 시험하지만, 실제 지역 차이의 원인을 식별하지는 못하고 특정 해의 날씨도 맞히지 못합니다 — 그 경계를 아는 것이 모형을 쓰는 능력이에요.</p>';
+      + '<p class="lf-foot"><b>여기서 배우는 것</b> 기후를 이해한다는 것은 자료를 보는 일만이 아닙니다. '
+      + '<b>가장 단순한 법칙 하나로 자연을 다시 만들어 보고, 어디까지 맞는지 확인하는 일</b>이기도 해요. '
+      + '이 모형은 열을 머금으면 계절 반응이 늦어진다는 것을 시험하지만, 지역 차이의 원인을 식별하지는 못하고 특정 해의 날씨도 맞히지 못합니다 — 그 경계를 아는 것이 모형을 쓰는 능력입니다.</p>';
+
+    el.querySelectorAll('[data-labp]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        labPredictOf()[b.dataset.labp] = b.dataset.labv;
+        /* 예측을 남긴 것도 목표 ⑤의 수행 증거다 */
+        state.labSeen = true; save(); drawLab();
+      });
+    });
+    el.querySelectorAll('[data-labreset]').forEach(function (b) {
+      b.addEventListener('click', function () { delete labPredictOf()[b.dataset.labreset]; save(); drawLab(); });
+    });
     el.querySelectorAll('[data-labset]').forEach(function (b) {
       b.addEventListener('click', function () { setLabDepth(Number(b.dataset.labset)); });
     });
@@ -4074,15 +4189,27 @@
       + '<div class="learning-panel" data-free-panel="0"' + (freeTab === 0 ? '' : ' hidden') + '>'
       + '<p class="task"><b>지금 할 일 하나:</b> 지역·절기·지표를 바꾸고 기준선을 옮겨, 내가 검증할 질문을 만드세요.</p>'
       + heroShell({ cityChips: true, termStrip: true, metricTabs: true, includeReadouts: false, includeMethod: false, compactIntegrity: true })
+      /* R6: 탭 이름이 '질문 만들기'인데 질문을 쓸 칸이 없었고, 탐구 질문 스캐폴드는 다음 탭에 있었다.
+         고른 조건으로 '검증할 수 있는 질문'이 어떻게 조립되는지 보여 주고, 그것을 자기 말로
+         다듬어 남기게 한다 — 무엇이 자료로 답할 수 있는 질문인지가 이 탭의 학습 내용이다. */
+      + '<div class="qbuild"><p class="qb-head"><span aria-hidden="true">🧭</span> 내 질문 만들기'
+      + '<small>위에서 조건을 바꾸면 아래 문장이 함께 바뀝니다</small></p>'
+      + '<p class="qb-auto" id="qbAuto" aria-live="polite"></p>'
+      + '<p class="qb-why">자료로 답할 수 있는 질문에는 <b>어디(지역)</b> · <b>언제(절기·기간)</b> · <b>무엇을(지표)</b> · <b>어떤 기준으로</b> 네 가지가 들어 있습니다.</p>'
+      + '<label class="draft-label" for="freeQuestion">내 말로 다듬기 <small>위 문장을 그대로 써도 되고, 내가 궁금한 쪽으로 바꿔도 됩니다</small></label>'
+      + '<textarea id="freeQuestion" maxlength="200" placeholder="예: 대구에서 ‘덥다’를 28°C로 정하면, 대서 무렵 더위일이 과거와 지금 사이에 얼마나 달라졌을까?"></textarea>'
+      + '<div class="ai-row"><button class="ghost-btn small-btn" id="qbUse" type="button">위 문장 가져오기</button>'
+      + '<p class="qb-hint" id="qbHint" role="status"></p></div></div>'
+      + '<div id="inqMount"></div>'
       + '<p class="share-row"><button class="ghost-btn small-btn" id="copyLink" type="button">🔗 이 화면 링크 복사</button>'
       + '<button class="ghost-btn small-btn" id="freeLab" type="button">🔬 열관성 실험실</button>'
       + '<small>지역·절기·지표·기준이 그대로 열리는 주소예요. 모둠끼리 비교하거나 선생님이 배부할 때 쓰세요.</small></p>'
-      + '<div class="step-actions"><button class="primary-btn" data-free-step="1">이 조건의 증거 읽기 →</button></div></div>'
+      + '<div class="step-actions"><button class="primary-btn" id="freeToEvidence">이 조건의 증거 읽기 →</button></div></div>'
       + '<div class="learning-panel" data-free-panel="1"' + (freeTab === 1 ? '' : ' hidden') + '>'
-      + '<p class="panel-kicker">선택한 조건의 자동 집계</p><p class="cerl" id="freeCerl"></p>'
+      + '<p class="panel-kicker">선택한 조건의 자동 집계</p>'
+      + '<p class="qb-recall" id="qbRecall"></p><p class="cerl" id="freeCerl"></p>'
       + '<div class="readouts" id="readouts"></div>'
       + '<div id="kmaRefMount"></div>'
-      + '<div id="inqMount"></div>'
       + '<div id="winMount"></div>'
       + '<div id="sparkMount"></div>'
       + '<div id="methodMount"></div>'
@@ -4094,11 +4221,31 @@
       + '<button class="ai-btn" id="askAudit" disabled><span aria-hidden="true">✦</span> AI 점검 요청</button></div>'
       + '<div class="ai-consent"><label><input type="checkbox" id="aiConsent"> <span><b>선택 동의:</b> AI 점검을 요청하면 위 결론과 화면의 관측 근거가 OpenAI API로 전송됩니다. 이름·학교·연락처는 입력하지 마세요.</span></label>'
       + '<small>동의하지 않아도 기기 안 빠른 점검으로 같은 핵심 항목을 확인할 수 있습니다.</small></div>'
-      + '<p class="audit-status" id="auditStatus">결론을 쓰면 과장 · 범위 · 인과를 점검합니다. AI가 응답하지 않아도 같은 항목을 규칙 점검이 확인합니다.</p>'
+      + '<p class="audit-status" id="auditStatus" role="status">결론을 쓰면 과장 · 범위 · 인과를 점검합니다. AI가 응답하지 않아도 같은 항목을 규칙 점검이 확인합니다.</p>'
       + '<div class="audit-result" id="auditResult" hidden></div></div>'
       + '<div class="step-actions"><button class="ghost-btn" data-free-step="1">← 증거 다시 읽기</button></div></div></section>');
     bindCityChips(); bindTermStrip(); bindMetricTabs(); bindThreshold(); bindViewTools();
-    onTouched = function () {}; drawHero(); updateKmaRef(); updateInquiry(); updateWindow();
+    /* 조건을 바꾸면 조립된 질문도 따라 바뀌어야 한다 — onTouched 가 그 갱신 지점이다. */
+    onTouched = function () { syncQBuild(); };
+    drawHero(); updateKmaRef(); updateInquiry(); updateWindow();
+    var qta = $('freeQuestion');
+    if (qta) {
+      qta.value = state.freeQuestion || '';
+      qta.addEventListener('input', function () { state.freeQuestion = qta.value.slice(0, 200); save(); syncQBuild(); });
+      $('qbUse').addEventListener('click', function () {
+        qta.value = autoQuestion(); state.freeQuestion = qta.value; save(); syncQBuild(); qta.focus();
+      });
+    }
+    syncQBuild();
+    /* 질문 없이 증거로 넘어가면 이 탭이 하는 일이 없어진다 — 미션의 판정 게이트와 같은 방식으로 잠근다. */
+    if ($('freeToEvidence')) $('freeToEvidence').addEventListener('click', function () {
+      if ((state.freeQuestion || '').trim().replace(/\s/g, '').length < 15) {
+        var h = $('qbHint');
+        h.textContent = '먼저 내 질문을 15자 이상 써 주세요. ‘위 문장 가져오기’를 눌러 시작해도 됩니다.';
+        h.classList.add('is-urge'); flash(h); if (qta) qta.focus(); return;
+      }
+      state.freeTab = 1; save(); renderFree();
+    });
     $('freeDraft').value = state.freeDraft || '';
     $('freeDraft').addEventListener('input', function () { state.freeDraft = $('freeDraft').value.slice(0, 400); save(); });
     $('localAudit').addEventListener('click', function () {
@@ -4311,6 +4458,13 @@
       mqLight.addEventListener('change', function () { if (themePref() === 'auto') applyTheme('auto'); });
     }
   }
+  /* 대화상자 닫기 버튼은 화면 전환과 무관하게 한 번만 묶는다 */
+  function bindDialogs() {
+    document.querySelectorAll('[data-close]').forEach(function (b) {
+      b.addEventListener('click', function () { var d = $(b.dataset.close); if (d && d.close) d.close(); });
+    });
+  }
+  bindDialogs();
   bindTheme();
 
   $('openGuide').addEventListener('click', function () { var d = $('guideDialog'); if (d.showModal) d.showModal(); else d.setAttribute('open', ''); });
