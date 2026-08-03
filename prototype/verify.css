@@ -61,7 +61,9 @@
   .explore-card > .step-actions:not(.step-actions-sub),
   .explore-card .learning-panel > .step-actions:not(.step-actions-sub),
   .lab-card .learning-panel > .step-actions:not(.step-actions-sub) {
-    position: sticky; bottom: .5rem; z-index: 12; margin: var(--sp-4) -.25rem 0;
+    /* 좌우 음수 마진은 컨테이너보다 넓어져 .verify-stage 에 4px 가로 넘침을 만든다
+       (배포본 실측 824 → 828). 카드 폭에 맞춘다. */
+    position: sticky; bottom: .5rem; z-index: 12; margin: var(--sp-4) 0 0;
     padding: .55rem .7rem; border-radius: 14px;
     background: rgba(var(--shade-rgb),.94); box-shadow: 0 8px 30px rgba(0,0,0,.18);
     backdrop-filter: blur(12px);
@@ -268,8 +270,12 @@
 .intro-actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; align-items: center; }
 .intro-actions .primary-btn { font-size: 15px; padding: 12px 22px; }
 .intro-foot { font-size: 12px; color: var(--muted3); margin: 18px 0 4px; }
-.intro-teacher { margin: 8px 0 0; font-size: 12.5px; }
-.intro-teacher a { color: var(--sea); text-decoration: none; border-bottom: 1px solid rgba(var(--sea-rgb),.35); padding-bottom: 1px; }
+.intro-teacher { margin: var(--sp-3) 0 0; font-size: 12.5px; }
+/* R6: 이 링크는 클래스가 없어 버튼 타깃 규칙이 닿지 않았고, 배포본 실측 높이가 19px로
+   WCAG 2.5.8(AA)의 최소 24×24조차 밑돌았다. 글자 크기는 그대로 두고 히트 영역만 넓힌다. */
+.intro-teacher a { display: inline-flex; align-items: center; min-height: 24px;
+  color: var(--sea); text-decoration: none; border-bottom: 1px solid rgba(var(--sea-rgb),.35); padding-bottom: 1px; }
+@media (pointer: coarse), (max-width: 560px) { .intro-teacher a { min-height: 44px; } }
 .intro-teacher a:hover { color: var(--sea); }
 .range-row .basis { color: var(--muted); font-weight: 400; font-size: .92em; }
 .hint-urge { color: var(--sun) !important; font-weight: 700; }
