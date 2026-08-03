@@ -2551,12 +2551,33 @@
     }
     return m.goal;
   }
+  /* R6: 진행 표시가 '단계 이름' 수를 세고 있었다. 그런데 lens는 문항 수만큼(현재 5개),
+     write는 CERL 칸 수만큼(4개) 화면이 나온다 — 그래서 '2/10'이 9클릭, '6/10'이 25클릭 동안
+     멈춰 있었고, 학습자는 60%에서 남은 상호작용의 절반 이상을 앞에 두고 있었다.
+     단계마다 실제 화면 수를 가중해 매 화면 눈금이 움직이게 한다. */
+  function stepWeight(m, step) {
+    if (step === 'lens') return LENS.items.length;
+    if (step === 'write') return CERL_FIELDS.length;
+    return 1;
+  }
+  function stepSubIndex(m, step) {
+    if (step === 'lens') return Math.min(LENS.items.length - 1, Object.keys(state.lens || {}).length);
+    if (step === 'write') return Math.min(CERL_FIELDS.length - 1, Math.max(0, Number((state.cerlStepById || {})[m.id]) || 0));
+    return 0;
+  }
   function missionStepHeader(m, step) {
-    var seq = missionSequence(m), at = Math.max(0, seq.indexOf(step));
+    var seq = missionSequence(m), idx = Math.max(0, seq.indexOf(step));
+    var total = 0, before = 0;
+    for (var i = 0; i < seq.length; i++) {
+      var w = stepWeight(m, seq[i]);
+      if (i < idx) before += w;
+      total += w;
+    }
+    var at = Math.min(total - 1, before + stepSubIndex(m, step));
     return '<div class="mission-step-head"><div class="mhead"><span class="mno">미션 ' + (state.mi + 1) + ' / ' + MISSIONS.length
       + '</span><span class="goal-chip">' + goalChipText(m, step) + '</span></div>'
-      + '<div class="micro-progress" aria-label="미션 세부 단계"><b>' + (at + 1) + '/' + seq.length + ' · ' + STEP_LABELS[step]
-      + '</b><span><i style="width:' + ((at + 1) / seq.length * 100) + '%"></i></span></div></div>';
+      + '<div class="micro-progress" aria-label="미션 세부 단계"><b>' + (at + 1) + '/' + total + ' · ' + STEP_LABELS[step]
+      + '</b><span><i style="width:' + ((at + 1) / total * 100) + '%"></i></span></div></div>';
   }
   function setMissionStep(step) {
     state.phase = 'mission'; state.missionStep = step; save(); renderMissionFlow();
