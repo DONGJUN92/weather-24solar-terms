@@ -4,7 +4,7 @@
 구글폼에 올릴 것만 담는다. 저장소 루트에는 작업 문서(레드팀 보고서·기획서·개선 방향성 등)가
 많고, 그것들은 소스코드 zip 안에 기록으로 들어가면 충분하다.
 
-  ① 발표자료   발표자료_Weather24.pdf        (루트에서 복사)
+  ① 발표자료   발표자료_Weather24_본선.pptx + .pdf  (루트에서 복사 — 주최측 템플릿 기반)
   ② 구동 URL   00_제출안내.md 안에 기재       (파일 없음)
   ③ 소스코드   weather24_source.zip          git archive + 제외 pathspec
   ④ 프롬프트   weather24_sessions.zip        prompt_sessions/*.md
@@ -71,7 +71,7 @@ def main():
     fails = []
 
     # ① ⑤ 복사
-    for name in ("발표자료_Weather24.pdf", "README.md"):
+    for name in ("발표자료_Weather24_본선.pptx", "발표자료_Weather24_본선.pdf", "README.md"):
         src = os.path.join(BASE, name)
         if not os.path.exists(src):
             fails.append(f"{name} 없음")
@@ -122,7 +122,7 @@ def main():
 
     # ② 구동 URL + 목록 문서
     rows = []
-    for name in ("발표자료_Weather24.pdf", "weather24_source.zip",
+    for name in ("발표자료_Weather24_본선.pptx", "발표자료_Weather24_본선.pdf", "weather24_source.zip",
                  "weather24_sessions.zip", "README.md"):
         p = os.path.join(OUT, name)
         if os.path.exists(p):
@@ -143,7 +143,7 @@ def main():
         "",
         "| # | 항목 | 올릴 것 |",
         "|---|---|---|",
-        "| ① | 발표자료 | `발표자료_Weather24.pdf` |",
+        "| ① | 발표자료 | `발표자료_Weather24_본선.pptx` · `발표자료_Weather24_본선.pdf` |",
         f"| ② | 구동 URL | {APP} |",
         "| ③ | 소스코드 | `weather24_source.zip` |",
         "| ④ | 프롬프트 세션 | `weather24_sessions.zip` |",

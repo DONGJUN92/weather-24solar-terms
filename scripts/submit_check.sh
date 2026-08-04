@@ -25,7 +25,9 @@ if ls 발표자료*.pdf >/dev/null 2>&1; then
   pg=$(python -c "import fitz,glob;print(fitz.open(glob.glob('발표자료*.pdf')[0]).page_count)" 2>/dev/null)
   emb=$(python -c "import fitz,glob;d=fitz.open(glob.glob('발표자료*.pdf')[0]);print(sum(1 for p in range(d.page_count) for f in d[p].get_fonts() if 'Malgun' in f[3]))" 2>/dev/null)
   if [ "${emb:-0}" -gt 0 ]; then ok "① 발표자료 PDF ${pg}장 · 한글 폰트 임베드"; else no "① 발표자료에 한글 폰트가 임베드되지 않음 — 주최측 PC에서 깨질 수 있음"; fi
-else no "① 발표자료(PPT/PDF)가 없습니다"; fi
+else no "① 발표자료 PDF가 없습니다"; fi
+if ls 발표자료*.pptx >/dev/null 2>&1; then ok "① 발표자료 PPTX 있음 (주최측 템플릿 기반)"
+else no "① 발표자료 PPTX가 없습니다 — 제출은 pptx·pdf 둘 다"; fi
 curl -fsS -o /dev/null "$APP/" 2>/dev/null && ok "② 구동 URL 200" || no "② 배포 URL 응답 없음"
 [ -d .git ] && ok "③ 소스코드(git)" || no "③ git 저장소 아님"
 n=$(ls prompt_sessions/*.md 2>/dev/null | grep -v README | wc -l)
@@ -116,7 +118,7 @@ echo "── 7. 문서-현실 정합성 ─────────────�
 # 문서에 적은 커밋 수는 '그 문서를 고친 커밋' 만큼 뒤처질 수밖에 없다 — 1 차이는 허용한다.
 c=$(git rev-list --count HEAD)
 # 커밋 수는 세 산출물에 각각 적혀 있다 — 하나만 검사하면 나머지가 조용히 어긋난다(5차 F05).
-for pair in "README.md:요약: N개 커밋" "AI_활용_기록.md:커밋 N개" "scripts/build_deck.py:커밋 N건"; do
+for pair in "README.md:요약: N개 커밋" "AI_활용_기록.md:커밋 N개"; do
   cf=${pair%%:*}
   if grep -qE "($c|$((c-1))|$((c+1)))(개|건) 커밋|커밋 ($c|$((c-1))|$((c+1)))(개|건)" "$cf" 2>/dev/null; then
     ok "$(basename "$cf") 커밋 수 표기 일치 (실제 ${c})"
@@ -141,7 +143,7 @@ for d in 데모_대본.md 발표_10분_구성안.md; do
 done
 
 # 배포 자산 총량 표기 검증 — gzip 실측 합계가 발표자료 표기와 ±5% 안인지(5차 F05).
-kb_doc=$(grep -oE "약 [0-9]{3}KB" scripts/build_deck.py 2>/dev/null | head -1 | grep -oE "[0-9]{3}")
+kb_doc=$(grep -oE "약 [0-9]{3}KB" 제출_체크리스트.md 2>/dev/null | head -1 | grep -oE "[0-9]{3}")
 if [ -n "$kb_doc" ]; then
   tot=0
   for a in prototype/index.html prototype/base.css prototype/verify.css prototype/korea_geo.js prototype/solar_terms_data.js prototype/verify.js prototype/theme-init.js; do

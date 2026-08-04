@@ -1,370 +1,429 @@
 # -*- coding: utf-8 -*-
-"""발표자료 PDF 생성.
+"""주최측 템플릿에 내용만 채워 본선 발표자료를 만든다.
 
-주최측 PC로만 발표하므로(오리엔테이션 p.26) 폰트를 PDF에 임베드해
-글자 깨짐을 원천 차단한다. 16:9, 개조식·명사형. 총 장수는 TOTAL 하나로 관리한다.
+입력  assets/deck/템플릿_원본.pptx · assets/deck/*.png (배포본에서 추출한 시각자료)
+출력  발표자료_Weather24_본선.pptx  (PDF 는 PowerPoint 로 내보낸다)
 
-실행: python scripts/build_deck.py
-산출: 발표자료_Weather24.pdf
+원칙
+  · 서식(폰트·크기·색)은 템플릿 런의 것을 그대로 재사용한다 — 첫 런을 in-place 편집하고
+    형제 런을 제거하는 set_para_text 방식(python-pptx가 text 대입 시 서식을 날리는 함정 회피)
+  · 문장은 개조식 + 명사형
+  · 가이드 슬라이드(2·3·4)와 별지1(12)은 템플릿 지시대로 삭제
+  · 시각자료는 앱 실물 SVG를 래스터화한 PNG를 삽입
 """
-import sys, os
-from reportlab.pdfgen import canvas
-from reportlab.lib.utils import ImageReader
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
+import copy
+import io
+import os
+import sys
 
-sys.stdout.reconfigure(encoding="utf-8")
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-OUT = os.path.join(ROOT, "발표자료_Weather24.pdf")
-
-F = "C:/Windows/Fonts/malgun.ttf"
-FB = "C:/Windows/Fonts/malgunbd.ttf"
-pdfmetrics.registerFont(TTFont("MG", F))
-pdfmetrics.registerFont(TTFont("MGB", FB))
-
-W, H = 960, 540                      # 16:9
-TOTAL = 11                           # 슬라이드를 늘리면 여기만 고친다(쪽번호가 따라간다)
-BG    = (0.031, 0.110, 0.176)        # #081c2d
-PANEL = (0.063, 0.208, 0.298)        # #10354c
-INK   = (0.925, 0.961, 0.968)        # #ecf5f7
-MUTED = (0.655, 0.741, 0.773)        # #a7bdc5
-SUN   = (1.000, 0.745, 0.345)        # #ffbe58
-CORAL = (1.000, 0.502, 0.400)        # #ff8066
-SEA   = (0.231, 0.816, 0.753)        # #3bd0c0
-GREEN = (0.553, 0.878, 0.647)        # #8de0a5
-
-c = canvas.Canvas(OUT, pagesize=(W, H))
-page = [0]
+from pptx import Presentation
+from pptx.oxml.ns import qn
+from pptx.util import Inches, Pt
 
 
-def bg():
-    c.setFillColorRGB(*BG); c.rect(0, 0, W, H, stroke=0, fill=1)
+def no_bullet(tf):
+    """개체 틀이 물려주는 글머리표(•)를 끈다.
+    본문에 ■·· 표식을 직접 쓰므로 자동 글머리표가 겹치고, 빈 줄에도 점이 남는다."""
+    for p in tf.paragraphs:
+        pPr = p._p.get_or_add_pPr()
+        for tag in ('a:buChar', 'a:buAutoNum', 'a:buNone'):
+            for el in pPr.findall(qn(tag)):
+                pPr.remove(el)
+        pPr.append(pPr.makeelement(qn('a:buNone'), {}))
+
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+SHOTS = os.path.join(BASE, 'assets', 'deck')
+
+URL = 'https://weather-24solar-terms.vercel.app'
 
 
-def foot(label):
-    page[0] += 1
-    c.setFont("MG", 9); c.setFillColorRGB(*MUTED)
-    c.drawString(48, 22, "Weather24 · 절기, 아직 맞을까")
-    c.drawRightString(W - 48, 22, f"{label}   {page[0]} / {TOTAL}")
-    c.setStrokeColorRGB(*MUTED); c.setLineWidth(0.4); c.setDash(1, 0)
-    c.line(48, 38, W - 48, 38)
+# ─────────────────────────────────────────────────────────────── 서식 보존 편집
+def set_lines(tf, lines, size=None):
+    """텍스트프레임을 lines(문자열 리스트)로 교체하면서 첫 문단 첫 런의 서식을 유지한다."""
+    paras = tf.paragraphs
+    p0 = paras[0]
+    if not p0.runs:
+        p0.add_run()
+    proto = p0.runs[0]
+    # 첫 문단
+    proto.text = lines[0]
+    if size:
+        proto.font.size = Pt(size)
+    for r in list(p0.runs)[1:]:
+        r._r.getparent().remove(r._r)
+    # 나머지 문단 제거
+    for p in list(paras)[1:]:
+        p._p.getparent().remove(p._p)
+    # 추가 문단은 첫 문단을 복제해 서식을 물려받는다
+    for line in lines[1:]:
+        newp = copy.deepcopy(p0._p)
+        p0._p.getparent().append(newp)
+    for p, line in zip(list(tf.paragraphs)[1:], lines[1:]):
+        p.runs[0].text = line
+        if size:
+            p.runs[0].font.size = Pt(size)
+    if size:                      # 본문 박스만 — 제목·표 셀의 글머리표는 건드리지 않는다
+        no_bullet(tf)
 
 
-def head(kicker, title, sub=None):
-    c.setFont("MGB", 11); c.setFillColorRGB(*SUN)
-    c.drawString(48, H - 62, kicker)
-    c.setFont("MGB", 31); c.setFillColorRGB(*INK)
-    c.drawString(48, H - 104, title)
-    if sub:
-        c.setFont("MG", 14); c.setFillColorRGB(*MUTED)
-        c.drawString(48, H - 130, sub)
+def by_name(slide, name):
+    for sh in slide.shapes:
+        if sh.name == name:
+            return sh
+    raise KeyError('%r not found: %s' % (name, [s.name for s in slide.shapes]))
 
 
-def bullets(items, x=48, y=None, w=864, size=15, gap=30, dot=SEA):
-    """items: (텍스트, 강조여부) 또는 문자열"""
-    yy = y if y is not None else H - 178
-    for it in items:
-        t, strong = (it, False) if isinstance(it, str) else it
-        c.setFillColorRGB(*(SUN if strong else dot))
-        c.circle(x + 4, yy + 5, 3, stroke=0, fill=1)
-        c.setFont("MGB" if strong else "MG", size)
-        c.setFillColorRGB(*(INK if strong else MUTED))
-        c.drawString(x + 18, yy, t)
-        yy -= gap
-    return yy
+def drop_slide(prs, idx):
+    """슬라이드 삭제 (python-pptx 미지원 — 관계와 sldIdLst 를 직접 정리)"""
+    xml_slides = prs.slides._sldIdLst
+    slides = list(xml_slides)
+    rId = slides[idx].get('{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id')
+    prs.part.drop_rel(rId)
+    xml_slides.remove(slides[idx])
 
 
-def card(x, y, w, h, title, lines, accent=SEA, tsize=13, lsize=12):
-    c.setFillColorRGB(*PANEL); c.roundRect(x, y, w, h, 10, stroke=0, fill=1)
-    c.setStrokeColorRGB(*accent); c.setLineWidth(1.2)
-    c.roundRect(x, y, w, h, 10, stroke=1, fill=0)
-    c.setFont("MGB", tsize); c.setFillColorRGB(*accent)
-    c.drawString(x + 16, y + h - 26, title)
-    c.setFont("MG", lsize); c.setFillColorRGB(*INK)
-    yy = y + h - 50
+def put_pic(slide, png, left, top, width=None, height=None):
+    if not png.lower().endswith('.png'):
+        png += '.png'
+    path = os.path.join(SHOTS, png)
+    if not os.path.exists(path):
+        print('  !! 이미지 없음: %s' % png)
+        return None
+    kw = {}
+    if width:
+        kw['width'] = Inches(width)
+    if height:
+        kw['height'] = Inches(height)
+    return slide.shapes.add_picture(path, Inches(left), Inches(top), **kw)
+
+
+# 12pt 한글 기준 — 렌더한 PNG에서 되짚어 보정한 값
+# (첫 추정 33자/0.225in 은 실제보다 1.6배 커서 이미지 자리를 못 찾았다)
+# 5.60in 박스에 약 52자, 줄높이 0.185in
+CPL_PER_IN = 9.3
+LINE_H = 0.185
+
+
+def text_height(lines, box_w_in):
+    """줄바꿈까지 감안한 본문 높이(in). 이미지를 어디서부터 놓을지 정하는 데 쓴다."""
+    cpl = max(12, int((box_w_in - 0.30) * CPL_PER_IN))
+    n = 0
     for ln in lines:
-        c.drawString(x + 16, yy, ln); yy -= 19
+        n += max(1, -(-len(ln) // cpl))       # ceil
+    return n * LINE_H + 0.18
 
 
-def big(x, y, val, label, color=CORAL, vs=40):
-    c.setFont("MGB", vs); c.setFillColorRGB(*color); c.drawString(x, y, val)
-    c.setFont("MG", 11.5); c.setFillColorRGB(*MUTED); c.drawString(x, y - 18, label)
+def fit_pic_below(slide, box, lines, png, pad=0.14):
+    """본문 아래 남는 공간에 이미지를 비율 유지로 앉힌다 — 글자를 덮지 않게."""
+    if not png.lower().endswith('.png'):
+        png += '.png'
+    path = os.path.join(SHOTS, png)
+    if not os.path.exists(path):
+        print('  !! 이미지 없음: %s' % png)
+        return None
+    from PIL import Image
+    iw, ih = Image.open(path).size
+    bx, by = box.left / 914400.0, box.top / 914400.0
+    bw, bh = box.width / 914400.0, box.height / 914400.0
+    top = by + text_height(lines, bw) + pad
+    avail_h = (by + bh) - top - pad
+    avail_w = bw - 2 * pad
+    if avail_h < 0.6:
+        print('  !! 남는 높이 부족(%.2fin): %s' % (avail_h, png))
+        return None
+    sc = min(avail_w / iw, avail_h / ih)
+    w, h = iw * sc, ih * sc
+    left = bx + (bw - w) / 2.0
+    print('     %s → %.2fx%.2f in @ y=%.2f (남은 높이 %.2f)' % (png, w, h, top, avail_h))
+    return slide.shapes.add_picture(path, Inches(left), Inches(top), width=Inches(w), height=Inches(h))
 
 
-# ── 1. 표지 ───────────────────────────────────────────────────
-bg()
-c.setFillColorRGB(*PANEL); c.rect(0, 0, W, 168, stroke=0, fill=1)
-c.setFont("MGB", 12); c.setFillColorRGB(*SUN)
-c.drawString(48, H - 92, "2026 기상·기후 AI 해커톤 경진대회 · 본선")
-c.setFont("MGB", 54); c.setFillColorRGB(*INK)
-c.drawString(48, H - 158, "Weather24")
-c.setFont("MGB", 30); c.setFillColorRGB(*SEA)
-c.drawString(48, H - 202, "절기, 아직 맞을까")
-c.setFont("MG", 17); c.setFillColorRGB(*MUTED)
-c.drawString(48, H - 244, "‘덥다’의 기준선을 학습자가 직접 정하고,")
-c.drawString(48, H - 270, "24절기가 지금도 맞는지 기상청 관측 자료로 확인하는 학습 도구")
-c.setFont("MG", 12.5); c.setFillColorRGB(*MUTED)
-c.drawString(48, 116, "대상 · 중3~고2 학생과 교사")
-c.drawString(48, 94,  "자료 · 기상청 ASOS 종관기상관측 일자료 16지점 · 1969–2025")
-c.drawString(48, 72,  "주소 · https://weather-24solar-terms.vercel.app")
-c.setFont("MGB", 12.5); c.setFillColorRGB(*SUN)
-c.drawRightString(W - 48, 72, "팀 DONGJUN92")
-page[0] += 1
+# ─────────────────────────────────────────────────────────────── 콘텐츠
+CONTENT = {}
 
-# ── 2. 문제 ───────────────────────────────────────────────────
-c.showPage(); bg()
-head("문제", "“처서가 지났는데 왜 덥죠?”", "학생의 실제 질문 · 절기와 기후를 섞어 이해하는 오개념")
-bullets([
-    ("절기 = 태양 위치로 정한 천문 날짜 — 해마다 거의 고정", True),
-    "달라진 것은 절기 날짜가 아니라 그 무렵 관측된 기온",
-    ("두 가지를 섞으면 “절기 자체가 더워졌다”는 오개념 발생", True),
-    "기존 기후 교육 자료 대부분 ‘읽는 콘텐츠’ — 조작·검증 경험 부재",
-    "‘더워졌다’를 수치로 말하는 훈련 기회 부족",
-], y=H - 190, gap=34)
-card(48, 62, 420, 108, "학습자가 겪는 어려움", [
-    "· 기후 서술의 근거 범위 판단 어려움",
-    "· ‘몇 도부터 덥다’의 기준 부재",
-    "· 5년 관측과 30년 기후평년의 구분 미형성",
-], accent=CORAL)
-card(492, 62, 420, 108, "이 도구가 겨냥한 지점", [
-    "· 기준을 스스로 정하는 경험",
-    "· 정한 기준으로 실측을 세는 경험",
-    "· 근거 크기만큼만 결론 쓰는 훈련",
-], accent=GREEN)
-foot("문제")
+# ── 표지 (S1) ─────────────────────────────────────────────
+COVER = {
+    10: 'Weather24 — 절기, 아직 맞을까',
+    11: '팀 Weather24 (1인 팀)',
+    12: URL,
+    13: '신동준',
+}
 
-# ── 3. 해법 ───────────────────────────────────────────────────
-c.showPage(); bg()
-head("해법", "학생의 생각으로 시작한다", "무자료 예측 → 직접 다루기 → 내 결론 → 이해 확인 → 모범 예시 비교")
-bullets([
-    ("‘덥다’의 정의를 학습자가 직접 설정 — 정답 제공 없음", True),
-    "그래프·표·숫자가 없는 별도 화면에서 예측 — 곡선으로 답을 읽는 구조 차단",
-    "학생이 주장·근거·추론·한계를 먼저 써야 모범 예시와 다음 미션이 열림",
-], y=H - 178, gap=28)
-c.setFont("MGB", 15); c.setFillColorRGB(*SUN)
-c.drawString(48, H - 278, "조작 변수 4축 + 선택 2축")
-rows = [
-    ("세로 — 기준값", "‘덥다’를 몇 도로 정할지 · 드래그·슬라이더·±·자주 쓰는 기준 4경로", "미션 1~4 · 자유탐구"),
-    ("가로 — 날짜", "가장 더울 것 같은 날 직접 찍기", "미션 5"),
-    ("기간 — 비교 창", "‘현재’로 쓸 5년을 26가지 중 선택", "자유탐구"),
-    ("물리 — 열용량·온실효과", "에너지 균형 방정식을 365일 적분 — 관측이 아니라 모형", "열관성 실험실"),
-    ("지역 · 지표", "16지점 지도 클릭 · 기온·습도·강수", "전 구간"),
+# ── I. 결과물 및 팀 기본 정보 (S5) ─────────────────────────
+TBL5 = [
+    '팀 Weather24 (1인 팀)',
+    'Weather24 — 절기, 아직 맞을까',
+    URL,
+    '중·고생이 ‘덥다’ 기준을 정해 24절기를 실측 검증하는 기후 학습 웹앱',   # 40자 — 템플릿 '40자 내외'
 ]
-yy = H - 306
-for a, b, d in rows:
-    c.setFillColorRGB(*PANEL); c.roundRect(48, yy - 20, 864, 30, 7, stroke=0, fill=1)
-    c.setFont("MGB", 12.5); c.setFillColorRGB(*SEA); c.drawString(62, yy - 11, a)
-    c.setFont("MG", 12); c.setFillColorRGB(*INK); c.drawString(214, yy - 11, b)
-    c.setFont("MG", 11.5); c.setFillColorRGB(*MUTED); c.drawRightString(898, yy - 11, d)
-    yy -= 36
-c.setFont("MG", 10.5); c.setFillColorRGB(*MUTED)
-c.drawString(48, 57, "학습 동선(파일럿 전 추정) · 미션 하나 핵심 2~3분 · 5미션 핵심 15~20분 · 심화·자유탐구까지 55~70분")
-foot("해법")
-
-# ── 4. 시연 ───────────────────────────────────────────────────
-c.showPage(); bg()
-c.setFont("MGB", 13); c.setFillColorRGB(*SUN)
-c.drawCentredString(W / 2, H - 130, "LIVE DEMO · 4분")
-c.setFont("MGB", 44); c.setFillColorRGB(*INK)
-c.drawCentredString(W / 2, H - 190, "직접 조작으로 보여 드립니다")
-seq = [
-    ("0:25", "24절기 입문", "궤도·한자 풀이 · ‘여름은 태양에 가까워서 덥다’ 오개념 교정"),
-    ("0:50", "미션 1 처서", "무자료 예측 봉인 → 관측 화면 공개 → 기준선 조작"),
-    ("0:30", "미션 4 강수", "1mm → 30mm → 50mm · 결론의 방향이 뒤집히는 순간"),
-    ("0:30", "미션 5 계절 지연", "가로 드래그로 날짜 찍기 · 원인 분리"),
-    ("0:40", "열관성 실험실", "물리 방정식을 조작 — 온실효과를 올려도 지연은 불변"),
-    ("0:35", "학생 CERL + 감사", "네 요소 필수 작성 · 로컬 점검 기본 · 동의 뒤 외부 AI"),
-    ("0:30", "자유탐구", "16지점 지도 · 비교 기간 26창"),
-    ("0:30", "정직성 · 지구 맥락", "폭염일·열대야 실측 · 할 수 있는 것/없는 것을 같은 표에 · Keeling 곡선"),
+# 이 박스는 2.08in · 16pt 라 4줄이 한계다. AI 활용 내용은 6장(구현 완성도)에서 다룬다.
+TEAM5 = [
+    '신동준 / 기획·개발·데이터·디자인',
+    '※ 1인 팀 — 단독 수행',
 ]
-yy = H - 240
-for t, a, b in seq:
-    c.setFont("MGB", 13); c.setFillColorRGB(*SUN); c.drawString(120, yy, t)
-    c.setFont("MGB", 13); c.setFillColorRGB(*INK); c.drawString(180, yy, a)
-    c.setFont("MG", 11.5); c.setFillColorRGB(*MUTED); c.drawString(330, yy, b)
-    yy -= 26
-c.setFont("MG", 11.5); c.setFillColorRGB(*CORAL)
-c.drawCentredString(W / 2, 62, "시연 전 반드시 ‘↺ 처음부터’ 클릭 — 공용 PC이므로 이전 기록 제거 필요")
-foot("시연")
 
-# ── 5. 열관성 실험실 (관측을 넘어 모형으로) ───────────────────
-c.showPage(); bg()
-head("모형", "관측만 보여 주지 않는다 — 직접 계산하게 한다",
-     "‘데이터 뷰어 아닌가’에 대한 답은 문장이 아니라 화면이다")
-c.setFillColorRGB(*PANEL); c.roundRect(48, H - 236, 864, 62, 10, stroke=0, fill=1)
-c.setStrokeColorRGB(*SEA); c.setLineWidth(1.2); c.roundRect(48, H - 236, 864, 62, 10, stroke=1, fill=0)
-c.setFont("MGB", 15); c.setFillColorRGB(*SEA)
-c.drawCentredString(W / 2, H - 200, "C · dT/dt  =  Q(날짜, 위도)·(1−α)  −  (A + B·T)")
-c.setFont("MG", 11.5); c.setFillColorRGB(*MUTED)
-c.drawCentredString(W / 2, H - 222, "0차원 에너지 균형 모형 · 태양 일사는 천문 계산(Spencer 1971) · 40년 스핀업 후 365일 적분")
-rows = [
-    ("유효 열용량 깊이  0.5m → 50m", "지연 3일 → 88일", "열을 더 머금으면 반응이 늦어질 수 있다는 메커니즘 시험", SEA),
-    ("온실효과  0 → +12 W/m²", "연평균 12.4 → 14.7℃ · 지연 17일 → 17일", "이 단순 모형에서 평균 상승과 지연 메커니즘을 분리", CORAL),
-    ("서울 위도 · 유효 깊이 5m", "지연 40일 · 최고 28.0℃", "실측과 가까운 적합 사례 — 실제 지역 원인을 확정하지 않음", GREEN),
+# ── 1. 학습 대상 분석 (S6) · (1) 학습 효과 ─────────────────
+S6_TITLE = '1. 학습 대상 분석'
+S6_BODY = [
+    '■ 학습 대상 — 중3~고2 (중등 3학년 ~ 고등 2학년)',
+    '  · 선정 근거 ① 2015·2022 개정 교육과정상 ‘기후변화와 지구환경’·‘자료 해석’ 성취기준 배치 학년',
+    '  · 선정 근거 ② 임계값(기준온도) 개념과 평균·빈도 구분이 가능한 최소 학년',
+    '  · 선정 근거 ③ 24절기를 생활 속에서 들어 본 세대이나 천문 기준임은 미학습 — 오개념 교정 여지 최대',
+    '',
+    '■ 난이도 적합성 근거 — 4단 조절 설계',
+    '  · 수식 비노출 · 조작은 ‘기준선 끌기’ 하나로 시작 (첫 조작까지 클릭 2회)',
+    '  · 용어 3단 계단 — 생활어(‘덥다’) → 조작어(기준) → 학술어(임계값·유효 열용량) 순 도입',
+    '  · 심화는 선택 분기 — 열관성 실험실(에너지수지 모형)·전국 16지점·26개 비교 구간',
+    '  · 읽기 부담 관리 — 화면 본문 한 문장 45자 이하, 한 화면 한 질문 원칙',
+    '',
+    '■ 교실 투입 형태',
+    '  · 교사용 학습지 동시 제공 — 수업 흐름 · 활동지 · 오개념 표 8행 · 평가 루브릭',
+    '  · 설치·로그인·결제 없음 · 크롬 단독 구동 · 모바일 대응(390px 검증)',
+    '  · 미션 1 기준 16화면 · 진행 눈금 1/16~16/16 실시간 표시',
 ]
-yy = H - 268
-for a, b, d, col in rows:
-    c.setFillColorRGB(*PANEL); c.roundRect(48, yy - 34, 864, 44, 7, stroke=0, fill=1)
-    c.setFont("MGB", 12.5); c.setFillColorRGB(*col); c.drawString(62, yy - 12, a)
-    c.setFont("MGB", 13); c.setFillColorRGB(*INK); c.drawString(330, yy - 12, b)
-    c.setFont("MG", 11); c.setFillColorRGB(*MUTED); c.drawString(62, yy - 27, d)
-    yy -= 50
-bullets([
-    ("학습자가 바꾸는 것은 필터가 아니라 물리량 — 방정식을 매번 다시 푼다", True),
-    "화면 맨 위가 먼저 밝힌다: “이 곡선만은 관측이 아닙니다” + 단순화 5가지 명시",
-], y=H - 436, gap=26, size=13)
-c.setFont("MG", 10); c.setFillColorRGB(*MUTED)
-c.drawString(48, 51, "관측 3축(기준값·날짜·기간)은 자료가 무엇을 말하는지를, 물리 1축은 왜 그런지를 다룬다 — 둘 다 필요하다")
-foot("모형")
 
-# ── 6. 자기 수치 반증 ─────────────────────────────────────────
-c.showPage(); bg()
-head("검증", "우리 수치를 우리가 반증", "레드팀 5라운드 자가 감사에서 발견 · 발표 전 전량 수정")
-c.setFillColorRGB(*PANEL); c.roundRect(48, H - 320, 864, 148, 10, stroke=0, fill=1)
-c.setStrokeColorRGB(*CORAL); c.setLineWidth(1.2); c.roundRect(48, H - 320, 864, 148, 10, stroke=1, fill=0)
-c.setFont("MGB", 13); c.setFillColorRGB(*CORAL); c.drawString(66, H - 200, "무엇이 틀렸었나")
-c.setFont("MG", 12.5); c.setFillColorRGB(*INK)
-for i, t in enumerate([
-    "· 평활 곡선을 세어 ‘관측 일수’로 표기 — 서울 33일 → 82일",
-    "· 관측일수 350일 미만의 불완결 연도(2026)를 평년 비교에 포함",
-    "· 강수는 방향까지 반대로 표기",
-    "· (4차) 해안이 늦다고 단정 — 한 해만 빼면 격차 11일 → 2일로 사라짐",
-    "· (4차) 원자료에 최고·최저기온이 있는데 “없다”고 표기 — 폭염·열대야 계산 가능",
-]):
-    c.drawString(66, H - 224 - i * 21, t)
-big(96,  H - 392, "30.8일 → 68.0일", "서울 · 일평균 25℃ 이상 · 연도별 실측 집계", CORAL, 30)
-big(560, H - 392, "+13일", "더위가 그치는 날 8/30 → 9/12", SUN, 30)
-bullets([
-    ("곡선은 보기용 15일 이동평균, 수치는 연도별 실측을 평균한 값 — 화면이 직접 고지", True),
-    "불완결 연도 제외 규칙 적용 · 비교 기간 2021–2025로 확정",
-], y=H - 436, gap=26, size=13)
-c.setFont("MG", 10); c.setFillColorRGB(*MUTED)
-c.drawString(48, 51, "발견 경로 · AI 레드팀 5라운드 · 3라운드 44건 + 4라운드 40건 + 5라운드 65건 적발 → 전량 수정 · AI 주장은 원자료 재검증으로 일부 기각")
-foot("검증")
-
-# ── 7. 재발 방지 ──────────────────────────────────────────────
-c.showPage(); bg()
-head("재발 방지", "같은 실수가 돌아오지 못하게", "검증 스크립트가 배포 전에 차단")
-big(72, H - 216, "8,360", "총 검사 · 데이터 8,213 + 계약/문서 147", SEA, 46)
-big(300, H - 216, "15축", "데이터 11축 + 문서·절기·전지구·학습계약 4축", GREEN, 46)
-big(72, H - 320, "100/100", "규칙 점검 평가 100케이스 · 오탐 0", SUN, 34)
-big(300, H - 320, "0건", "API 키 노출 · git 히스토리 + 배포 자산 전수", CORAL, 34)
-card(48, 66, 420, 120, "실측으로 잡아낸 예", [
-    "· 겨울 최한일이 0.2℃ 차이로 12/24 결정",
-    "  → 극값 ±0.4℃ 고원의 원형 중앙으로 교체",
-    "· 서울 최한일 1/2 · 내륙 10~13일로 수렴",
-    "· 제주 42일·인천 11일 — 해안 이분법이 성립하지 않음을 표시",
-], accent=SEA)
-card(492, 66, 420, 120, "게이트가 막는 것", [
-    "· 평활 곡선을 실측으로 표기하는 회귀",
-    "· 불완결 연도 혼입",
-    "· 화면 결론문과 데이터의 불일치",
-    "· 실패 시 배포 중단",
-], accent=CORAL)
-foot("재발 방지")
-
-# ── 8. 앱 안의 AI ─────────────────────────────────────────────
-c.showPage(); bg()
-head("앱 안의 AI", "증거 감사관", "정답 생성기가 아닌 비판적 사고 코치")
-bullets([
-    ("학생이 CERL 네 요소를 먼저 작성 — 결론 대필 없음", True),
-    "점검 항목 · 과장 · 범위 · 인과 · 5년→기후변화 비약 · 절기 오개념",
-    "기기 안 규칙 점검이 기본 · 외부 AI는 전송 고지와 명시적 동의 뒤에만 활성화",
-    ("AI 응답 실패 시 동일 항목을 규칙 점검이 즉시 대체 — 학습 중단 없음", True),
-], y=H - 186, gap=30)
-card(48, 128, 420, 132, "품질 실측", [
-    "· 연속 5회 호출 전부 HTTP 200",
-    "· 응답 1.7~3.0초",
-    "· 규칙 점검 평가 100케이스 100/100",
-    "· 프롬프트 주입 차단 12/12",
-    "· 과잉일반화 탐지 · 인과 단정 탐지",
-], accent=GREEN)
-card(492, 128, 420, 132, "설계 원칙", [
-    "· 내 결론 → 이해 확인 → 모범 예시 순서",
-    "· 이름·학교·연락처 입력 금지 안내",
-    "· 실패 원인별 안내 분기(429·503·502)",
-    "· 40명 공유 IP를 고려한 이중 요청 제한",
-    "· 출력 escape · AI 없이 학습 완결",
-], accent=SEA)
-c.setFont("MG", 11.5); c.setFillColorRGB(*MUTED)
-c.drawString(48, 68, "구성 · OpenAI Responses API · json_schema strict · Vercel 서버리스 1개 · 키는 환경변수로만 참조")
-foot("앱 안의 AI")
-
-# ── 9. 제작 과정의 AI ─────────────────────────────────────────
-c.showPage(); bg()
-head("제작 과정의 AI", "만들기보다 검증에 씀", "심사배점표 ⑤ 후반 · 생성형 AI의 제작 과정 활용")
-rows2 = [
-    ("데이터 파이프라인", "원시 CSV → 경량 JSON · 절기 드리프트 산출 방식 설계"),
-    ("레드팀 자가 감사", "3라운드 44건 적발 · 과학적 무결성 · UI/UX · 카피"),
-    ("전량 수정", "적발 44건 전부 수정 후 재검증"),
-    ("502 원인 규명", "추론 토큰이 출력 예산을 소진하는 구조 계측 → 실패율 0%"),
-    ("한국어 카피 감사", "6구간 병렬 감사 71건 → 반박 검증 통과 48건 적용"),
+# ── 2. 문제 정의 및 분석 (S7) · (2) 주제 적합성 ─────────────
+S7_TITLE = '2. 문제 정의 및 분석'
+S7_L = [
+    '■ 개발계획서 제시 기상·기후 개념 → 결과물 구현 대조',
+    '',
+    '① 기후 평년값과 계절의 길이',
+    '  → 미션 2 ‘여름은 며칠일까’ · 화면 전역 ‘30년 기후평년 아님’ 고지',
+    '② 기온 상승과 극값·계절 이동',
+    '  → 미션 1 처서 · 미션 5 계절 지연 · 폭염/열대야 기준표',
+    '③ 24절기의 과학 (태양황경 15° 간격)',
+    '  → 24절기 궤도 화면 · 절기별 황경·지구–태양 거리 표시',
+    '④ 습도·강수 변화',
+    '  → 지표 3종(기온·강수·습도) · 미션 4 강수 빈도 대 강도',
+    '⑤ (확장) CO₂–기온 상관',
+    '  → ‘지구 맥락’ 화면 · 상관 제시, 인과 단정 회피',
+    '',
+    '■ 미해결 문제 정의 — 절기·날씨·기후 혼동',
+    '  · “처서가 더워졌다” = 절기(천문 날짜)에 기온을 귀속하는 오개념',
+    '  · 기존 콘텐츠는 결론만 전달 → 학습자가 검증 경험 없음',
 ]
-yy = H - 190
-for a, b in rows2:
-    c.setFillColorRGB(*PANEL); c.roundRect(48, yy - 22, 864, 34, 8, stroke=0, fill=1)
-    c.setFont("MGB", 13); c.setFillColorRGB(*SUN); c.drawString(64, yy - 12, a)
-    c.setFont("MG", 12); c.setFillColorRGB(*INK); c.drawString(250, yy - 12, b)
-    yy -= 42
-bullets([
-    ("AI 주장 11건을 원자료 재검증으로 기각 — 받아들인 것과 버린 것을 함께 기록", True),
-    "커밋 67건 · 프롬프트 세션 원문 6건 제출",
-], y=yy - 6, gap=26, size=13)
-foot("제작 과정의 AI")
+S7_R = [
+    '■ 체험 중 주제 인식 근거',
+    '',
+    '① 첫 화면이 곧 주제',
+    '  · 표제 “24절기, 지금도 맞을까?”',
+    '  · 부제 “움직이지 않는 절기와 움직이는 기후를 나란히”',
+    '',
+    '② 매 화면 자료 범위 고지 (아래 실화면)',
+    '  · “기상청 ASOS 실측 · 과거 5년 vs 현재 5년 — 관측 신호이고 30년 기후평년 아님”',
+    '  · “절기는 태양 위치로 정한 천문 날짜라 해마다 거의 움직이지 않음”',
+    '',
+    '③ 개념 렌즈 4문항 — 절기·날씨·기후 분류 통과 후 관측 진입',
+    '  · “처서가 지났는데도 어제 낮 기온 31°C” → 날씨',
+    '  · “처서를 9월로 옮겨야 한다” → 절기(오개념 판별 문항)',
+]
 
-# ── 10. 교실 적용 ──────────────────────────────────────────────
-c.showPage(); bg()
-head("교실 적용", "수업에 그대로 들어감", "설치·로그인 없음 · 모바일 지원")
-card(48, H - 300, 278, 128, "교사가 받는 것", [
-    "· 교사용 학습지(인쇄용)",
-    "· 수업 흐름 · 활동지",
-    "· 오개념표 6행",
-    "· 평가 루브릭 6점",
-    "· 2022 개정 성취기준 연결",
-], accent=SUN)
-card(342, H - 300, 278, 128, "학생이 남기는 것", [
-    "· 미션별 판정문(CERL)",
-    "· 이해 확인 응답",
-    "· 사전·사후 인식 비교",
-    "· 내 기록 복사·인쇄",
-    "· 고향 기후 카드 PNG",
-], accent=GREEN)
-card(636, H - 300, 276, 128, "운영 조건", [
-    "· 핵심 자산 gzip 약 234KB(7개 자산 실측 239,165B)",
-    "· 외부 CDN·웹폰트 0건",
-    "· 서버 의존은 AI 감사 1개뿐",
-    "· ‘↺ 처음부터’로 공용 PC 대응",
-    "· 라이트·다크 테마 선택",
-], accent=SEA)
-bullets([
-    ("접근성 · WCAG 2.2 AA 대비 위반 0건 — 라이트·다크 양쪽 전 화면 실측", True),
-    "표 보기 제공 — 스크린리더 사용자와 숫자로 보려는 학습자 모두 대응",
-    "터치 타깃 24px 이상 · 모바일 375px 가로 스크롤 0",
-], y=H - 336, gap=27, size=13)
-foot("교실 적용")
+# ── 3. 아이디어 도출 (S8) · (3) 아이디어 독창성 ─────────────
+S8_TITLE = '3. 아이디어 도출'
+S8_L = [
+    '■ 차별화 포인트 3중 결합',
+    '',
+    '① 한국 고유 문화 기준선을 과학 검증 대상으로',
+    '  · 24절기 = 학습자가 이미 아는 ‘약속’ → 반증 대상으로 전환',
+    '  · 절기는 불변, 관측은 이동 — 두 축 분리가 학습 골격',
+    '',
+    '② 정의(定義)를 학습자에게 이양',
+    '  · ‘덥다’를 몇 도로 볼지 학습자가 결정',
+    '  · 같은 자료로 다른 결론 도출 경험 → 기준 공개의 필요성 체득',
+    '',
+    '③ 관측과 모형의 동시 제공',
+    '  · 열관성 실험실 — 0차원 에너지수지 모형 직접 조작',
+    '  · 필터 조작이 아니라 물리량(유효 열용량·온실효과) 조작',
+    '',
+    '■ 기존 서비스 대비 위치',
+    '  · PhET·En-ROADS — 모형만, 실측 대조 없음',
+    '  · 기후 스트라이프·기상자료개방포털 — 실측만, 조작 학습 없음',
+    '  · Weather24 — 실측 + 모형 + 문화 기준선 동시',
+]
+S8_R = [
+    '■ 새로운 학습 경험 — 예측 봉인 루프',
+    '',
+    '① 예측 봉인 — 자료 비공개 상태로 내 생각 기록',
+    '② 직접 조작 — 기준선·지역·절기·지표 변경',
+    '③ 봉인 해제 — 예측 대 자료 대조, 어긋난 지점 명시',
+    '④ 내 결론(CERL) — 주장·근거·추론·한계 작성',
+    '⑤ 이해 확인 → 모범 예시 비교 → 다른 절기 적용',
+    '',
+    '■ 새로운 인터랙션 4종',
+    '  · 기준선 ⇅ 손잡이 직접 끌기 — 0초 반응',
+    '  · 질문 조립기 — 조건 변경 시 검증 가능한 질문 문장 자동 생성',
+    '  · 실험실 예측-공개 — 예측 후에만 내 값으로 계산한 결과 개방',
+    '  · 정직한 실패 상태 — 비교 불가 시 앱이 스스로 한계 선언',
+    '',
+    '■ 산출물 회수 구조',
+    '  · 완료 화면 ‘내 기록’ — 예측·CERL 5편·이해 확인·전이 3문항·실험 값·자유탐구 질문',
+]
 
-# ── 11. 마무리 ────────────────────────────────────────────────
-c.showPage(); bg()
-c.setFont("MGB", 11); c.setFillColorRGB(*SUN)
-c.drawString(48, H - 74, "마무리")
-c.setFont("MGB", 34); c.setFillColorRGB(*INK)
-c.drawString(48, H - 128, "숫자는 흔들리고, 방향은 남습니다")
-c.setFont("MG", 15); c.setFillColorRGB(*MUTED)
-c.drawString(48, H - 162, "그 차이를 구별하는 훈련 — 이 도구가 가르치려는 단 하나")
-bullets([
-    ("비교 기간 26창 전부에서 같은 방향 — 값은 36~68일 사이에서 변동", True),
-    ("16지점 전부에서 증가 — 한 지역의 사정이 아님", True),
-    ("계절 지연은 과거에도 존재 — 온난화 신호와 분리해 설명", True),
-], y=H - 210, gap=30, size=14)
-c.setFillColorRGB(*PANEL); c.roundRect(48, 96, 864, 96, 10, stroke=0, fill=1)
-c.setStrokeColorRGB(*SEA); c.setLineWidth(1.2); c.roundRect(48, 96, 864, 96, 10, stroke=1, fill=0)
-c.setFont("MGB", 20); c.setFillColorRGB(*SEA)
-c.drawString(70, 152, "https://weather-24solar-terms.vercel.app")
-c.setFont("MG", 12.5); c.setFillColorRGB(*MUTED)
-c.drawString(70, 126, "설치·로그인 없이 즉시 체험 · 교사용 학습지 /교사_학습지.html")
-c.drawString(70, 108, "소스 github.com/DONGJUN92/weather-24solar-terms · 자료 기상청 ASOS(공공누리 1유형)")
-foot("마무리")
+# ── 4. 체험·참여형 설계 (S9) · (4) ─────────────────────────
+S9_TITLE = '4. 체험∙참여형 설계'
+S9_L = [
+    '■ 조작 → 즉시 반응 (전 경로 실측 확인)',
+    '  · 기준선 ⇅ 손잡이 끌기 / 슬라이더 / ＋− 단추 / ‘자주 쓰는 기준’ — 4경로 전부 작동',
+    '  · 조작 즉시 재계산 — 더위일·마지막 초과일·지도·표 동시 갱신',
+    '',
+    '■ 조작 강제 게이트 — 조작 없이 진행 불가',
+    '  · 기준선 미조작 시 판정 버튼 잠금 (state.moved 조건)',
+    '  · 미션 2 — 25°C·28°C 두 기준 요구',
+    '  · 미션 3 — 제주·강원 두 지역 요구',
+    '  · 미션 4 — 1mm·30mm 이상 두 기준 요구',
+    '',
+    '■ 조작 결과 → 학습 개념 연결',
+    '  · 기준 상향 → 일수 감소 → “모호한 말은 기준을 정해야 자료가 됨”',
+    '  · 1mm 감소·50mm 증가 → “빈도와 강도는 다른 지표”',
+    '  · 온실효과 상향 → 곡선 상승·지연 불변 → “지연과 온난화는 다른 원인”',
+]
+S9_R = [
+    '■ 변수 탐구 범위',
+    '  · 지역 16지점 × 절기 24 × 지표 3종 × 기준값 연속 × 비교 구간 26개',
+    '  · 보기 3종 — 그래프 / 전국 지도 / 표',
+    '',
+    '■ 직관성 확보 조치',
+    '  · 조작부 전체에 화면 라벨 명시 — 지역·절기·지표·자주 쓰는 기준·비교 기간',
+    '  · 결과 수치를 조작부 바로 위 고정 배치 — 시선 이동 최소화',
+    '  · 스크린리더 — 슬라이더 값 변경 시 결과 수치까지 낭독(aria-valuetext)',
+]
 
-c.save()
-assert page[0] == TOTAL, f"쪽번호 불일치: 실제 {page[0]}장 vs TOTAL {TOTAL}"
-print(f"생성 완료: {OUT}  ({os.path.getsize(OUT)//1024}KB, {page[0]}장)")
+# ── 5. 학습 성과와 학습적 피드백 (S10) · (5) ────────────────
+S10_TITLE = '5. 학습 성과와 학습적 피드백'
+S10_BODY = [
+    '■ 구체적 학습 성과 — 완료 시 회수되는 산출물 (교사 채점 근거)',
+    '  · 봉인 예측 5건 · 개념 렌즈 4문항 정답률 · 이해 확인 5문항 정답률(1차/2차 구분)',
+    '  · 내 결론(CERL) 5편 — 주장·근거·추론·한계 각 요소 작성 이력',
+    '  · 전이 확인 3문항 — 학습하지 않은 상황에 적용 여부',
+    '  · 열관성 실험실 — 학습자가 고른 물리량과 그때의 계절 지연 값',
+    '  · 자유탐구 — 내가 만든 질문 + 내가 쓴 결론',
+    '',
+    '■ 잘못된 조작·선택에 대한 학습적 피드백 6종 (전부 배포본 실측)',
+    '  · ① 이해 확인 1차 오답 → 정답 비공개 + 자료로 되돌리는 힌트 제시 (전 문항 retryHint)',
+    '  · ② 예측 불일치 → “내 예측 vs 자료” 대조 후 “어긋난 지점이 배울 곳” 명시',
+    '  · ③ 실험실 예측 오답 → 예측 방향과 모형 결과 병기 공개',
+    '  · ④ 근거에 단위 누락 → “그 숫자가 무엇을 센 값인지 단위나 기간을 함께” 차단 안내',
+    '  · ⑤ 한계에 범위어 누락 → “어디까지 통하는지” 차단 안내 (지역·기간·기준·원인)',
+    '  · ⑥ 기준 극단 조작 → 조작 화면에서 즉시 “비교할 것이 남지 않음 · 기준선 하향” 안내',
+    '',
+    '■ 우회 차단 — 정답 고지형 회피',
+    '  · 문장 중복 검사 — 같은 글 복사 차단 · 화면 안내문 베끼기 차단',
+    '  · 오개념 검출 — 학생 문장의 범위 확대·인과 단정을 필수 경로에서 점검',
+]
+
+# ── 6. 구현 완성도 (S11) · (6) ─────────────────────────────
+S11_TITLE = '6. 구현 완성도'
+S11_L = [
+    '■ 사용 기상·기후 데이터',
+    '  · 기상청 ASOS 종관기상관측 일자료 — 1969~2026 · 16지점 · 3지표',
+    '  · 파생 집계 — 기준 초과 일수 / 마지막 초과일 / 절기 무렵 15일 평균 / 26개 이동 구간',
+    '  · 기상청 공식 기준표 — 폭염·열대야·결빙일 (기간 상이 명시)',
+    '  · NOAA·OWID — CO₂ 농도와 전지구 기온 (출처·라이선스 표기)',
+    '',
+    '■ 실제 반영·작동 근거',
+    '  · 조작 시 즉시 재계산 — 사전 계산 이미지 아님',
+    '  · 자동 회귀 검증 8,360건 통과 (데이터 8,213 + 문서 147)',
+    '  · 과학 수치 검산 — 태양년 365.24일 · 삭망월 354.37일 · 근일점 0.983 AU · 태양상수 1361 W/m²',
+    '',
+    '■ 구동 안정성 (배포본 실측)',
+    '  · 1366×768 / 390×844 / 1920×1080 — 11화면 겹침·잘림·넘침·콘솔 오류 0건',
+    '  · 외부 도메인 0 · 첫 로드 134KB · 로그인·결제 없음',
+    '  · 배포본 = 제출 소스 해시 일치 검증 자동화',
+]
+S11_R = [
+    '■ 제품 안의 AI — 증거 감사관',
+    '  · 학습자 결론을 과장·범위·인과 3축으로 점검',
+    '  · 실측 응답 예 — “서울 자료만으로 우리나라 전체를 말할 수 없고, ‘기후변화 때문에’라는 원인도 단정할 수 없음”',
+    '  · 구조화 출력 강제 · 외부 전송 동의 후에만 요청 · 실패 시 기기 내 규칙 점검으로 폴백',
+    '',
+    '■ 제작 과정의 AI — Claude Code',
+    '  · 데이터 수집·가공 → 화면 구현 → 카피 정비 전 과정 AI 페어 작업',
+    '  · AI 레드팀 6회 — 자기 결과물을 교육효과·과학무결성·완성도·심사기준·카피·UI 축으로 반증',
+    '  · AI 품질 평가 세트 100문항 — 허위 수치·결론 대필·인과 과장 0건 (100/100 통과)',
+    '  · 프롬프트 세션 원문 6건 제출 — 비밀값·이메일·로컬 경로 마스킹 처리',
+    '',
+    '■ 재발 방지 자동화',
+    '  · 제출 게이트 — 배포본·소스 해시 대조 · 비밀값 스캔 · 문서 정합성 · 캐시 버스팅',
+    '  · 게이트 자기검증 — 위반 문자열을 실제로 잡는지 확인',
+]
+
+
+def main():
+    src = os.path.join(BASE, 'assets', 'deck', '템플릿_원본.pptx')
+    prs = Presentation(src)
+    S = prs.slides
+
+    # ── 표지 ──────────────────────────────────────────────
+    s1 = S[0]
+    for sh in s1.shapes:
+        if sh.is_placeholder and sh.placeholder_format.idx in COVER:
+            set_lines(sh.text_frame, [COVER[sh.placeholder_format.idx]])
+    print('S1 표지 완료')
+
+    # ── I. 결과물 및 팀 기본 정보 ─────────────────────────
+    s5 = S[4]
+    tbl = by_name(s5, '표 2').table
+    for r, val in enumerate(TBL5):
+        set_lines(tbl.cell(r, 1).text_frame, [val])
+    set_lines(by_name(s5, 'TextBox 6').text_frame, TEAM5)
+    # 팀 정보 박스는 2.08in 뿐이라 그 아래 빈 영역에 직접 앉힌다 (표 오른쪽·쪽번호 위)
+    put_pic(s5, 'orbit', 7.95, 3.55, height=3.00)
+    print('S5 기본정보 완료')
+
+    # ── 1. 학습 대상 분석 ────────────────────────────────
+    s6 = S[5]
+    set_lines(by_name(s6, '텍스트 개체 틀 9').text_frame, [S6_TITLE])
+    set_lines(by_name(s6, '직사각형 8').text_frame, S6_BODY, size=12)
+    print('S6 학습대상 완료')
+
+    # ── 2. 문제 정의 및 분석 ─────────────────────────────
+    s7 = S[6]
+    set_lines(by_name(s7, '텍스트 개체 틀 9').text_frame, [S7_TITLE])
+    set_lines(by_name(s7, '직사각형 7').text_frame, S7_L, size=12)
+    set_lines(by_name(s7, '직사각형 10').text_frame, S7_R, size=12)
+    fit_pic_below(s7, by_name(s7, '직사각형 10'), S7_R, 'chart-temp')
+    print('S7 문제정의 완료')
+
+    # ── 3. 아이디어 도출 ─────────────────────────────────
+    s8 = S[7]
+    set_lines(by_name(s8, '텍스트 개체 틀 9').text_frame, [S8_TITLE])
+    set_lines(by_name(s8, '직사각형 12').text_frame, S8_L, size=12)
+    set_lines(by_name(s8, '직사각형 13').text_frame, S8_R, size=12)
+    print('S8 아이디어 완료')
+
+    # ── 4. 체험·참여형 설계 ──────────────────────────────
+    s9 = S[8]
+    set_lines(by_name(s9, '텍스트 개체 틀 9').text_frame, [S9_TITLE])
+    set_lines(by_name(s9, '직사각형 11').text_frame, S9_L, size=12)
+    set_lines(by_name(s9, '직사각형 16').text_frame, S9_R, size=12)
+    fit_pic_below(s9, by_name(s9, '직사각형 16'), S9_R, 'map16')
+    fit_pic_below(s9, by_name(s9, '직사각형 11'), S9_L, 'lab-ebm')
+    print('S9 체험설계 완료')
+
+    # ── 5. 학습 성과와 학습적 피드백 ─────────────────────
+    s10 = S[9]
+    set_lines(by_name(s10, '텍스트 개체 틀 9').text_frame, [S10_TITLE])
+    set_lines(by_name(s10, '직사각형 12').text_frame, S10_BODY, size=12)
+    print('S10 학습성과 완료')
+
+    # ── 6. 구현 완성도 ───────────────────────────────────
+    s11 = S[10]
+    set_lines(by_name(s11, '텍스트 개체 틀 9').text_frame, [S11_TITLE])
+    set_lines(by_name(s11, '직사각형 7').text_frame, S11_L, size=12)
+    set_lines(by_name(s11, '직사각형 10').text_frame, S11_R, size=12)
+    fit_pic_below(s11, by_name(s11, '직사각형 7'), S11_L, 'drift')
+    print('S11 구현완성도 완료')
+
+    # ── 가이드 슬라이드(2·3·4) + 별지1(12) 삭제 ──────────
+    for idx in sorted([11, 3, 2, 1], reverse=True):
+        drop_slide(prs, idx)
+    print('가이드 3장 + 별지1 삭제 → 총 %d장' % len(prs.slides._sldIdLst))
+
+    out = os.path.join(BASE, '발표자료_Weather24_본선.pptx')
+    prs.save(out)
+    print('\n저장: %s' % out)
+
+
+if __name__ == '__main__':
+    main()
