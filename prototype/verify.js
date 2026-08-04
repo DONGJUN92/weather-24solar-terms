@@ -2546,8 +2546,20 @@
       var todo = missionTodo(m);
       hint.innerHTML = !state.moved
         ? '봉인한 예측을 검증해 봅시다. 보라색 기준선의 <b>⇅ 손잡이</b>를 잡아 위아래로 끌어 보세요. 슬라이더나 ＋− 버튼으로도 1' + metricOf().unit + '씩 맞출 수 있어요.'
-        : (todo ? todo : '좋아요 — 준비되면 판정하세요.');
+        : (todo ? todo : (degenerateNote() || '좋아요 — 준비되면 판정하세요.'));
     }
+  }
+  /* R6: 기준을 끝까지 올리면 과거·현재가 모두 0일이 되어 비교할 것이 남지 않는다.
+     판정문에는 그 설명이 있었지만, 학습자는 '판정하기'를 눌러야 비로소 그것을 알았다.
+     잘못된 조작에 대한 피드백은 결과 화면이 아니라 조작하는 그 자리에서 와야 배운다.
+     판정을 막지는 않는다 — 앱이 스스로 '비교할 수 없다'고 말하는 것을 보는 것도 학습이다. */
+  function degenerateNote() {
+    var n = stat(), u = metricOf().unit;
+    if (n.pd < 0.5 && n.cd < 0.5)
+      return '지금 기준(<b>' + n.thr + u + '</b>)에서는 과거·현재 모두 <b>0일에 가까워</b> 비교할 것이 남지 않아요. 기준선을 내리면 비교가 시작됩니다.';
+    if (metricOf().showLast && n.pl < 0 && n.cl >= 0)
+      return '이 기준에서는 <b>과거에 해당하는 날이 없어</b> “며칠 늦어졌다”를 계산할 수 없어요. 두 시기를 나란히 보려면 기준선을 조금 내려 보세요.';
+    return '';
   }
   function flash(el) { if (!el) return; el.classList.remove('is-flash'); void el.offsetWidth; el.classList.add('is-flash'); }
 
