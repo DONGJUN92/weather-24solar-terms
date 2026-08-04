@@ -1633,15 +1633,41 @@
       var right = r.lon >= 127.6;
       return { r: r, x: x, y: y, rad: rad, right: right, lx: x + (right ? rad + 6 : -(rad + 6)), ly: y };
     });
-    [true, false].forEach(function (side) {
-      var col = placed.filter(function (p) { return p.right === side; }).sort(function (a, b) { return a.ly - b.ly; });
-      for (var i = 1; i < col.length; i++) {
-        var prev = col[i - 1], cur = col[i];
-        /* 가로로 멀리 떨어진 라벨끼리는 세로가 같아도 안 겹친다 */
-        if (Math.abs(cur.lx - prev.lx) > 96) continue;
-        if (cur.ly - prev.ly < LBL_H) cur.ly = prev.ly + LBL_H;
+    /* R6-2: 세로 밀어내기만으로는 '라벨 대 라벨'만 풀린다. 밀려난 라벨이 이웃 지점의 원 위에
+       얹히는 일이 남았고(실측 10곳, 경기 100%·광주 95%가 원에 덮였다), 원을 피해 가로로만
+       밀면 이번엔 라벨끼리 다시 부딪힌다(강릉↔강원). 두 패스를 번갈아 몇 번 돌려 수렴시킨다. */
+    var LBL_W = 62, LBL_TOP = 20, LBL_BOT = 19;
+    function box(p) {
+      return { x0: p.right ? p.lx : p.lx - LBL_W, x1: p.right ? p.lx + LBL_W : p.lx,
+               y0: p.ly - LBL_TOP, y1: p.ly + LBL_BOT };
+    }
+    function hitsCircle(p) {
+      var b = box(p);
+      for (var i = 0; i < placed.length; i++) {
+        var q = placed[i], r = q.rad + 2;
+        if (b.x0 < q.x + r && b.x1 > q.x - r && b.y0 < q.y + r && b.y1 > q.y - r) return true;
       }
-    });
+      return false;
+    }
+    function spreadVertically() {
+      [true, false].forEach(function (side) {
+        var col = placed.filter(function (p) { return p.right === side; }).sort(function (a, b) { return a.ly - b.ly; });
+        for (var i = 1; i < col.length; i++) {
+          var prev = col[i - 1], cur = col[i];
+          /* 가로로 멀리 떨어진 라벨끼리는 세로가 같아도 안 겹친다 */
+          if (Math.abs(cur.lx - prev.lx) > 96) continue;
+          if (cur.ly - prev.ly < LBL_H) cur.ly = prev.ly + LBL_H;
+        }
+      });
+    }
+    for (var pass = 0; pass < 4; pass++) {
+      spreadVertically();
+      var moved = false;
+      placed.forEach(function (p) {
+        for (var k = 0; k < 12 && hitsCircle(p); k++) { p.lx += (p.right ? 9 : -9); moved = true; }
+      });
+      if (!moved) break;
+    }
     var dots = placed.map(function (p) {
       var r = p.r, on = r.city === state.city;
       var sign = r.d > 0 ? '▲' : r.d < 0 ? '▼' : '·';

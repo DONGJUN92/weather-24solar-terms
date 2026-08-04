@@ -1,0 +1,554 @@
+
+====================================================================================================
+SLIDE 01   layout=제목 슬라이드
+====================================================================================================
+  [PLACEHOLDER (14)] name='텍스트 개체 틀 7' (3.93,3.84 8.18x0.41 in)
+       (empty)
+  [PLACEHOLDER (14)] name='텍스트 개체 틀 8' (3.93,4.52 8.18x0.41 in)
+       (empty)
+  [PLACEHOLDER (14)] name='텍스트 개체 틀 9' (3.93,5.21 8.18x0.41 in)
+       (empty)
+  [PLACEHOLDER (14)] name='텍스트 개체 틀 10' (3.93,5.88 8.18x0.41 in)
+       (empty)
+
+====================================================================================================
+SLIDE 02   layout=8_제목 슬라이드
+====================================================================================================
+  [TEXT_BOX (17)] name='TextBox 1' (1.01,1.48 4.41x0.40 in)
+       p0 lvl=0 align=None
+          '●'                                                        f=None                   sz=None   b=None  c=theme:NOT_THEME_COLOR (0)
+          '● '                                                       f=None                   sz=None   b=None  c=theme:NOT_THEME_COLOR (0)
+          '발표 자료 가이드 라인'                                             f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          ' '                                                        f=None                   sz=16.0   b=None  c=theme:NOT_THEME_COLOR (0)
+  [TEXT_BOX (17)] name='TextBox 2' (1.20,1.89 11.13x3.83 in)
+       p0 lvl=0 align=None
+          '아래는 발표 '                                                  f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          'PPT '                                                     f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          '슬라이드별 평가 항목으로 반드시 내용에 포함해야 하며 디자인 및 장수는 자유'               f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          '입니다'                                                      f=None                   sz=16.0   b=None  c=None
+          '.'                                                        f=None                   sz=16.0   b=None  c=None
+          '(1) '                                                     f=None                   sz=16.0   b=None  c=theme:NOT_THEME_COLOR (0)
+          '학습 효과'                                                    f=None                   sz=16.0   b=None  c=theme:NOT_THEME_COLOR (0)
+          '(2) '                                                     f=None                   sz=16.0   b=None  c=theme:NOT_THEME_COLOR (0)
+          '주제 적합성'                                                   f=None                   sz=16.0   b=None  c=theme:NOT_THEME_COLOR (0)
+          '(3) '                                                     f=None                   sz=16.0   b=None  c=theme:NOT_THEME_COLOR (0)
+          '아이디어 독창성'                                                 f=None                   sz=16.0   b=None  c=theme:NOT_THEME_COLOR (0)
+          '(4) '                                                     f=None                   sz=16.0   b=None  c=theme:NOT_THEME_COLOR (0)
+          '체험∙참여형'                                                   f=None                   sz=16.0   b=None  c=theme:NOT_THEME_COLOR (0)
+          ' 설계'                                                      f=None                   sz=16.0   b=None  c=theme:NOT_THEME_COLOR (0)
+          '(5) '                                                     f=None                   sz=16.0   b=None  c=theme:NOT_THEME_COLOR (0)
+          '학습 효과'                                                    f=None                   sz=16.0   b=None  c=theme:NOT_THEME_COLOR (0)
+          '(6) '                                                     f=None                   sz=16.0   b=None  c=theme:NOT_THEME_COLOR (0)
+          '구현 완성도'                                                   f=None                   sz=16.0   b=None  c=theme:NOT_THEME_COLOR (0)
+       p1 lvl=0 align=None
+          '발표'                                                       f=None                   sz=16.0   b=None  c=None
+          ' '                                                        f=None                   sz=16.0   b=None  c=None
+          '자료 가이드라인'                                                 f=None                   sz=16.0   b=None  c=None
+          ', '                                                       f=None                   sz=16.0   b=None  c=None
+          '별지'                                                       f=None                   sz=16.0   b=None  c=None
+          '1 '                                                       f=None                   sz=16.0   b=None  c=None
+          '슬라이드는 발표에 미포함입니다'                                         f=None                   sz=16.0   b=None  c=None
+          '. '                                                       f=None                   sz=16.0   b=None  c=None
+          '제출 전 확인 후 삭제 바랍니다'                                        f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          '.'                                                        f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+       p2 lvl=0 align=None
+          '발표 '                                                      f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          '10'                                                       f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          '분'                                                        f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          ' '                                                        f=None                   sz=16.0   b=None  c=None
+          '+ '                                                       f=None                   sz=16.0   b=None  c=None
+          '질의 '                                                      f=None                   sz=16.0   b=None  c=None
+          '5'                                                        f=None                   sz=16.0   b=None  c=None
+          '분 진행 '                                                    f=None                   sz=16.0   b=None  c=None
+          '('                                                        f=None                   sz=16.0   b=None  c=None
+          '발표 '                                                      f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          '10'                                                       f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          '분 초과 '                                                    f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          '-9'                                                       f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          '점'                                                        f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          ', 11'                                                     f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          '분 초과 '                                                    f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          '-15'                                                      f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          '점'                                                        f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          ', 12'                                                     f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          '분 초과 '                                                    f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          '-21'                                                      f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          '점 및 발표 중단'                                                f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          ')'                                                        f=None                   sz=16.0   b=None  c=None
+       p3 lvl=0 align=None
+          '제출 결과물은 '                                                 f=None                   sz=16.0   b=None  c=None
+          '크롬에서 로그인 및 결제 없이 구동'                                      f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          '되어야 함'                                                    f=None                   sz=16.0   b=None  c=None
+          '('                                                        f=None                   sz=16.0   b=None  c=None
+          '영상'                                                       f=None                   sz=16.0   b=None  c=None
+          '∙'                                                        f=페이퍼로지 8 ExtraBold      sz=16.0   b=None  c=None
+          'PPT'                                                      f=None                   sz=16.0   b=None  c=None
+          '∙'                                                        f=페이퍼로지 8 ExtraBold      sz=16.0   b=None  c=None
+          '카드뉴스 불가'                                                  f=None                   sz=16.0   b=None  c=None
+          ')'                                                        f=None                   sz=16.0   b=None  c=None
+       p4 lvl=0 align=None
+          '본선 단독평가'                                                  f=None                   sz=16.0   b=None  c=None
+          '('                                                        f=None                   sz=16.0   b=None  c=None
+          '1'                                                        f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          '차 '                                                       f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          '미합산'                                                      f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          ')'                                                        f=None                   sz=16.0   b=None  c=None
+       p5 lvl=0 align=None
+          '*'                                                        f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          '심사는 평가 항목이 결과물에 드러나는지를 봅니다'                               f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          '.'                                                        f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+  [PLACEHOLDER (14)] name='슬라이드 번호 개체 틀 5' (9.42,6.95 3.00x0.40 in)
+       p0 lvl=0 align=None
+
+====================================================================================================
+SLIDE 03   layout=8_제목 슬라이드
+====================================================================================================
+  [TEXT_BOX (17)] name='TextBox 1' (1.01,1.48 4.41x0.40 in)
+       p0 lvl=0 align=None
+          '●'                                                        f=None                   sz=None   b=None  c=theme:NOT_THEME_COLOR (0)
+          '● '                                                       f=None                   sz=None   b=None  c=theme:NOT_THEME_COLOR (0)
+          '본선 발표 심사 평가 세부 기준'                                        f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+  [PLACEHOLDER (14)] name='슬라이드 번호 개체 틀 5' (9.42,6.95 3.00x0.40 in)
+       p0 lvl=0 align=None
+  [TABLE (19)] name='표 3' (1.01,2.10 11.73x3.97 in)  <no text>
+  [AUTO_SHAPE (1)] name='Rectangle 1' (1.56,2.62 13.33x0.50 in)
+       (empty)
+
+====================================================================================================
+SLIDE 04   layout=8_제목 슬라이드
+====================================================================================================
+  [PICTURE (13)] name='그림 3' (0.89,2.71 4.88x2.74 in)  <no text>
+  [TEXT_BOX (17)] name='TextBox 1' (1.01,1.48 4.41x0.40 in)
+       p0 lvl=0 align=None
+          '●'                                                        f=None                   sz=None   b=None  c=theme:NOT_THEME_COLOR (0)
+          '● '                                                       f=None                   sz=None   b=None  c=theme:NOT_THEME_COLOR (0)
+          '발표 자료 작성 안내'                                              f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          ' '                                                        f=None                   sz=16.0   b=None  c=theme:NOT_THEME_COLOR (0)
+  [PLACEHOLDER (14)] name='슬라이드 번호 개체 틀 5' (9.42,6.95 3.00x0.40 in)
+       p0 lvl=0 align=None
+  [AUTO_SHAPE (1)] name='순서도: 수동 연산 6' (5.09,3.92 1.68x0.32 in)
+       (empty)
+  [AUTO_SHAPE (1)] name='직사각형 7' (1.16,2.78 1.51x0.18 in)
+       (empty)
+  [AUTO_SHAPE (1)] name='직사각형 8' (1.16,3.24 1.16x0.18 in)
+       (empty)
+  [TEXT_BOX (17)] name='TextBox 9' (2.70,2.63 1.13x0.42 in)
+       p0 lvl=0 align=None
+          '평가 항목'                                                    f=None                   sz=14.0   b=None  c=theme:NOT_THEME_COLOR (0)
+  [TEXT_BOX (17)] name='TextBox 10' (2.31,3.12 1.42x0.31 in)
+       p0 lvl=0 align=None
+          '필수 작성 요소'                                                 f=None                   sz=11.0   b=None  c=theme:NOT_THEME_COLOR (0)
+  [TEXT_BOX (17)] name='TextBox 11' (6.21,2.96 6.36x2.26 in)
+       p0 lvl=0 align=None
+          '각 장의 '                                                    f=+mj-ea                 sz=16.0   b=None  c=None
+          '평가 항목과 필수 작성요소는 반드시'                                      f=+mj-ea                 sz=16.0   b=True  c=None
+          '내용에'                                                      f=+mj-ea                 sz=16.0   b=True  c=None
+          ' '                                                        f=+mj-ea                 sz=16.0   b=True  c=None
+          '포함'                                                       f=+mj-ea                 sz=16.0   b=True  c=None
+          '해 주시기 바랍니다'                                               f=+mj-ea                 sz=16.0   b=None  c=None
+          '.'                                                        f=+mj-ea                 sz=16.0   b=None  c=None
+       p1 lvl=0 align=None
+          '작성된 슬라이드 제목 및 안내 문구는 작성 예시이므로'                            f=+mj-ea                 sz=16.0   b=None  c=None
+          ','                                                        f=+mj-ea                 sz=16.0   b=None  c=None
+          '실제 내용으로 '                                                 f=+mj-ea                 sz=16.0   b=None  c=None
+          '모두 교체'                                                    f=+mj-ea                 sz=16.0   b=True  c=None
+          '해 주십시오'                                                   f=+mj-ea                 sz=16.0   b=None  c=None
+          '.'                                                        f=+mj-ea                 sz=16.0   b=None  c=None
+       p2 lvl=0 align=None
+          '디자인'                                                      f=+mj-ea                 sz=16.0   b=None  c=None
+          '('                                                        f=+mj-ea                 sz=16.0   b=None  c=None
+          '레이아웃'                                                     f=+mj-ea                 sz=16.0   b=None  c=None
+          '·'                                                        f=+mj-ea                 sz=16.0   b=None  c=None
+          '색상'                                                       f=+mj-ea                 sz=16.0   b=None  c=None
+          '·'                                                        f=+mj-ea                 sz=16.0   b=None  c=None
+          '폰트'                                                       f=+mj-ea                 sz=16.0   b=None  c=None
+          '·'                                                        f=+mj-ea                 sz=16.0   b=None  c=None
+          '글자 크기'                                                    f=+mj-ea                 sz=16.0   b=None  c=None
+          '·'                                                        f=+mj-ea                 sz=16.0   b=None  c=None
+          '이미지'                                                      f=+mj-ea                 sz=16.0   b=None  c=None
+          ' '                                                        f=+mj-ea                 sz=16.0   b=None  c=None
+          '삽입 등'                                                     f=+mj-ea                 sz=16.0   b=None  c=None
+          ')'                                                        f=+mj-ea                 sz=16.0   b=None  c=None
+          '은'                                                        f=+mj-ea                 sz=16.0   b=None  c=None
+          '자유롭게 변경 가능'                                               f=+mj-ea                 sz=16.0   b=True  c=None
+          '합니다'                                                      f=+mj-ea                 sz=16.0   b=None  c=None
+          '.'                                                        f=+mj-ea                 sz=16.0   b=None  c=None
+       p3 lvl=0 align=None
+          '단'                                                        f=+mj-ea                 sz=16.0   b=None  c=None
+          ', '                                                       f=+mj-ea                 sz=16.0   b=None  c=None
+          '필수 작성요소는 반드시'                                             f=+mj-ea                 sz=16.0   b=True  c=None
+          ' '                                                        f=+mj-ea                 sz=16.0   b=True  c=None
+          '포함'                                                       f=+mj-ea                 sz=16.0   b=True  c=None
+          '되어야 합니다'                                                  f=+mj-ea                 sz=16.0   b=None  c=None
+          '.'                                                        f=+mj-ea                 sz=16.0   b=None  c=None
+          '('                                                        f=+mj-ea                 sz=16.0   b=None  c=None
+          '누락 시 심사 항목 평가에 불리하게 작용할 수 있음'                             f=+mj-ea                 sz=16.0   b=None  c=None
+          ')'                                                        f=+mj-ea                 sz=16.0   b=None  c=None
+
+====================================================================================================
+SLIDE 05   layout=4_제목 슬라이드
+====================================================================================================
+  [PLACEHOLDER (14)] name='텍스트 개체 틀 3' (0.76,0.78 7.16x0.47 in)
+       p0 lvl=0 align=None
+          'I '                                                       f=None                   sz=None   b=None  c=None
+          '결과물 및 팀 기본 정보'                                            f=None                   sz=None   b=None  c=None
+  [TABLE (19)] name='표 2' (0.76,2.01 6.47x4.89 in)  <no text>
+  [TEXT_BOX (17)] name='TextBox 4' (0.84,1.48 4.41x0.40 in)
+       p0 lvl=0 align=None
+          '●'                                                        f=None                   sz=None   b=None  c=theme:NOT_THEME_COLOR (0)
+          '● '                                                       f=None                   sz=None   b=None  c=theme:NOT_THEME_COLOR (0)
+          '결과물 기본 정보'                                                f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          ' '                                                        f=None                   sz=16.0   b=None  c=theme:NOT_THEME_COLOR (0)
+  [TEXT_BOX (17)] name='TextBox 5' (7.58,1.48 4.41x0.40 in)
+       p0 lvl=0 align=None
+          '●'                                                        f=None                   sz=None   b=None  c=theme:NOT_THEME_COLOR (0)
+          '● '                                                       f=None                   sz=None   b=None  c=theme:NOT_THEME_COLOR (0)
+          '팀'                                                        f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          '('                                                        f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          '원'                                                        f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          ') '                                                       f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          '기본 정보'                                                    f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          ' '                                                        f=None                   sz=16.0   b=None  c=theme:NOT_THEME_COLOR (0)
+  [TEXT_BOX (17)] name='TextBox 6' (7.81,1.89 4.06x2.08 in)
+       p0 lvl=0 align=None
+          '이름 '                                                      f=None                   sz=16.0   b=None  c=None
+          '/ '                                                       f=None                   sz=16.0   b=None  c=None
+          '역할 '                                                      f=None                   sz=16.0   b=None  c=None
+          '(ex.'                                                     f=None                   sz=16.0   b=None  c=None
+          ' 기획 및 팀장'                                                 f=None                   sz=16.0   b=None  c=None
+          ')'                                                        f=None                   sz=16.0   b=None  c=None
+       p1 lvl=0 align=None
+          '이름 '                                                      f=None                   sz=16.0   b=None  c=None
+          '/ '                                                       f=None                   sz=16.0   b=None  c=None
+          '역할 '                                                      f=None                   sz=16.0   b=None  c=None
+          '(ex. '                                                    f=None                   sz=16.0   b=None  c=None
+          '개발'                                                       f=None                   sz=16.0   b=None  c=None
+          ')'                                                        f=None                   sz=16.0   b=None  c=None
+       p2 lvl=0 align=None
+          '이름 '                                                      f=None                   sz=16.0   b=None  c=None
+          '/ '                                                       f=None                   sz=16.0   b=None  c=None
+          '역할 '                                                      f=None                   sz=16.0   b=None  c=None
+          '(ex.'                                                     f=None                   sz=16.0   b=None  c=None
+          ' 데이터'                                                     f=None                   sz=16.0   b=None  c=None
+          ')'                                                        f=None                   sz=16.0   b=None  c=None
+       p3 lvl=0 align=None
+          '이름 '                                                      f=None                   sz=16.0   b=None  c=None
+          '/ '                                                       f=None                   sz=16.0   b=None  c=None
+          '역할 '                                                      f=None                   sz=16.0   b=None  c=None
+          '(ex.'                                                     f=None                   sz=16.0   b=None  c=None
+          ' 디자인'                                                     f=None                   sz=16.0   b=None  c=None
+          ')'                                                        f=None                   sz=16.0   b=None  c=None
+       p4 lvl=0 align=None
+          '*'                                                        f=None                   sz=16.0   b=None  c=None
+          '팀 구성에 맞게 기입'                                              f=None                   sz=16.0   b=None  c=None
+  [PLACEHOLDER (14)] name='슬라이드 번호 개체 틀 1' (9.42,6.95 3.00x0.40 in)
+       p0 lvl=0 align=None
+
+====================================================================================================
+SLIDE 06   layout=5_제목 슬라이드
+====================================================================================================
+  [PLACEHOLDER (14)] name='텍스트 개체 틀 9' (0.76,0.78 7.16x0.47 in)
+       p0 lvl=0 align=None
+          '1.'                                                       f=None                   sz=None   b=None  c=None
+          ' 학습 대상 분석 '                                               f=None                   sz=None   b=None  c=None
+          '('                                                        f=None                   sz=None   b=None  c=None
+          '자유 작성'                                                    f=None                   sz=None   b=None  c=None
+          ')'                                                        f=None                   sz=None   b=None  c=None
+  [PLACEHOLDER (14)] name='슬라이드 번호 개체 틀 1' (9.42,6.95 3.00x0.40 in)
+       p0 lvl=0 align=None
+  [PLACEHOLDER (14)] name='텍스트 개체 틀 14' (0.76,0.25 7.16x0.35 in)
+       p0 lvl=0 align=None
+          '(1) '                                                     f=None                   sz=None   b=None  c=None
+          '학습 효과'                                                    f=None                   sz=None   b=None  c=None
+  [AUTO_SHAPE (1)] name='직사각형 8' (0.84,1.97 11.66x5.03 in)
+       p0 lvl=0 align=None
+          '학습 대상 선정 이유 및 콘텐츠 난이도가 적절한지 근거 제시'                        f=None                   sz=12.0   b=None  c=None
+  [TEXT_BOX (17)] name='TextBox 15' (0.84,1.48 4.41x0.40 in)
+       p0 lvl=0 align=None
+          '●'                                                        f=None                   sz=None   b=None  c=theme:NOT_THEME_COLOR (0)
+          '● '                                                       f=None                   sz=None   b=None  c=theme:NOT_THEME_COLOR (0)
+          '학습 대상과 난이도'                                               f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          ' '                                                        f=None                   sz=16.0   b=None  c=theme:NOT_THEME_COLOR (0)
+
+====================================================================================================
+SLIDE 07   layout=5_제목 슬라이드
+====================================================================================================
+  [PLACEHOLDER (14)] name='텍스트 개체 틀 9' (0.76,0.78 7.16x0.47 in)
+       p0 lvl=0 align=None
+          '2.'                                                       f=None                   sz=None   b=None  c=None
+          ' 문제 정의 및 분석 '                                             f=None                   sz=None   b=None  c=None
+          '('                                                        f=None                   sz=None   b=None  c=None
+          '자유 작성'                                                    f=None                   sz=None   b=None  c=None
+          ')'                                                        f=None                   sz=None   b=None  c=None
+  [PLACEHOLDER (14)] name='슬라이드 번호 개체 틀 1' (9.42,6.95 3.00x0.40 in)
+       p0 lvl=0 align=None
+  [PLACEHOLDER (14)] name='텍스트 개체 틀 14' (0.76,0.25 7.16x0.35 in)
+       p0 lvl=0 align=None
+          '(2) '                                                     f=None                   sz=None   b=None  c=None
+          '주제 적합성'                                                   f=None                   sz=None   b=None  c=None
+  [TEXT_BOX (17)] name='TextBox 6' (0.84,1.48 4.41x0.40 in)
+       p0 lvl=0 align=None
+          '●'                                                        f=None                   sz=None   b=None  c=theme:NOT_THEME_COLOR (0)
+          '● '                                                       f=None                   sz=None   b=None  c=theme:NOT_THEME_COLOR (0)
+          '다루는 '                                                     f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          '기상'                                                       f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          '∙'                                                        f=페이퍼로지 8 ExtraBold      sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          '기후'                                                       f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          ' 개념'                                                      f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          ' '                                                        f=None                   sz=16.0   b=None  c=theme:NOT_THEME_COLOR (0)
+  [AUTO_SHAPE (1)] name='직사각형 7' (0.84,1.97 5.60x5.03 in)
+       p0 lvl=0 align=None
+          '개발계획서에 제시한 기상기후개념이 무엇이며'                                  f=None                   sz=12.0   b=None  c=None
+       p1 lvl=0 align=None
+          '결과물에서 어떻게 다뤄지는지 기술'                                       f=None                   sz=12.0   b=None  c=None
+  [AUTO_SHAPE (1)] name='직사각형 10' (6.89,1.97 5.60x5.03 in)
+       p0 lvl=0 align=None
+          '사용자가 학습하는 과정에서 그 주제를 인식할 수 있는 근거 제시'                      f=None                   sz=12.0   b=None  c=None
+  [TEXT_BOX (17)] name='TextBox 11' (6.89,1.48 4.41x0.40 in)
+       p0 lvl=0 align=None
+          '●'                                                        f=None                   sz=None   b=None  c=theme:NOT_THEME_COLOR (0)
+          '● '                                                       f=None                   sz=None   b=None  c=theme:NOT_THEME_COLOR (0)
+          '체험 중 주제 인식'                                               f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          ' '                                                        f=None                   sz=16.0   b=None  c=theme:NOT_THEME_COLOR (0)
+
+====================================================================================================
+SLIDE 08   layout=5_제목 슬라이드
+====================================================================================================
+  [PLACEHOLDER (14)] name='텍스트 개체 틀 9' (0.76,0.78 7.16x0.47 in)
+       p0 lvl=0 align=None
+          '3.'                                                       f=None                   sz=None   b=None  c=None
+          ' 아이디어 도출 '                                                f=None                   sz=None   b=None  c=None
+          '('                                                        f=None                   sz=None   b=None  c=None
+          '자유 작성'                                                    f=None                   sz=None   b=None  c=None
+          ')'                                                        f=None                   sz=None   b=None  c=None
+  [PLACEHOLDER (14)] name='슬라이드 번호 개체 틀 1' (9.42,6.95 3.00x0.40 in)
+       p0 lvl=0 align=None
+  [PLACEHOLDER (14)] name='텍스트 개체 틀 14' (0.76,0.25 7.16x0.35 in)
+       p0 lvl=0 align=None
+          '(3) '                                                     f=None                   sz=None   b=None  c=None
+          '아이디어 독창성'                                                 f=None                   sz=None   b=None  c=None
+  [TEXT_BOX (17)] name='TextBox 8' (0.84,1.48 4.41x0.40 in)
+       p0 lvl=0 align=None
+          '●'                                                        f=None                   sz=None   b=None  c=theme:NOT_THEME_COLOR (0)
+          '● '                                                       f=None                   sz=None   b=None  c=theme:NOT_THEME_COLOR (0)
+          '차별화 포인트'                                                  f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          ' '                                                        f=None                   sz=16.0   b=None  c=theme:NOT_THEME_COLOR (0)
+  [AUTO_SHAPE (1)] name='직사각형 12' (0.84,1.97 5.60x5.03 in)
+       p0 lvl=0 align=None
+          '개발물의 독창적인 차별화 포인트 제시'                                     f=None                   sz=12.0   b=None  c=None
+  [AUTO_SHAPE (1)] name='직사각형 13' (6.89,1.97 5.60x5.03 in)
+       p0 lvl=0 align=None
+          '사용자에게 어떤 새로운 학습 경험과 '                                     f=None                   sz=12.0   b=None  c=None
+          '인터렉션을'                                                    f=None                   sz=12.0   b=None  c=None
+          ' 제공하는지'                                                   f=None                   sz=12.0   b=None  c=None
+  [TEXT_BOX (17)] name='TextBox 15' (6.89,1.48 4.41x0.40 in)
+       p0 lvl=0 align=None
+          '●'                                                        f=None                   sz=None   b=None  c=theme:NOT_THEME_COLOR (0)
+          '● '                                                       f=None                   sz=None   b=None  c=theme:NOT_THEME_COLOR (0)
+          '새로운 학습 경험과 '                                              f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          '인터렉션'                                                     f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+
+====================================================================================================
+SLIDE 09   layout=5_제목 슬라이드
+====================================================================================================
+  [PLACEHOLDER (14)] name='텍스트 개체 틀 9' (0.76,0.78 7.16x0.47 in)
+       p0 lvl=0 align=None
+          '4.'                                                       f=None                   sz=None   b=None  c=None
+          ' '                                                        f=None                   sz=None   b=None  c=None
+          '체험'                                                       f=None                   sz=None   b=None  c=None
+          '∙'                                                        f=페이퍼로지 8 ExtraBold      sz=None   b=None  c=None
+          '참여형'                                                      f=None                   sz=None   b=None  c=None
+          ' 설계 '                                                     f=None                   sz=None   b=None  c=None
+          '('                                                        f=None                   sz=None   b=None  c=None
+          '자유 작성'                                                    f=None                   sz=None   b=None  c=None
+          ')'                                                        f=None                   sz=None   b=None  c=None
+  [PLACEHOLDER (14)] name='슬라이드 번호 개체 틀 1' (9.42,6.95 3.00x0.40 in)
+       p0 lvl=0 align=None
+  [PLACEHOLDER (14)] name='텍스트 개체 틀 14' (0.76,0.25 7.16x0.35 in)
+       p0 lvl=0 align=None
+          '(4) '                                                     f=None                   sz=None   b=None  c=None
+          '체험'                                                       f=None                   sz=None   b=None  c=None
+          '∙'                                                        f=페이퍼로지 8 ExtraBold      sz=None   b=None  c=None
+          '참여형'                                                      f=None                   sz=None   b=None  c=None
+          ' 설계'                                                      f=None                   sz=None   b=None  c=None
+  [TEXT_BOX (17)] name='TextBox 10' (0.84,1.48 4.41x0.40 in)
+       p0 lvl=0 align=None
+          '●'                                                        f=None                   sz=None   b=None  c=theme:NOT_THEME_COLOR (0)
+          '● '                                                       f=None                   sz=None   b=None  c=theme:NOT_THEME_COLOR (0)
+          '조작'                                                       f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          '∙'                                                        f=페이퍼로지 8 ExtraBold      sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          '선택과'                                                      f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          ' 학습 개념의 연계'                                               f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          ' '                                                        f=None                   sz=16.0   b=None  c=theme:NOT_THEME_COLOR (0)
+  [AUTO_SHAPE (1)] name='직사각형 11' (0.84,1.97 5.60x5.03 in)
+       p0 lvl=0 align=None
+          '사용자의 '                                                    f=None                   sz=12.0   b=None  c=None
+          '조작∙선택이'                                                   f=None                   sz=12.0   b=None  c=None
+          ' 실제로 작동하는지'                                               f=None                   sz=12.0   b=None  c=None
+       p1 lvl=0 align=None
+          '그 결과가 학습 개념과 어떻게 연결되는지 설명'                                f=None                   sz=12.0   b=None  c=None
+  [AUTO_SHAPE (1)] name='직사각형 16' (6.89,1.97 5.60x5.03 in)
+       p0 lvl=0 align=None
+          '학습자가 변수를 바꿔보며 직접 탐구할 수 있는지'                               f=None                   sz=12.0   b=None  c=None
+       p1 lvl=0 align=None
+          '조작 결과를 직관적으로 해석 가능한지'                                     f=None                   sz=12.0   b=None  c=None
+  [TEXT_BOX (17)] name='TextBox 17' (6.89,1.48 4.41x0.40 in)
+       p0 lvl=0 align=None
+          '●'                                                        f=None                   sz=None   b=None  c=theme:NOT_THEME_COLOR (0)
+          '● '                                                       f=None                   sz=None   b=None  c=theme:NOT_THEME_COLOR (0)
+          '체험 요소 '                                                   f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+
+====================================================================================================
+SLIDE 10   layout=5_제목 슬라이드
+====================================================================================================
+  [PLACEHOLDER (14)] name='텍스트 개체 틀 9' (0.76,0.78 7.16x0.47 in)
+       p0 lvl=0 align=None
+          '5.'                                                       f=None                   sz=None   b=None  c=None
+          ' 학습 성과와 학습적 피드백 '                                         f=None                   sz=None   b=None  c=None
+          '('                                                        f=None                   sz=None   b=None  c=None
+          '자유 작성'                                                    f=None                   sz=None   b=None  c=None
+          ')'                                                        f=None                   sz=None   b=None  c=None
+  [PLACEHOLDER (14)] name='슬라이드 번호 개체 틀 1' (9.42,6.95 3.00x0.40 in)
+       p0 lvl=0 align=None
+  [PLACEHOLDER (14)] name='텍스트 개체 틀 14' (0.76,0.25 7.16x0.35 in)
+       p0 lvl=0 align=None
+          '(5) '                                                     f=None                   sz=None   b=None  c=None
+          '학습 효과'                                                    f=None                   sz=None   b=None  c=None
+  [TEXT_BOX (17)] name='TextBox 8' (0.84,1.48 4.41x0.40 in)
+       p0 lvl=0 align=None
+          '●'                                                        f=None                   sz=None   b=None  c=theme:NOT_THEME_COLOR (0)
+          '● '                                                       f=None                   sz=None   b=None  c=theme:NOT_THEME_COLOR (0)
+          '학습 성과와 피드백'                                               f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          ' '                                                        f=None                   sz=16.0   b=None  c=theme:NOT_THEME_COLOR (0)
+  [AUTO_SHAPE (1)] name='직사각형 12' (0.84,1.97 11.66x5.03 in)
+       p0 lvl=0 align=None
+          '학습 성과가 구체적인지'                                             f=None                   sz=12.0   b=None  c=None
+       p1 lvl=0 align=None
+          '잘못된 조작 및 선택에 학습적 피드백이 설계되어 있는지'                           f=None                   sz=12.0   b=None  c=None
+
+====================================================================================================
+SLIDE 11   layout=5_제목 슬라이드
+====================================================================================================
+  [PLACEHOLDER (14)] name='텍스트 개체 틀 9' (0.76,0.78 7.16x0.47 in)
+       p0 lvl=0 align=None
+          '5.'                                                       f=None                   sz=None   b=None  c=None
+          ' 구현 완성도 '                                                 f=None                   sz=None   b=None  c=None
+          '('                                                        f=None                   sz=None   b=None  c=None
+          '자유 작성'                                                    f=None                   sz=None   b=None  c=None
+          ')'                                                        f=None                   sz=None   b=None  c=None
+  [PLACEHOLDER (14)] name='슬라이드 번호 개체 틀 1' (9.42,6.95 3.00x0.40 in)
+       p0 lvl=0 align=None
+  [PLACEHOLDER (14)] name='텍스트 개체 틀 14' (0.76,0.25 7.16x0.35 in)
+       p0 lvl=0 align=None
+          '(6) '                                                     f=None                   sz=None   b=None  c=None
+          '구현 완성도'                                                   f=None                   sz=None   b=None  c=None
+  [TEXT_BOX (17)] name='TextBox 6' (0.84,1.48 4.41x0.40 in)
+       p0 lvl=0 align=None
+          '●'                                                        f=None                   sz=None   b=None  c=theme:NOT_THEME_COLOR (0)
+          '● '                                                       f=None                   sz=None   b=None  c=theme:NOT_THEME_COLOR (0)
+          '기상'                                                       f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          '∙'                                                        f=페이퍼로지 8 ExtraBold      sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          '기후'                                                       f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          ' 데이터 반영'                                                  f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          ' '                                                        f=None                   sz=16.0   b=None  c=theme:NOT_THEME_COLOR (0)
+  [AUTO_SHAPE (1)] name='직사각형 7' (0.84,1.97 5.60x5.03 in)
+       p0 lvl=0 align=None
+          '어떤 기상'                                                    f=None                   sz=12.0   b=None  c=None
+          '·'                                                        f=None                   sz=12.0   b=None  c=None
+          '기후 데이터를 사용했는지'                                            f=None                   sz=12.0   b=None  c=None
+       p1 lvl=0 align=None
+          '개발물에 실제로 반영'                                              f=None                   sz=12.0   b=None  c=None
+          '·'                                                        f=None                   sz=12.0   b=None  c=None
+          '작동하는지 제시'                                                 f=None                   sz=12.0   b=None  c=None
+  [AUTO_SHAPE (1)] name='직사각형 10' (6.89,1.97 5.60x5.03 in)
+       p0 lvl=0 align=None
+          '제작 과정에서 '                                                 f=None                   sz=12.0   b=None  c=None
+          'AI '                                                      f=None                   sz=12.0   b=None  c=None
+          '도구 및 기술을 어떻게 효과적으로 적용했는지'                                 f=None                   sz=12.0   b=None  c=None
+  [TEXT_BOX (17)] name='TextBox 11' (6.89,1.48 4.41x0.40 in)
+       p0 lvl=0 align=None
+          '●'                                                        f=None                   sz=None   b=None  c=theme:NOT_THEME_COLOR (0)
+          '● '                                                       f=None                   sz=None   b=None  c=theme:NOT_THEME_COLOR (0)
+          'AI'                                                       f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          ' '                                                        f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          '도구'                                                       f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          '∙'                                                        f=페이퍼로지 8 ExtraBold      sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          '기술'                                                       f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          ' 활용'                                                      f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+
+====================================================================================================
+SLIDE 12   layout=7_제목 슬라이드
+====================================================================================================
+  [PLACEHOLDER (14)] name='텍스트 개체 틀 2' (0.76,0.78 7.16x0.47 in)
+       p0 lvl=0 align=None
+          '별지'                                                       f=None                   sz=None   b=None  c=None
+          '1. '                                                      f=None                   sz=None   b=None  c=None
+          '제출 전'                                                     f=None                   sz=None   b=None  c=None
+          ' '                                                        f=None                   sz=None   b=None  c=None
+          '자가 점검'                                                    f=None                   sz=None   b=None  c=None
+  [PLACEHOLDER (14)] name='슬라이드 번호 개체 틀 1' (9.42,6.95 3.00x0.40 in)
+       p0 lvl=0 align=None
+  [AUTO_SHAPE (1)] name='직사각형 9' (0.84,1.97 11.66x2.23 in)
+       p0 lvl=0 align=None
+          '구동 '                                                      f=None                   sz=20.0   b=None  c=theme:NOT_THEME_COLOR (0)
+          'URL — '                                                   f=None                   sz=20.0   b=None  c=theme:NOT_THEME_COLOR (0)
+          '로그인'                                                      f=None                   sz=20.0   b=None  c=theme:NOT_THEME_COLOR (0)
+          '·'                                                        f=None                   sz=20.0   b=None  c=theme:NOT_THEME_COLOR (0)
+          '결제 없이 크롬에서 열림'                                            f=None                   sz=20.0   b=None  c=theme:NOT_THEME_COLOR (0)
+       p1 lvl=0 align=None
+          '소스코드 '                                                    f=None                   sz=20.0   b=None  c=theme:NOT_THEME_COLOR (0)
+          'zip — API '                                               f=None                   sz=20.0   b=None  c=theme:NOT_THEME_COLOR (0)
+          '키'                                                        f=None                   sz=20.0   b=None  c=theme:NOT_THEME_COLOR (0)
+          '·'                                                        f=None                   sz=20.0   b=None  c=theme:NOT_THEME_COLOR (0)
+          '비밀값'                                                      f=None                   sz=20.0   b=None  c=theme:NOT_THEME_COLOR (0)
+          ' 노출 시 실격'                                                 f=None                   sz=20.0   b=None  c=theme:NOT_THEME_COLOR (0)
+       p2 lvl=0 align=None
+          '주요 프롬프트 세션 '                                              f=None                   sz=20.0   b=None  c=theme:NOT_THEME_COLOR (0)
+          'zip'                                                      f=None                   sz=20.0   b=None  c=theme:NOT_THEME_COLOR (0)
+       p3 lvl=0 align=None
+          'README — '                                                f=None                   sz=20.0   b=None  c=theme:NOT_THEME_COLOR (0)
+          '실행법'                                                      f=None                   sz=20.0   b=None  c=theme:NOT_THEME_COLOR (0)
+          ' '                                                        f=None                   sz=20.0   b=None  c=theme:NOT_THEME_COLOR (0)
+          '+ '                                                       f=None                   sz=20.0   b=None  c=theme:NOT_THEME_COLOR (0)
+          '외부 리소스 출처'                                                f=None                   sz=20.0   b=None  c=theme:NOT_THEME_COLOR (0)
+          '·'                                                        f=None                   sz=20.0   b=None  c=theme:NOT_THEME_COLOR (0)
+          '라이선스'                                                     f=None                   sz=20.0   b=None  c=theme:NOT_THEME_COLOR (0)
+  [TEXT_BOX (17)] name='TextBox 12' (0.84,1.48 4.41x0.40 in)
+       p0 lvl=0 align=None
+          '●'                                                        f=None                   sz=None   b=None  c=theme:NOT_THEME_COLOR (0)
+          '● '                                                       f=None                   sz=None   b=None  c=theme:NOT_THEME_COLOR (0)
+          '제출물 '                                                     f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          '4'                                                        f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          '종'                                                        f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          ' '                                                        f=None                   sz=16.0   b=None  c=theme:NOT_THEME_COLOR (0)
+  [TEXT_BOX (17)] name='TextBox 13' (0.84,4.28 4.41x0.40 in)
+       p0 lvl=0 align=None
+          '●'                                                        f=None                   sz=None   b=None  c=theme:NOT_THEME_COLOR (0)
+          '● '                                                       f=None                   sz=None   b=None  c=theme:NOT_THEME_COLOR (0)
+          '실격'                                                       f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          '∙'                                                        f=페이퍼로지 8 ExtraBold      sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          '규정'                                                       f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          ' 위반 주의'                                                   f=None                   sz=16.0   b=True  c=theme:NOT_THEME_COLOR (0)
+          ' '                                                        f=None                   sz=16.0   b=None  c=theme:NOT_THEME_COLOR (0)
+  [AUTO_SHAPE (1)] name='직사각형 14' (0.84,4.77 11.66x1.95 in)
+       p0 lvl=0 align=None
+          'API '                                                     f=None                   sz=20.0   b=None  c=theme:NOT_THEME_COLOR (0)
+          '키'                                                        f=None                   sz=20.0   b=None  c=theme:NOT_THEME_COLOR (0)
+          '·'                                                        f=None                   sz=20.0   b=None  c=theme:NOT_THEME_COLOR (0)
+          '비밀값'                                                      f=None                   sz=20.0   b=None  c=theme:NOT_THEME_COLOR (0)
+          ' 노출 금지 '                                                  f=None                   sz=20.0   b=None  c=theme:NOT_THEME_COLOR (0)
+          '— '                                                       f=None                   sz=20.0   b=None  c=theme:NOT_THEME_COLOR (0)
+          '노출 시 실격 사유'                                               f=None                   sz=20.0   b=None  c=theme:NOT_THEME_COLOR (0)
+       p1 lvl=0 align=None
+          '외부 리소스 출처'                                                f=None                   sz=20.0   b=None  c=theme:NOT_THEME_COLOR (0)
+          '·'                                                        f=None                   sz=20.0   b=None  c=theme:NOT_THEME_COLOR (0)
+          '라이선스 표기 필수'                                               f=None                   sz=20.0   b=None  c=theme:NOT_THEME_COLOR (0)
+          '(Pass/Fail)'                                              f=None                   sz=20.0   b=None  c=theme:NOT_THEME_COLOR (0)
+       p2 lvl=0 align=None
+          '미표기'                                                      f=None                   sz=20.0   b=None  c=theme:NOT_THEME_COLOR (0)
+          '·'                                                        f=None                   sz=20.0   b=None  c=theme:NOT_THEME_COLOR (0)
+          '위반은 규정 위반 트랙 처리'                                          f=None                   sz=20.0   b=None  c=theme:NOT_THEME_COLOR (0)
+
+====================================================================================================
+SLIDE 13   layout=6_제목 슬라이드
+====================================================================================================
