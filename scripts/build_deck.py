@@ -2,7 +2,7 @@
 """주최측 템플릿에 내용을 채워 본선 발표자료를 만든다.
 
 입력  assets/deck/템플릿_원본.pptx · assets/deck/*.png (배포본에서 추출한 앱 차트)
-출력  발표자료_Weather24_본선.pptx  (PDF 는 PowerPoint 로 내보낸다)
+출력  발표자료_Weather24_신동준.pptx  (PDF 는 PowerPoint 로 내보낸다)
 
 유지하는 것 (심사위원이 배점표와 연결해 듣도록)
   · 상단 헤더 장식 · 눈썹(평가 항목) · 슬라이드 제목 · ●● 소제목 · 쪽번호 · 마스터/레이아웃
@@ -30,6 +30,7 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='repla
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SHOTS = os.path.join(BASE, 'assets', 'deck')
 URL = 'https://weather-24solar-terms.vercel.app'
+DECK = '발표자료_Weather24_신동준'   # 제출 파일명 — 발표자명 포함
 
 
 # ───────────────────────────────────────────── 템플릿 서식 보존 편집
@@ -354,7 +355,7 @@ def main():
         ('① 기준을 극단으로 올렸을 때', ['“과거·현재 모두 0일에 가까워 비교할 것이',
                                  '  남지 않아요. 기준선을 내리면 비교가 시작됩니다”'], TERRA),
         ('② 이해 확인 1차 오답', ['“아직이에요. 정답을 알려 드리기 전에',
-                             '  한 번 더 골라 보세요”  — 정답 비공개'], TERRA),
+                             '  한 번 더 볼까요?” + 되돌림 힌트 — 정답 비공개'], TERRA),
         ('③ 오답 되돌림 힌트', ['“기준선을 25°C와 28°C에 놓았을 때 같은 자료인데',
                             '  여름 길이가 달라졌던 것을 떠올려 보세요”'], NAVY),
         ('④ 근거에 단위 누락', ['“그 숫자가 무엇을 센 값인지 단위나 기간을',
@@ -442,7 +443,7 @@ def main():
         drop_slide(prs, idx)
     print('가이드 3장 + 별지1 삭제 → 총 %d장' % len(prs.slides._sldIdLst))
 
-    out = os.path.join(BASE, '발표자료_Weather24_본선.pptx')
+    out = os.path.join(BASE, DECK + '.pptx')
     prs.save(out)
     print('\n저장: %s' % out)
 

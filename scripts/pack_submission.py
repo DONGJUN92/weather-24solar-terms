@@ -4,7 +4,7 @@
 구글폼에 올릴 것만 담는다. 저장소 루트에는 작업 문서(레드팀 보고서·기획서·개선 방향성 등)가
 많고, 그것들은 소스코드 zip 안에 기록으로 들어가면 충분하다.
 
-  ① 발표자료   발표자료_Weather24_본선.pptx + .pdf  (루트에서 복사 — 주최측 템플릿 기반)
+  ① 발표자료   발표자료_Weather24_신동준.pptx + .pdf  (루트에서 복사 — 주최측 템플릿 기반)
   ② 구동 URL   00_제출안내.md 안에 기재       (파일 없음)
   ③ 소스코드   weather24_source.zip          git archive + 제외 pathspec
   ④ 프롬프트   weather24_sessions.zip        prompt_sessions/*.md
@@ -35,6 +35,7 @@ except Exception:
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(BASE, "제출물")
 APP = "https://weather-24solar-terms.vercel.app"
+DECK = "발표자료_Weather24_신동준"   # 제출 파일명 — 발표자명 포함
 
 # 소스 zip에서 뺄 것 — 추적 파일이라 pathspec으로만 빠진다
 EXCLUDE = ["사무국 추가 공유 자료", "오리엔테이션"]
@@ -71,7 +72,7 @@ def main():
     fails = []
 
     # ① ⑤ 복사
-    for name in ("발표자료_Weather24_본선.pptx", "발표자료_Weather24_본선.pdf", "README.md"):
+    for name in (DECK + ".pptx", DECK + ".pdf", "README.md"):
         src = os.path.join(BASE, name)
         if not os.path.exists(src):
             fails.append(f"{name} 없음")
@@ -122,7 +123,7 @@ def main():
 
     # ② 구동 URL + 목록 문서
     rows = []
-    for name in ("발표자료_Weather24_본선.pptx", "발표자료_Weather24_본선.pdf", "weather24_source.zip",
+    for name in (DECK + ".pptx", DECK + ".pdf", "weather24_source.zip",
                  "weather24_sessions.zip", "README.md"):
         p = os.path.join(OUT, name)
         if os.path.exists(p):
@@ -135,7 +136,7 @@ def main():
     doc = [
         "# 제출물 — 2026 기상·기후 AI 해커톤 본선",
         "",
-        "> Weather24 — 절기의 약속 검증소",
+        "> Weather24 — 절기, 아직 맞을까",
         f"> 기준 커밋 `{head[:8]}` · 총 {commits}커밋 · `scripts/pack_submission.py`로 생성",
         "> 마감 8월 21일(금) 18:00 · 구글폼",
         "",
@@ -143,7 +144,7 @@ def main():
         "",
         "| # | 항목 | 올릴 것 |",
         "|---|---|---|",
-        "| ① | 발표자료 | `발표자료_Weather24_본선.pptx` · `발표자료_Weather24_본선.pdf` |",
+        f"| ① | 발표자료 | `{DECK}.pptx` · `{DECK}.pdf` |",
         f"| ② | 구동 URL | {APP} |",
         "| ③ | 소스코드 | `weather24_source.zip` |",
         "| ④ | 프롬프트 세션 | `weather24_sessions.zip` |",
