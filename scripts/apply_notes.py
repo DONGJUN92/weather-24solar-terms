@@ -14,6 +14,7 @@
 """
 import io
 import os
+import re
 import sys
 
 from pptx import Presentation
@@ -28,6 +29,14 @@ DEFAULT = os.path.join(BASE, '발표자료_Weather24_신동준.pptx')
 
 # 한국어 발표 속도 — 또박또박 읽을 때의 실측 기준. 시간 추정에만 쓴다.
 CHARS_PER_MIN = 330
+
+
+def spoken_len(block):
+    """실제로 소리내어 읽는 글자만 센다 — 〔지시문〕·구분선·【시각】·⚠·번호줄은 제외."""
+    t = re.sub(r'〔[^〕]*〕', '', block)
+    skip = ('═', '⚠', '【', '▸', '붙여 넣을 문장', '①', '②', '③', '④', '⑤', '⑥', '⑦')
+    keep = [l for l in t.split('\n') if l.strip() and not l.strip().startswith(skip)]
+    return len(re.sub(r'\s', '', '\n'.join(keep)))
 
 
 def set_notes(slide, text):
@@ -47,11 +56,13 @@ def apply(path):
     total = 0
     for i, (slide, block) in enumerate(zip(prs.slides, SCRIPT), 1):
         set_notes(slide, block)
-        chars = len(block.replace('\n', '').replace(' ', ''))
+        chars = spoken_len(block)
         total += chars
-        print('  S%d  %5d자  ≈ %4.1f분' % (i, chars, chars / float(CHARS_PER_MIN)))
+        print('  S%d  낭독 %5d자  ≈ %4.1f분' % (i, chars, chars / float(CHARS_PER_MIN)))
     prs.save(path)
-    print('\n합계 %d자 ≈ %.1f분 (또박또박 %d자/분 기준)' % (total, total / float(CHARS_PER_MIN), CHARS_PER_MIN))
+    print('\n낭독 합계 %d자 ≈ %.1f분 (%d자/분) · 데모 조작 대기 약 2분 → 총 %.1f분'
+          % (total, total / float(CHARS_PER_MIN), CHARS_PER_MIN,
+             total / float(CHARS_PER_MIN) + 2))
     print('저장: %s' % path)
 
 
