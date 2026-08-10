@@ -21,7 +21,8 @@ from pptx import Presentation
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from deck_script import SCRIPT  # noqa: E402
 
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+if __name__ == '__main__':          # import 로 들어올 때 부모의 stdout 을 닫아 버리면 안 된다
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT = os.path.join(BASE, '발표자료_Weather24_신동준.pptx')
 
