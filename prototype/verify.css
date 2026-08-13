@@ -1394,3 +1394,11 @@ small { font-size: max(11.5px, .86em); }
 /* 확인되지 않은 학습목표 — 배지를 발급하되 '미확인'임을 표시한다(무조건 발급 금지) */
 .skill-row .is-unmet { opacity: .55; border-style: dashed; }
 .skill-row .is-unmet small { margin-left: 5px; font-size: .82em; font-weight: 700; color: var(--on-coral); }
+
+/* 선택 미션 — 진행바에서 필수와 구별한다(번호가 아니라 ＋) */
+.pstep.is-opt-step i { background: transparent; border: 1px dashed rgba(var(--line-rgb),.45); color: var(--muted2); }
+.pstep.is-opt-step small b { margin-left: 3px; padding: 1px 5px; border-radius: 999px;
+  background: rgba(var(--sea-rgb),.16); color: var(--on-sea); font-size: .82em; font-weight: 700; }
+
+/* 서리 미션 타임라인 */
+.frost-svg { width: 100%; height: auto; }

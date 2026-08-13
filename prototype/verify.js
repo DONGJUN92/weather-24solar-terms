@@ -138,7 +138,7 @@
       askPost: true
     },
     {
-      id: 'summer', goal: '목표 ③ 모호한 말(‘여름’)을 기준으로 정의',
+      id: 'summer', goal: '목표 ③ 모호한 말(‘여름’)을 기준으로 정의', view: 'table',
       title: '여름은 며칠일까',
       city: '부산', ti: 13, metric: 'temp', thr: 25, lockCity: false, lockTerm: true,
       brief: '‘여름’을 “일평균 몇 °C 이상인 날”로 정하느냐에 따라 여름의 길이가 달라집니다. 기준을 바꿔 가며 과거와 현재의 여름 길이를 비교하세요.',
@@ -158,7 +158,8 @@
         if (n.pd < 0.5 && n.cd >= 0.5) return {
           c: '이 기준에서는 과거에 여름이 거의 없었습니다.',
           e: n.city + '에서 ‘여름 = ' + n.thr + '°C 이상’으로 정하면 과거 <b>' + n.pdStr + '</b>, 현재 <b class="hot">' + n.cdStr + '</b>입니다.',
-          r: '과거가 0에 가까우면 <b>몇 배 늘었다</b>고는 말할 수 없습니다. 늘어난 <b>일수</b>(+' + n.ddStr + ')로만 말하고, 기준을 낮춰 두 시기를 함께 비교해 보세요.',
+          /* ddStr이 부호를 직접 달게 됐으므로 여기서 '+'를 또 붙이면 '++5일'이 된다 */
+          r: '과거가 0에 가까우면 <b>몇 배 늘었다</b>고는 말할 수 없습니다. 늘어난 <b>일수</b>(' + n.ddStr + ')로만 말하고, 기준을 낮춰 두 시기를 함께 비교해 보세요.',
           l: '분모가 0에 가까우면 비율은 실제보다 부풀려집니다 — 배수 대신 차이로 말하는 것이 자료에 맞습니다.' + n.sensText
         };
         return {
@@ -179,7 +180,7 @@
       }
     },
     {
-      id: 'region', goal: '목표 ② 자료의 범위(지역·기간·지표) 읽기',
+      id: 'region', view: 'map', goal: '목표 ② 자료의 범위(지역·기간·지표) 읽기',
       title: '우리 지역만 그럴까',
       city: '제주', ti: 15, metric: 'temp', thr: 25, lockCity: false, lockTerm: true, compare: ['제주', '강원'],
       brief: '한 지역에서 더위가 길어졌다고 해서 전국이 똑같이 변했을까요? 남쪽 제주와 산간 강원(춘천)을 번갈아 보며, 정말 그런지 확인해 보세요.',
@@ -231,7 +232,7 @@
   /* RC-N: 앞의 세 미션과 다른 과학적 대상 — 강수의 '양'이 아니라 '강도 분포'.
      같은 자료가 기준을 어디에 두느냐에 따라 정반대 결론을 낸다는 것을 실측으로 보여 준다. */
   MISSIONS.push({
-    id: 'rain', goal: '목표 ③④ 같은 자료, 반대 결론 — 강수는 ‘얼마나 자주’와 ‘얼마나 세게’가 다르다',
+    id: 'rain', view: 'table', goal: '목표 ③④ 같은 자료, 반대 결론 — 강수는 ‘얼마나 자주’와 ‘얼마나 세게’가 다르다',
     title: '비는 줄었을까 늘었을까',
     city: '서울', ti: 12, metric: 'precip', thr: 1, lockCity: false, lockTerm: true,
     brief: '“요즘 비가 줄었다”와 “요즘 물난리가 잦다”는 둘 다 자주 듣는 말입니다. 하나의 강수 자료로 두 말이 동시에 맞을 수 있는지, 기준을 바꿔 가며 확인하세요.',
@@ -400,6 +401,76 @@
       };
     }
   });
+
+  /* ── 선택 미션: 상강 · 서리 ─────────────────────────────────────
+     멘토링 “다른 절기도 다룰 수 있는지”의 답. 검증해 보니 첫눈·적설·계절시작일은
+     기존 미션의 반복이었고, <b>최저초상온도(minTg)</b> 하나만 달랐다 —
+     백엽상 1.5m가 아니라 지면 위 5cm의 온도라서, 맑고 바람 없는 밤의 <b>복사냉각</b>이라는
+     별개 물리를 담는다. 기상청 기온이 영상 3℃여도 땅바닥은 영하가 되고, 서리는 그때 내린다.
+
+     <b>필수가 아니라 선택으로 둔다.</b> 필수 미션을 여섯 개로 늘리면 같은 멘토링에서 받은
+     “진입장벽이 높다”와 정면으로 부딪힌다. 완료 화면에서 CERL을 요구하지도 않는다.
+     조작 대상은 기준선이 아니라 <b>지역</b>이다 — 8지점에서 결론이 갈리는 것이 이 미션의 내용이다. */
+  MISSIONS.push({
+    id: 'frost', goal: '목표 ② 같은 하늘 아래 다른 온도 — 무엇을 어디서 쟀는가',
+    title: '상강에 서리가 내릴까', optional: true, frostMode: true,
+    city: '서울', ti: 19, metric: 'temp', thr: 25, lockCity: false, lockTerm: true,
+    brief: '상강(10/23)은 <b>“서리가 내린다”</b>는 뜻입니다. 그런데 기상청 기온이 영상인 날에도 서리는 내려요. '
+      + '땅바닥 온도와 백엽상 기온이 다르기 때문입니다. 지역을 바꿔 가며 언제부터 서리 조건이 갖춰지는지 확인해 보세요.',
+    task: '<b>지역</b>을 바꿔 가며, 서리 조건이 처음 갖춰지는 날이 <b>상강보다 앞인지 뒤인지</b> 확인하세요. 최소 <b>세 지역</b>을 보면 판정할 수 있어요.',
+    predict: {
+      q: '상강(10/23)은 “서리가 내림”이라는 뜻입니다. 지금도 그 무렵에 서리 조건이 갖춰질까요?',
+      options: [
+        { v: 'before', t: '상강 전에 이미 서리가 내린다' },
+        { v: 'after', t: '상강보다 늦게 내린다' },
+        { v: 'region', t: '지역마다 다를 것이다' }
+      ]
+    },
+    verdict: function (n) {
+      var f = frostOf(n.city), sang = termDoyByName('상강');
+      var side = function (d) { return d < sang ? '상강 전' : (d > sang ? '상강 뒤' : '상강 당일'); };
+      var all = CITIES.filter(function (c) { return frostOf(c); });
+      var crossed = all.filter(function (c) { var g = frostOf(c); return g.past.first < sang && g.present.first >= sang; });
+      var later = all.filter(function (c) { return frostOf(c).shift > 0; });
+      var freeUp = all.filter(function (c) { var g = frostOf(c); return g.freeShift != null && g.freeShift > 0; });
+      return {
+        c: '상강 무렵의 서리는 <b>지역마다 다르고</b>, 지금은 대체로 <b class="hot">더 늦게</b> 옵니다.',
+        e: n.city + '(' + cityOf(n.city).station + ' 관측소)에서 서리 조건이 처음 갖춰지는 날은 '
+           + '과거(' + f.periods.past + ') <b>' + doyStr(f.past.first) + '</b>(' + side(f.past.first) + ') → '
+           + '현재(' + f.periods.present + ') <b class="hot">' + doyStr(f.present.first) + '</b>(' + side(f.present.first) + ')입니다'
+           + (f.shift ? ' — <b class="hot">' + (f.shift > 0 ? '+' : '') + f.shift + '일</b>.' : '.')
+           + ' 서리 없이 지내는 기간은 <b>' + f.past.free + '일 → ' + f.present.free + '일</b>입니다.',
+        r: '자료가 있는 <b>' + all.length + '지점</b> 중 <b>' + later.length + '곳</b>에서 첫 서리 조건일이 늦어졌고, '
+           + '<b>' + freeUp.length + '곳</b>에서 무상기간이 길어졌습니다. '
+           + (crossed.length ? '특히 <b>' + crossed.join('·') + '</b>은 과거에는 상강 <b>전</b>에 조건이 갖춰졌는데 지금은 상강 <b>뒤</b>로 넘어갔습니다 — 절기가 말하는 날짜를 지나친 것입니다. ' : '')
+           + '<b>다만 모든 지점이 같은 방향은 아닙니다</b> — 부산·대구처럼 거의 그대로이거나 오히려 조금 빨라진 곳도 있어요. '
+           + '그리고 이 값은 <b>최저초상온도</b>(지면 위 약 5cm)로 셌습니다. 그래프의 곡선이 쓰는 <b>1.5m 백엽상 기온</b>과 다른 값이에요 — '
+           + '맑고 바람 없는 밤에는 땅이 하늘로 열을 내보내(<b>복사냉각</b>) 기온이 영상이어도 땅바닥은 영하가 됩니다.',
+        l: '<b>이 값은 기상청의 공식 ‘첫서리일’이 아닙니다.</b> 공식 첫서리는 관측자가 <b>눈으로 확인</b>하는 계절관측 종목이지 임계온도가 아니에요. '
+           + '그래서 이 화면은 <b>‘서리가 내릴 조건이 갖춰진 날’</b>로만 부릅니다 — 이름이 다르면 숫자도 다릅니다. '
+           + '또 최고·최저기온 수집분이 있는 <b>' + all.length + '지점</b>만 셀 수 있었고, 비교 기간도 다른 미션(' + PERIOD_PAST + ' vs ' + PERIOD_NOW + ')과 달라 '
+           + '<b>' + f.periods.past + ' vs ' + f.periods.present + '</b>입니다 — 나란히 놓고 비교할 수 없습니다.'
+      };
+    },
+    selfCheck: {
+      q: '기상청 발표 기온이 <b>영상 3°C</b>인 날 아침, 마당 풀잎에 서리가 껴 있었습니다. 가장 정확한 설명은?',
+      options: [
+        { v: 'ground', t: '기온을 재는 높이와 땅바닥의 온도가 달라서' },
+        { v: 'wrong', t: '기상청 관측이 틀렸거나 장비에 문제가 있어서' },
+        { v: 'humid', t: '습도가 높으면 영상에서도 물이 얼기 때문에' }
+      ],
+      correct: 'ground',
+      retryHint: '기상청 기온은 <b>땅에서 1.5m 높이</b>의 백엽상에서 잽니다. 방금 본 값은 <b>지면 위 5cm</b>였어요. 두 값이 같아야 할 이유가 있을까요?',
+      explain: '기상청 기온은 <b>지면 1.5m</b> 백엽상에서 재고, 서리는 <b>땅바닥</b>에서 생깁니다. 맑고 바람 없는 밤에는 땅이 하늘로 열을 내보내(<b>복사냉각</b>) '
+        + '땅바닥이 공기보다 몇 도 더 내려가요. 그래서 기온이 영상이어도 초상온도는 영하일 수 있습니다. '
+        + '<b>“무엇을, 어디서 쟀는가”를 밝히지 않으면 같은 하늘 아래 다른 숫자가 나옵니다.</b>'
+    }
+  });
+
+  /* 필수 코스 = 선택 미션을 뺀 것. '미션 N개'·'CERL N편'·완료 게이트는 전부 이 목록으로 센다 —
+     선택 미션을 필수처럼 세면 학습자가 안 해도 되는 것을 안 했다고 표시된다. */
+  var REQ = MISSIONS.filter(function (m) { return !m.optional; });
+  function isOptional(m) { return !!(m && m.optional); }
 
   /* 미션 정의가 계절에 따라 달라질 수 있으므로 함수면 호출해서 쓴다. */
   function askOf(m) { return typeof m.predict === 'function' ? m.predict() : m.predict; }
@@ -754,7 +825,11 @@
         var mm = MISSIONS[i];
         state.phase = 'mission'; state.mi = i;
         state.city = mm.city; state.metric = mm.metric; state.thr = mm.thr; state.thr0 = mm.thr;
-        state.ti = mm.ti; state.view = 'chart'; state.touched = false; state.moved = false;
+        /* 미션 권장 보기는 startMission과 같은 규칙으로 — 딥링크로 들어온 학습자만
+           다른 화면을 보면 교사가 배부한 링크와 수업 화면이 어긋난다. */
+        state.ti = mm.ti; state.view = mm.view || 'chart';
+        if (state.view === 'map' && !hasMap()) state.view = 'table';
+        state.touched = false; state.moved = false;
         var deepSteps = ['predict', 'lens', 'orient', 'explore', 'evidence', 'write', 'check', 'expert', 'transfer', 'audit'];
         state.missionStep = deepSteps.indexOf(q.p) !== -1 ? q.p : 'predict';
         if (mm.lagMode) { state.markDoy = null; state.lagRevealed = false; state.lagSeason = 'summer'; state.ti = 11; }
@@ -843,9 +918,12 @@
     var html = MISSIONS.map(function (m, i) {
       var done = state.done.indexOf(m.id) !== -1;
       var st = done ? 'done' : (state.phase === 'mission' && state.mi === i ? 'on' : '');
-      var tag = done ? 'button' : 'span';
-      var attr = done ? ' type="button" data-goto="' + i + '" title="' + m.title + ' 다시 보기"' : '';
-      return '<' + tag + ' class="pstep ' + st + '"' + attr + '><i>' + (done ? '✓' : i + 1) + '</i><small>' + m.title + '</small></' + tag + '>';
+      var opt = isOptional(m);
+      var tag = (done || opt) ? 'button' : 'span';
+      var attr = (done || opt) ? ' type="button" data-goto="' + i + '" title="' + m.title + (opt ? ' (선택 미션)' : ' 다시 보기') + '"' : '';
+      /* 선택 미션은 번호를 매기지 않는다 — '6/6'으로 세면 안 해도 되는 것이 남은 일처럼 보인다 */
+      var mark = done ? '✓' : (opt ? '＋' : i + 1);
+      return '<' + tag + ' class="pstep ' + st + (opt ? ' is-opt-step' : '') + '"' + attr + '><i>' + mark + '</i><small>' + m.title + (opt ? ' <b>선택</b>' : '') + '</small></' + tag + '>';
     }).join('<span class="pline" aria-hidden="true"></span>');
     var freeOn = (state.phase === 'free' || state.phase === 'complete') ? ' on' : '';
     bar.innerHTML = html + '<span class="pline" aria-hidden="true"></span><span class="pstep' + freeOn + '"><i>✦</i><small>자유탐구</small></span>';
@@ -1071,7 +1149,9 @@
     var pl = pi ? pi[0] : -1, cl = ci ? ci[0] : -1;
     return {
       thr: thr, city: state.city, pd: pd, cd: cd, dd: cd - pd, pl: pl, cl: cl,
-      pdStr: fmtDays(pd), cdStr: fmtDays(cd), ddStr: (cd - pd >= 0 ? '+' : '') + fmtDays(Math.abs(cd - pd)),
+      /* 줄어든 경우에 부호가 빠져 '89일 → 83일(6.4일)'처럼 방향을 잃던 곳.
+         늘었는지 줄었는지가 이 앱이 가르치는 전부인데 그 한 글자가 없었다. */
+      pdStr: fmtDays(pd), cdStr: fmtDays(cd), ddStr: (cd - pd >= 0 ? '+' : '−') + fmtDays(Math.abs(cd - pd)),
       plStr: pl > 0 ? doyStr(pl) : '없음', clStr: cl > 0 ? doyStr(cl) : '없음',
       drift: (pl > 0 && cl > 0) ? cl - pl : null, mc: mc,
       sampleText: sampleText(state.city), sensText: sensitivityText(state.city),
@@ -1427,6 +1507,60 @@
     for (var i = 0; i < D.terms.length; i++) if (D.terms[i].name === nm) return D.terms[i].doy;
     return null;
   }
+  /* 서리 미션 전용 그림 — 가을 한 구간만 펼치고 상강(고정)·과거·현재 세 표지를 세운다.
+     기온 곡선을 쓰지 않는 이유: 이 값은 초상온도(지면 5cm)라 곡선(1.5m 평균기온)과
+     축이 다르다. 한 그림에 겹치면 서로 다른 것을 같은 눈금으로 읽게 만든다. */
+  function frostTimelineSVG(city) {
+    var f = frostOf(city); if (!f) return '';
+    var sang = termDoyByName('상강');
+    var narrow = (window.innerWidth || 1024) < 620;
+    var FS = narrow ? { lab: 21, tick: 19, note: 19 } : { lab: 12, tick: 11, note: 11.5 };
+    var W = 700, L = 14, R = 14, T = narrow ? 34 : 26, H = narrow ? 176 : 132;
+    var lo = 274, hi = 351;                       /* 10/1 ~ 12/17 */
+    function x(d) { return L + (Math.max(lo, Math.min(hi, d)) - lo) / (hi - lo) * (W - L - R); }
+    var yA = T + (narrow ? 34 : 24), yB = yA + (narrow ? 46 : 34), base = yB + (narrow ? 34 : 26);
+    function mark(d, y, color, label, bold) {
+      var px = x(d);
+      return '<line x1="' + px.toFixed(1) + '" y1="' + (y - (narrow ? 15 : 11)) + '" x2="' + px.toFixed(1) + '" y2="' + (y + (narrow ? 9 : 7)) + '" stroke="' + color + '" stroke-width="' + (narrow ? 4 : 3) + '" stroke-linecap="round"/>'
+        + '<circle cx="' + px.toFixed(1) + '" cy="' + y + '" r="' + (narrow ? 8 : 6) + '" fill="' + color + '"/>'
+        + '<text x="' + px.toFixed(1) + '" y="' + (y - (narrow ? 22 : 17)) + '" text-anchor="middle" font-size="' + FS.lab
+        + '" font-weight="' + (bold ? 800 : 700) + '" fill="' + color + '">' + label + '</text>';
+    }
+    var g = '<line x1="' + L + '" y1="' + base + '" x2="' + (W - R) + '" y2="' + base + '" stroke="rgba(var(--line-rgb),.5)"/>';
+    [[274, '10/1'], [305, '11/1'], [335, '12/1']].forEach(function (t) {
+      g += '<line x1="' + x(t[0]).toFixed(1) + '" y1="' + base + '" x2="' + x(t[0]).toFixed(1) + '" y2="' + (base + 5) + '" stroke="var(--muted3)"/>'
+        + '<text x="' + x(t[0]).toFixed(1) + '" y="' + (base + FS.tick + 7) + '" text-anchor="middle" font-size="' + FS.tick + '" fill="var(--muted2)">' + t[1] + '</text>';
+    });
+    /* 절기 — 이 그림에서 유일하게 움직이지 않는 것 */
+    g += '<line x1="' + x(sang).toFixed(1) + '" y1="' + (T - 6) + '" x2="' + x(sang).toFixed(1) + '" y2="' + base + '" stroke="var(--sun)" stroke-width="2" stroke-dasharray="5 4"/>'
+      + '<text x="' + x(sang).toFixed(1) + '" y="' + (T - 10) + '" text-anchor="middle" font-size="' + FS.lab + '" font-weight="800" fill="var(--sun)">상강 ' + doyStr(sang) + ' (고정)</text>';
+    g += mark(f.past.first, yA, 'var(--muted)', '과거 ' + doyStr(f.past.first), false);
+    g += mark(f.present.first, yB, 'var(--coral)', '현재 ' + doyStr(f.present.first), true);
+    return '<svg viewBox="0 0 ' + W + ' ' + H + '" class="frost-svg" role="img" aria-label="'
+      + city + '에서 서리 조건이 처음 갖춰진 날. 상강은 ' + doyStr(sang) + '로 고정이고, 과거 ' + doyStr(f.past.first)
+      + '에서 현재 ' + doyStr(f.present.first) + '로 옮겨갔습니다.">' + g + '</svg>';
+  }
+
+  /* 8지점 비교표 — 이 미션의 결론(지역마다 다르다)은 표에서만 보인다 */
+  function frostTableHTML() {
+    var sang = termDoyByName('상강');
+    var rows = CITIES.filter(function (c) { return frostOf(c); }).map(function (c) {
+      var f = frostOf(c), cross = f.past.first < sang && f.present.first >= sang;
+      var d = f.shift;
+      return '<tr' + (c === state.city ? ' class="is-cur"' : '') + '><th scope="row">' + c
+        + (c === state.city ? ' <span class="cur-tag">지금</span>' : '') + '</th>'
+        + '<td>' + doyStr(f.past.first) + '</td><td>' + doyStr(f.present.first) + '</td>'
+        + '<td class="' + (d > 0 ? 'up' : (d < 0 ? 'down' : '')) + '">' + (d > 0 ? '+' : '') + d + '일</td>'
+        + '<td>' + f.past.free + ' → ' + f.present.free + '일</td>'
+        + '<td>' + (cross ? '<b class="hot">상강을 넘어감</b>' : (f.present.first >= sang ? '상강 뒤(과거도)' : '상강 전')) + '</td></tr>';
+    }).join('');
+    var f0 = frostOf(CITIES.filter(function (c) { return frostOf(c); })[0]);
+    return '<div class="table-wrap"><table class="data-table"><caption>서리 조건이 처음 갖춰지는 날 — 최저초상온도 0°C 이하 · '
+      + '과거 ' + f0.periods.past + ' vs 현재 ' + f0.periods.present + '</caption>'
+      + '<thead><tr><th scope="col">지역</th><th scope="col">과거</th><th scope="col">현재</th><th scope="col">변화</th>'
+      + '<th scope="col">무상기간</th><th scope="col">상강(10/23) 대비</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+  }
+
   function frostBlockHTML() {
     var f = frostOf(); if (!f) return '';
     if (isSealed()) return '';
@@ -2262,7 +2396,7 @@
       + '<span class="mode-who">처음이거나, 지금 궁금한 것만 빨리 알고 싶다면</span></button>'
       + '<button class="mode-card mode-study" id="modeStudy">'
       + '<span class="mode-icon" aria-hidden="true">🔬</span>'
-      + '<b class="mode-t">제대로 배우기</b><span class="mode-time">두 차시 · 미션 ' + MISSIONS.length + '개</span>'
+      + '<b class="mode-t">제대로 배우기</b><span class="mode-time">두 차시 · 미션 ' + REQ.length + '개</span>'
       + '<span class="mode-d">예측 → 직접 조작 → <b>내 결론(주장·근거·추론·한계)</b>까지 씁니다.</span>'
       + '<span class="mode-who">수업에서 쓰거나, 자료로 말하는 법을 익히고 싶다면</span></button>'
       + '</div>'
@@ -2304,7 +2438,7 @@
       /* 5차 F08: '핵심 2~3분 / 5미션 15~20분'은 측정한 값이 아니라 설계 목표였는데 완료 시간처럼
          읽혔다. 미션 하나가 8~10화면이고 필수 서술이 2~4칸이라 화면당 15초를 요구하는 수치다.
          설계 시간의 합(69~76분)은 그대로 밝히고, 실제 소요 시간은 재지 않았다고 적는다. */
-      + '<p class="intro-foot">미션 하나는 <b>예측 → 직접 해 보기 → 내 결론</b> 세 단계예요 · ' + MISSIONS.length + '개 미션 + 심화·자유탐구까지 <b>설계 시간 69~76분</b>(두 차시) · 실제로 걸리는 시간은 <b>아직 측정하지 않았어요</b> — 학생 파일럿으로 재는 중입니다 · 설치·로그인 없이, 폰에서도 됩니다</p>'
+      + '<p class="intro-foot">미션 하나는 <b>예측 → 직접 해 보기 → 내 결론</b> 세 단계예요 · ' + REQ.length + '개 미션 + 심화·자유탐구까지 <b>설계 시간 69~76분</b>(두 차시) · 실제로 걸리는 시간은 <b>아직 측정하지 않았어요</b> — 학생 파일럿으로 재는 중입니다 · 설치·로그인 없이, 폰에서도 됩니다</p>'
       + '<div class="step-actions"><button class="ghost-btn" id="introBack">← 처음 화면</button><button class="primary-btn" id="introMission">첫 예측 시작 →</button></div>'
       + '</section>');
     $('introBack').addEventListener('click', renderIntro);
@@ -2580,7 +2714,7 @@
           + '<b>2100년에는 어떻게 될까?</b><small>기상청 SSP 기후변화 시나리오로 보기 →</small></button></div>' : '')
       + '<div class="quick-bridge"><p class="qb-h">더 깊이 들어가 볼까요?</p>'
       + '<p class="qb-p">방금 본 것은 <b>절기 하나</b>였어요. ‘제대로 배우기’에서는 여름 길이·지역 차이·강수 강도·계절 지연까지 '
-      + '<b>미션 ' + MISSIONS.length + '개</b>를 직접 조작하고, 마지막에 <b>내 결론</b>을 스스로 씁니다.</p>'
+      + '<b>미션 ' + REQ.length + '개</b>를 직접 조작하고, 마지막에 <b>내 결론</b>을 스스로 씁니다.</p>'
       + '<button class="primary-btn" id="quickGoStudy">🔬 제대로 배우기 시작 →</button></div>'
       + '<p class="quick-foot"><button class="linkish" id="quickAgain">↺ 다시 체험하기</button><span class="quick-sep">·</span>'
       + '<button class="linkish" id="quickHome">처음 화면</button></p>'
@@ -3369,6 +3503,11 @@
      "지역·절기를 바꿔 보고, '표'와 '지도' 보기로"라는 고정 안내를 모든 미션에 붙였다.
      지시를 따르려는 학습자·심사위원에게 '미완성'으로 읽힌다. 실제로 있는 것만 가리킨다. */
   function deepHintOf(m) {
+    if (m.frostMode) {
+      return '<p class="deep-hint"><span class="step-tag is-opt">선택 심화</span> 시간이 남으면 — '
+        + '위 표에서 <b>변화가 가장 큰 지점</b>과 <b>거의 그대로인 지점</b>을 찾아, 두 곳이 왜 다를지 이야기해 보세요. '
+        + '<b>핵심만 해도 미션은 완료됩니다.</b></p>';
+    }
     var can = [];
     if (!m.lockCity || m.compare) can.push('지역을 바꿔 보고');
     if (!m.lockTerm) can.push('절기를 바꿔 보고');
@@ -3391,7 +3530,12 @@
        "실제 가장 더운 날 7월 31일"이 동시에 떴다. 또 미션3 안내를 따라 '표'로 바꿔 둔
        학습자는 미션5를 그래프 없이 열어 유일한 조작(가로 드래그)을 잃었다.
        season()이 이미 같은 초기화를 하고 있으므로 그 규칙을 여기로 끌어온다. */
-    state.view = 'chart';
+    /* R7(멘토링 ⑤): “그래프가 바로 있어 접근하기 어렵다”. 답은 그래프를 없애는 것이 아니라
+       <b>그 미션이 실제로 요구하는 비교</b>에 맞는 보기를 먼저 주는 것이다 —
+       미션 2는 기준별 일수(표), 미션 3은 지역 비교(지도), 미션 4는 강도별 일수(표)가 본체다.
+       미션 1·5는 그래프가 곧 조작 수단이라 그대로 둔다. */
+    state.view = m.view || 'chart';
+    if (state.view === 'map' && !hasMap()) state.view = 'table';
     if (state.visited) delete state.visited[m.id];
     if (state.usedThr) delete state.usedThr[m.id];
     if (m.lagMode) {
@@ -3413,6 +3557,10 @@
      조작 하나로 판정이 열렸다 — 미션 3은 지역 칩을 한 번도 안 눌러도, 미션 4는 프리셋
      하나만 눌러도 통과했다. 각 미션이 실제로 요구하는 비교를 했는지 본다. */
   function missionDone(m) {
+    if (m.frostMode) {
+      var v = (state.visited && state.visited[m.id]) || {};
+      return Object.keys(v).filter(function (c) { return frostOf(c); }).length >= 3;
+    }
     if (m.id === 'region') {
       var v = state.visited && state.visited[m.id];
       return !!(v && v['제주'] && v['강원']);          /* 두 지역을 모두 봤는가 */
@@ -3433,10 +3581,17 @@
   }
   function canJudge(m) {
     if (m.lagMode) return !!state.markDoy && !!state.lagRevealed && missionAsked(m);
+    /* 서리 미션의 조작 대상은 기준선이 아니라 지역이다 — state.moved를 요구하면 영원히 안 열린다 */
+    if (m.frostMode) return missionAsked(m) && missionDone(m);
     return state.moved && missionAsked(m) && missionDone(m);
   }
   /* 어떤 조작이 남았는지 학습자에게 정확히 알려 준다 */
   function missionTodo(m) {
+    if (m.frostMode) {
+      var fv = (state.visited && state.visited[m.id]) || {};
+      var seen = Object.keys(fv).filter(function (c) { return frostOf(c); }).length;
+      return seen >= 3 ? '' : '위쪽 <b>지역</b>을 눌러 <b>' + (3 - seen) + '곳</b> 더 확인해 보세요 — 지역마다 같은지 다른지가 이 미션의 질문입니다.';
+    }
     if (m.id === 'region') {
       var v = (state.visited && state.visited[m.id]) || {};
       var need = ['제주', '강원'].filter(function (c) { return !v[c]; });
@@ -3536,12 +3691,15 @@
         : (!state.lagRevealed ? '<b>‘실제와 비교하기’</b>를 눌러 실제 기록과 맞춰 보세요.'
         : '좋아요 — 준비되면 판정하세요.');
     } else {
+      if (m.frostMode) { hint.innerHTML = missionTodo(m) || '좋아요 — 준비되면 판정하세요.'; return; }
       var todo = missionTodo(m);
       /* R7(멘토링 ⑥): 예전 첫 힌트는 조작 <b>방법</b>만 말하고 <b>방향</b>을 말하지 않았다
          ("끌어 보세요"). 무엇을 향해 끌지 모르면 손이 안 나간다.
          미션마다 다음 한 걸음을 방향까지 찍어 준다 — 값을 대신 정해 주지는 않는다. */
       hint.innerHTML = !state.moved
-        ? '봉인한 예측을 검증해 봅시다. ' + howtoAim(m).t + ' — 보라색 기준선의 <b>⇅ 손잡이</b>를 끌거나, 아래 <b>‘자주 쓰는 기준’</b>을 눌러도 됩니다. <b>＋− 조작법</b>을 누르면 다시 볼 수 있어요.'
+        ? '봉인한 예측을 검증해 봅시다. ' + howtoAim(m).t
+          + (state.view === 'chart' ? ' — 보라색 기준선의 <b>⇅ 손잡이</b>를 끌거나, ' : ' — ')
+          + '아래 <b>슬라이더·＋−·‘자주 쓰는 기준’</b>으로 바꾸면 숫자가 즉시 다시 계산됩니다. <b>＋− 조작법</b>을 누르면 다시 볼 수 있어요.'
         : (todo ? todo : (degenerateNote() || '좋아요 — 준비되면 판정하세요.'));
     }
   }
@@ -3609,7 +3767,7 @@
       total += w;
     }
     var at = Math.min(total - 1, before + stepSubIndex(m, step));
-    return '<div class="mission-step-head"><div class="mhead"><span class="mno">미션 ' + (state.mi + 1) + ' / ' + MISSIONS.length
+    return '<div class="mission-step-head"><div class="mhead"><span class="mno">' + (isOptional(m) ? '선택 미션' : '미션 ' + (state.mi + 1) + ' / ' + REQ.length)
       + '</span><span class="goal-chip">' + goalChipText(m, step) + '</span></div>'
       + '<div class="micro-progress" aria-label="미션 세부 단계"><b>' + (at + 1) + '/' + total + ' · ' + STEP_LABELS[step]
       + '</b><span><i style="width:' + ((at + 1) / total * 100) + '%"></i></span></div></div>';
@@ -3811,11 +3969,71 @@
     }, 80);
   }
 
+  /* 서리 미션 전용 조작 화면 — 기준선·곡선을 쓰지 않는다.
+     초상온도(지면 5cm)와 평균기온 곡선(1.5m)은 축이 달라 한 그림에 겹치면 안 되고,
+     이 미션이 묻는 것은 '몇 도부터'가 아니라 '어디서 언제부터'이기 때문이다. */
+  function renderFrostExplore(m) {
+    state.phase = 'mission'; state.missionStep = 'explore'; overlayOpen = false; save();
+    document.body.classList.remove('lag-mode');
+    var avail = CITIES.filter(function (c) { return frostOf(c); });
+    if (!frostOf(state.city)) { state.city = avail[0]; save(); }
+    var f = frostOf(state.city);
+    setStage('<section class="card explore-card">'
+      + missionStepHeader(m, 'explore')
+      + '<h1 class="hero-headline" id="missionH1">상강(10/23)에 정말 서리가 내릴까?</h1>'
+      + '<div class="focus-task"><span class="step-tag">지금 한 가지만</span><p id="missionTask">' + taskOf(m) + '</p></div>'
+      + '<div class="picker"><div class="picker-block"><span class="picker-label">지역 '
+      + '<small>(최고·최저기온 수집분이 있는 ' + avail.length + '지점만 셀 수 있어요)</small></span>'
+      + '<div class="chips" id="cityChips" role="tablist" aria-label="관측 지역"></div></div></div>'
+      + '<div class="chart-card"><p class="live-nums" id="liveNums" aria-live="polite" aria-atomic="true"></p>'
+      + '<div id="frostMount"></div>'
+      + '<div class="chart-legend"><span><i class="lg lg-term"></i> 상강(고정)</span>'
+      + '<span><i class="lg lg-past"></i> 과거 ' + f.periods.past + '</span>'
+      + '<span><i class="lg lg-now"></i> 현재 ' + f.periods.present + '</span></div></div>'
+      + '<p class="integrity is-compact"><span aria-hidden="true">◈</span> 이 값은 <b>최저초상온도</b>(지면 위 약 5cm)가 0°C 이하인 날이에요 — '
+      + '그래프 미션들이 쓰는 <b>1.5m 백엽상 기온</b>과 <b>다른 값</b>입니다 · 기상청 공식 ‘첫서리일’(육안 관측)이 아니라 <b>서리가 내릴 조건이 갖춰진 날</b>입니다</p>'
+      + '<div class="explore-actions"><small id="touchHint" role="status"></small><div class="step-actions">'
+      + '<button class="ghost-btn" id="howtoBtn" title="이 화면을 어떻게 움직이는지 다시 보기">＋− 조작법</button>'
+      + '<button class="ghost-btn" id="backOrient">← 탐구 방향</button><button class="primary-btn is-muted" id="toVerdict">증거 정리하기 →</button></div></div>'
+      + '</section>');
+    function paint() {
+      var g = frostOf(state.city), sang = termDoyByName('상강');
+      $('frostMount').innerHTML = frostTimelineSVG(state.city);
+      var side = g.present.first < sang ? '상강 <b>전</b>' : (g.present.first > sang ? '상강 <b>뒤</b>' : '<b>상강 당일</b>');
+      $('liveNums').innerHTML = '<b>' + state.city + '</b> 첫 서리 조건일 <span class="v-past">' + doyStr(g.past.first) + '</span> <i>→</i> '
+        + '<span class="v-now">' + doyStr(g.present.first) + '</span>'
+        + (g.shift ? ' <b class="hot">(' + (g.shift > 0 ? '+' : '') + g.shift + '일)</b>' : '')
+        + ' <span class="ln-sep">·</span> 지금은 ' + side
+        + ' <span class="ln-sep">·</span> <b>무상기간</b> <span class="v-past">' + g.past.free + '일</span> <i>→</i> <span class="v-now">' + g.present.free + '일</span>';
+    }
+    bindCityChips(avail);
+    /* 지금 화면에 떠 있는 지역은 이미 '본 것'이다 — 세지 않으면 3곳을 보고도 '3곳 더'라고 나온다 */
+    markVisited('visited', state.city);
+    paint();
+    onTouched = function () { paint(); updateGate(m); };
+    updateGate(m);
+    maybeShowHowto(m);
+    $('backOrient').addEventListener('click', function () { setMissionStep('orient'); });
+    if ($('howtoBtn')) $('howtoBtn').addEventListener('click', function () {
+      try { sessionStorage.removeItem(HOWTO_KEY); } catch (e) {}
+      var t = state.touched, mv = state.moved;
+      state.touched = false; state.moved = false;
+      maybeShowHowto(m);
+      state.touched = t; state.moved = mv;
+    });
+    $('toVerdict').addEventListener('click', function () {
+      var todo = missionTodo(m);
+      if (todo) { var h = $('touchHint'); h.innerHTML = todo; h.classList.add('hint-urge'); flash(h); return; }
+      setMissionStep('evidence');
+    });
+  }
+
   function renderExplore() {
     var m = MISSIONS[state.mi], useCompare = !!m.compare;
     /* 저장 상태·딥링크·계절 전환 어느 경로에서도 관측 자료가 예측보다 먼저 나오지 않는다. */
     if (!missionAsked(m)) { renderPrediction(m); return; }
     if (m.id === 'chuseo' && !lensDone()) { renderLensStep(m); return; }
+    if (m.frostMode) { renderFrostExplore(m); return; }
     state.phase = 'mission'; state.missionStep = 'explore'; overlayOpen = false; save();
     setStage('<section class="card explore-card">'
       + missionStepHeader(m, 'explore')
@@ -3879,6 +4097,10 @@
   /* 그 미션이 실제로 요구하는 다음 한 걸음을 방향까지 찍어 준다.
      화면에 없는 조작을 부르지 않도록 미션별로 나눈다. */
   function howtoAim(m) {
+    if (m.frostMode) {
+      return { t: '위쪽 <b>지역</b>을 눌러 최소 <b>세 곳</b>을 비교하기',
+               s: '이 미션은 기준선을 옮기지 않습니다. <b>지역</b>이 조작 대상이에요 — 서울·부산·제주처럼 멀리 떨어진 곳을 골라 보세요.' };
+    }
     if (m.lagMode) {
       var w = isWinterLag(m) ? '추울' : '더울';
       return { t: '그래프를 <b>좌우로</b> 끌어 가장 ' + w + ' 것 같은 <b>날짜</b>를 찍기',
@@ -3898,15 +4120,25 @@
     if (body) {
       body.innerHTML = '<p class="howto-aim"><span class="step-tag">지금 할 일</span> ' + aim.t + '</p>'
         + '<p class="howto-aim-s">' + aim.s + '</p>'
-        + '<p class="howto-h">움직이는 방법은 <b>세 가지</b>예요. 편한 것 하나만 쓰면 됩니다.</p>'
+        + '<p class="howto-h">' + (m.frostMode
+            ? '이 화면에서 움직이는 것은 <b>지역 하나</b>뿐이에요.'
+            : '움직이는 방법은 <b>세 가지</b>예요. 편한 것 하나만 쓰면 됩니다.') + '</p>'
         + '<ol class="howto-list">'
-        + (isLag
+        /* 없는 조작을 안내하지 않는다 — 이 미션에는 기준선도 슬라이더도 프리셋도 없다 */
+        + (m.frostMode
+            ? '<li><span class="howto-ico" aria-hidden="true">◉</span><div><b>위쪽 지역 단추를 누르기</b><p>누를 때마다 그 지역의 <b>과거·현재 첫 서리 조건일</b>이 다시 그려집니다. 노란 <b>상강</b> 선은 움직이지 않아요.</p></div></li>'
+              + '<li><span class="howto-ico" aria-hidden="true">◷</span><div><b>상강 선의 왼쪽인지 오른쪽인지 보기</b><p>왼쪽이면 절기보다 <b>먼저</b>, 오른쪽이면 <b>나중</b>에 서리 조건이 갖춰졌다는 뜻입니다.</p></div></li>'
+              + '<li><span class="howto-ico" aria-hidden="true">△</span><div><b>최소 세 지역을 견주기</b><p>한 곳만 보면 “늦어졌다”로 끝납니다. 여러 곳을 봐야 <b>지역마다 다른지</b>가 보여요.</p></div></li>'
+          : isLag
             ? '<li><span class="howto-ico" aria-hidden="true">↔</span><div><b>그래프를 좌우로 끌기</b><p>그래프 아무 데나 누른 채 옆으로 끌면 날짜가 따라옵니다.</p></div></li>'
               + '<li><span class="howto-ico" aria-hidden="true">−＋</span><div><b>＋ − 단추로 하루씩</b><p>정확한 날짜를 맞출 때 씁니다. 방향키로도 됩니다.</p></div></li>'
               + '<li><span class="howto-ico" aria-hidden="true">▦</span><div><b>‘빠른 이동’에서 절기 누르기</b><p>하지·소서처럼 <b>절기 이름</b>으로 단번에 옮겨 갑니다.</p></div></li>'
-            : '<li><span class="howto-ico" aria-hidden="true">⇅</span><div><b>보라색 기준선의 손잡이를 끌기</b><p>선 위의 <b>⇅ 손잡이</b>를 잡고 위아래로 끕니다. 선 근처에서만 잡히니 화면을 넘길 때 값이 바뀌지 않아요.</p></div></li>'
-              + '<li><span class="howto-ico" aria-hidden="true">−＋</span><div><b>슬라이더와 ＋ − 단추</b><p>그래프 아래 줄에서 <b>1' + metricOf().unit + '씩</b> 정확히 맞춥니다. 키보드 방향키로도 됩니다.</p></div></li>'
-              + '<li><span class="howto-ico" aria-hidden="true">▦</span><div><b>‘자주 쓰는 기준’ 누르기</b><p>22°C·25°C처럼 <b>많이 쓰는 값</b>으로 한 번에 갑니다.</p></div></li>')
+            /* 표·지도 보기로 시작하는 미션에서는 그래프가 숨어 있다 — 없는 것을 가리키지 않는다 */
+            : ((state.view === 'chart'
+                ? '<li><span class="howto-ico" aria-hidden="true">⇅</span><div><b>보라색 기준선의 손잡이를 끌기</b><p>선 위의 <b>⇅ 손잡이</b>를 잡고 위아래로 끕니다. 선 근처에서만 잡히니 화면을 넘길 때 값이 바뀌지 않아요.</p></div></li>'
+                : '<li><span class="howto-ico" aria-hidden="true">▤</span><div><b>지금은 ‘' + (state.view === 'table' ? '표' : '지도') + '’ 보기예요</b><p>이 미션은 숫자를 나란히 놓고 보는 편이 빨라서 그렇게 열었습니다. 위의 <b>‘그래프’</b>를 누르면 곡선과 기준선으로 바꿀 수 있어요.</p></div></li>')
+              + '<li><span class="howto-ico" aria-hidden="true">−＋</span><div><b>슬라이더와 ＋ − 단추</b><p>' + (state.view === 'chart' ? '그래프' : '표') + ' 아래 줄에서 <b>1' + metricOf().unit + '씩</b> 정확히 맞춥니다. 바꾸는 즉시 숫자가 다시 계산돼요.</p></div></li>'
+              + '<li><span class="howto-ico" aria-hidden="true">▦</span><div><b>‘자주 쓰는 기준’ 누르기</b><p>22°C·25°C처럼 <b>많이 쓰는 값</b>으로 한 번에 갑니다.</p></div></li>'))
         + '</ol>'
         + '<p class="howto-note"><b>정답을 고르는 화면이 아닙니다.</b> 무엇을 눌러도 되고, 여러 번 바꿔도 됩니다 — '
         + '기준을 바꿀 때마다 숫자가 어떻게 달라지는지 보는 것이 이 화면에서 배우는 것이에요.</p>';
@@ -3988,7 +4220,9 @@
       + '<p class="eyebrow">내가 방금 확보한 관측 증거</p>'
       + '<h1 class="stage-h">숫자를 먼저 읽고, 그다음 설명하세요.</h1>'
       + studentEvidenceHTML(m, n)
-      + '<details class="evidence-detail"><summary>추가 관측값 확인</summary><div class="readouts" id="readouts"></div></details>'
+      /* 서리 미션의 결론은 '지역마다 다르다'이므로 8지점 표가 증거의 본체다 — 접지 않고 펼쳐 둔다 */
+      + (m.frostMode ? '<p class="eyebrow">자료가 있는 지점 전체</p>' + frostTableHTML() : '')
+      + (m.frostMode ? '' : '<details class="evidence-detail"><summary>추가 관측값 확인</summary><div class="readouts" id="readouts"></div></details>')
       + '<div class="evidence-depth"><p class="eyebrow">선택 심화 · 필요한 정보만 열기</p>'
       + deepHintOf(m)
       + '<div id="kmaRefMount"></div><div id="methodMount"></div>'
@@ -4117,6 +4351,15 @@
         rows.push([rlab + ' · 내가 정한 ' + n.thr + 'mm 이상',
           '과거 ' + fmtDays(exceed('past', n.thr, rc, 'precip')) + ' → 현재 ' + fmtDays(exceed('present', n.thr, rc, 'precip'))]);
       }
+    } else if (m.frostMode) {
+      var ff = frostOf(n.city), sg = termDoyByName('상강');
+      var sd = function (d) { return d < sg ? '상강 전' : (d > sg ? '상강 뒤' : '상강 당일'); };
+      rows = [
+        ['상강(절기 · 고정)', doyStr(sg)],
+        [n.city + ' · 과거 첫 서리 조건일', doyStr(ff.past.first) + ' (' + sd(ff.past.first) + ')'],
+        [n.city + ' · 현재 첫 서리 조건일', doyStr(ff.present.first) + ' (' + sd(ff.present.first) + ')'],
+        ['무상기간', ff.past.free + '일 → ' + ff.present.free + '일']
+      ];
     } else if (m.lagMode) {
       var lg = lagInfo();
       rows = [
@@ -4131,7 +4374,15 @@
       if (mc.showLast && n.pl > 0 && n.cl > 0) rows.push([mc.last, '과거 ' + n.plStr + ' → 현재 ' + n.clStr]);
     }
     return '<div class="student-evidence" aria-label="내가 조작한 화면에서 읽은 증거">'
-      + '<p><b>내가 읽은 증거</b><span>' + n.sampleText + ' · 30년 기후평년 아님</span></p>'
+      /* 서리 미션은 별도 수집분이라 비교 기간이 다르다(현재 2022–2025 4년).
+         여기에 다른 미션의 '2021–2025 5년'을 그대로 찍으면, 이 미션이 가르치려는
+         "기간이 다르면 나란히 놓을 수 없다"를 머리말이 스스로 어긴다. */
+      + '<p><b>내가 읽은 증거</b><span>' + (m.frostMode
+          ? (function () {
+              var g = frostOf(n.city);
+              return '과거 ' + g.periods.past + '(' + g.past.n + '년) vs 현재 ' + g.periods.present + '(' + g.present.n + '년) · 다른 미션과 기간이 다름';
+            })()
+          : n.sampleText + ' · 30년 기후평년 아님') + '</span></p>'
       + '<dl>' + rows.map(function (r) { return '<div><dt>' + r[0] + '</dt><dd>' + r[1] + '</dd></div>'; }).join('') + '</dl></div>';
   }
   function studentCerlHTML(m, n) {
@@ -4168,7 +4419,7 @@
          안 쓴 것을 쓴 것처럼 세면 교사가 회수하는 산출물이 거짓이 된다. */
       + '<details class="cerl-skip"><summary>지금은 쓰기 어려워요 — 건너뛰고 계속하기</summary>'
       + '<p>건너뛰어도 <b>다음 단계로 넘어갈 수 있습니다.</b> 다만 두 가지를 알려 드릴게요.</p>'
-      + '<ul><li>이 미션은 <b>‘건너뜀’으로 기록</b>됩니다. 완료 화면의 “CERL ' + MISSIONS.length + '편”에서 빠져요.</li>'
+      + '<ul><li>이 미션은 <b>‘건너뜀’으로 기록</b>됩니다. 완료 화면의 “CERL ' + REQ.length + '편”에서 빠져요.</li>'
       + '<li>쓰기가 이 앱에서 가장 오래 남는 활동이에요 — <b>나중에 언제든 돌아와</b> 채울 수 있습니다.</li></ul>'
       + '<button class="ghost-btn" id="cerlSkip" type="button">이 미션은 건너뛰고 이해 확인으로 →</button></details>'
       + '</div>';
@@ -4382,7 +4633,7 @@
       + '<div class="audit-result" id="auditResult" hidden></div></div>'
       + (m.lagMode ? '<div class="optional-next"><p class="eyebrow">선택 확장</p><button class="ghost-btn" id="auditWinter">겨울·동지에도 적용해 보기</button> <button class="ghost-btn" id="auditLab">🔬 열관성 실험실</button></div>' : '')
       + '<div class="step-actions"><button class="ghost-btn" id="retry">기준 다시 맞춰 보기 <small>(내 결론은 유지)</small></button>'
-      + (next < MISSIONS.length ? '<button class="primary-btn" id="nextMission">다음 미션 →</button>' : '<button class="primary-btn" id="toFree">검증 마치고 결과 받기 →</button>')
+      + (next < REQ.length ? '<button class="primary-btn" id="nextMission">다음 미션 →</button>' : '<button class="primary-btn" id="toFree">검증 마치고 결과 받기 →</button>')
       + '</div></section>');
     renderProgress();
     var ta = $('freeDraft'); ta.value = state.missionDraft[m.id] || cerlText(m);
@@ -4450,8 +4701,8 @@
   /* ---------- 완료 · 내 기후 카드 ---------- */
   function renderComplete() {
     /* 건너뛴 미션은 '아직 안 쓴 것'이 아니라 '안 쓰기로 한 것'이다 — 막지 않고 기록에 남긴다 */
-    var skipped = MISSIONS.filter(function (m) { return state.cerlSkipped[m.id]; });
-    var missingCerl = MISSIONS.filter(function (m) {
+    var skipped = REQ.filter(function (m) { return state.cerlSkipped[m.id]; });
+    var missingCerl = REQ.filter(function (m) {
       return !state.cerlSkipped[m.id] && (!state.cerlSubmitted[m.id] || cerlErrors(m).length);
     });
     if (missingCerl.length) {
@@ -4485,7 +4736,9 @@
              + '<br><b>' + (state.post === POST_QUESTION.correct ? '배운 것을 다른 절기에 적용했습니다.' : '아직 절기와 기후를 섞어 설명하고 있어요.') + '</b>'
            : '') + '</li>';
     }
-    var sc = growth + MISSIONS.map(function (m) {
+    var sc = growth + MISSIONS.filter(function (m) {
+      return !isOptional(m) || state.done.indexOf(m.id) !== -1 || state.cerlSubmitted[m.id];
+    }).map(function (m) {
       var s = state.selfChecks[m.id], parts = [];
       var a = missionAsk(m), pv = a.get();
       if (pv != null && a.options.length) {
@@ -4532,19 +4785,19 @@
     var completeStep = Math.max(0, Math.min(3, Number(state.completeStep) || 0));
     /* 건너뛴 편수를 빼고 센다 — 안 쓴 것을 쓴 것처럼 세면 교사가 회수하는 산출물이 거짓이 된다 */
     setStage('<section class="card done-card"><div class="burst" aria-hidden="true">✦</div><p class="eyebrow">'
-      + MISSIONS.length + '개 미션 · CERL ' + (MISSIONS.length - skipped.length) + '편 작성'
+      + REQ.length + '개 미션 · CERL ' + (REQ.length - skipped.length) + '편 작성'
       + (skipped.length ? ' · ' + skipped.length + '편 건너뜀' : ' 완료') + '</p>'
       + '<h1 class="stage-h">검증을 마쳤어요.</h1>'
       /* 한 편도 안 썼는데 "작성했습니다"라고 하면 이 앱이 스스로 과장하는 것이 된다.
          목표 ④(근거만큼 결론)는 CERL 쓰기로 확인되는 목표라, 전부 건너뛴 경우 배지도 '미확인'으로 둔다. */
       + '<p class="sub">자료를 보기 전에 예측하고, 기준을 직접 정해 확인했습니다.'
-      + (skipped.length === MISSIONS.length
+      + (skipped.length === REQ.length
           ? ' <b>내 결론(주장·근거·추론·한계)은 아직 쓰지 않았어요</b> — 미션으로 돌아가면 언제든 채울 수 있습니다.'
           : skipped.length
-            ? ' 미션 <b>' + (MISSIONS.length - skipped.length) + '개</b>에서 주장·근거·추론·한계를 스스로 작성했습니다(' + skipped.length + '개는 건너뜀).'
+            ? ' 미션 <b>' + (REQ.length - skipped.length) + '개</b>에서 주장·근거·추론·한계를 스스로 작성했습니다(' + skipped.length + '개는 건너뜀).'
             : ' 그리고 미션마다 주장·근거·추론·한계를 스스로 작성했습니다.') + '</p>'
       + '<div class="skill-row"><span>① 절기≠기후</span><span>② 자료의 범위</span><span>③ 기준 정의</span>'
-      + (skipped.length === MISSIONS.length
+      + (skipped.length === REQ.length
           ? '<span class="is-unmet">④ 근거만큼 결론 <small>미확인</small></span>'
           : '<span>④ 근거만큼 결론</span>')
       + (state.labSeen ? '<span>⑤ 관측과 모형</span>' : '') + '</div>'
@@ -4577,6 +4830,7 @@
       + '<div class="done-next"><button class="ghost-btn" id="startLab">🔬 열관성 실험실 — 왜 그런지 직접 계산해 보기</button>'
       + (FUT ? '<button class="ghost-btn" id="startFuture">🔮 2100년에도 절기는 맞을까 — 기상청 SSP 시나리오</button>' : '')
       + '<button class="ghost-btn" id="startMyth">🧭 그거 정말이야? — 올해 더웠나 · 대구가 제일 더운가</button>'
+      + (MISSIONS.some(isOptional) ? '<button class="ghost-btn" id="startOpt">❄ 선택 미션 — 상강에 서리가 내릴까 (' + (state.done.indexOf('frost') !== -1 ? '완료' : '아직') + ')</button>' : '')
       + '<button class="ghost-btn" id="startFree">내 지역·지표로 자유탐구 →</button></div>'
       + '<p class="intro-teacher"><a href="./교사_학습지.html" target="_blank" rel="noopener">📄 교사용 학습지 (인쇄용) →</a></p>'
       + '<div class="step-actions"><button class="ghost-btn" data-complete-step="2">← 지구 맥락</button></div></div></section>');
@@ -4621,6 +4875,10 @@
     if ($('startLab')) $('startLab').addEventListener('click', renderLab);
     if ($('startFuture')) $('startFuture').addEventListener('click', function () { openFuture('complete'); });
     if ($('startMyth')) $('startMyth').addEventListener('click', function () { openMyths('complete'); });
+    if ($('startOpt')) $('startOpt').addEventListener('click', function () {
+      var oi = -1; MISSIONS.forEach(function (mm, k) { if (isOptional(mm)) oi = k; });
+      if (oi >= 0) startMission(oi);
+    });
     bindPanelTabs('complete', 4);
     var gb = $('globalBox');
     if (gb) gb.addEventListener('toggle', function () { if (gb.open) renderGlobal(); });
