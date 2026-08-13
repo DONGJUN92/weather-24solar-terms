@@ -580,21 +580,46 @@
   /* ---------- 체험 모드 · 미래 시나리오 상수 ----------
      load()가 저장값을 이 목록으로 검증하므로 state보다 먼저 선언한다(var 호이스팅만으로는
      값이 undefined라 검증이 조용히 통과해 버린다). */
-  var QUICK_STEPS = ['city', 'predict', 'thr', 'reveal', 'why', 'more'];
-  /* 예측 보기 — '몇 도로 정할까'가 아니라 '결과가 며칠일까'를 묻는다.
-     기준선 위치는 학습자가 정하는 <b>약속</b>이라 맞고 틀림이 없다. 예측은 답이 있는 양에만 건다.
-     구간은 16지점 × 22/25/28°C = 48조합의 실측 시차(5~32일)를 네 칸으로 나눈 것이다. */
+  /* 절기 → 언제(현재/2100년) → 지역 → 예측 → 공개 → 해설 → 더 보기.
+     앞 세 단계는 각각 한 번의 탭이고, 예측까지 네 번 누르면 답이 나온다. */
+  var QUICK_STEPS = ['term', 'when', 'city', 'predict', 'reveal', 'why', 'more'];
+  /* 예측은 <b>답이 있는 양</b>에만 건다. 24절기 전부에서 정직하게 나오는 값은
+     '그 절기 무렵(±7일) 평년기온이 과거와 지금 사이에 얼마나 달라졌는가'다.
+     구간은 24절기 × 16지점 = 384조합의 실측(−0.7 ~ +6.5℃)을 사분위로 나눈 것이다. */
   var QUICK_BANDS = [
-    { v: 'a', t: '거의 그대로', s: '0~5일', lo: -999, hi: 5 },
-    { v: 'b', t: '일주일쯤', s: '6~12일', lo: 6, hi: 12 },
-    { v: 'c', t: '보름쯤', s: '13~20일', lo: 13, hi: 20 },
-    { v: 'd', t: '한 달 가까이', s: '21일 이상', lo: 21, hi: 999 }
+    { v: 'a', t: '거의 그대로', s: '1°C 안쪽', lo: -99, hi: 1.0 },
+    { v: 'b', t: '1도쯤', s: '1~2°C', lo: 1.0, hi: 2.0 },
+    { v: 'c', t: '2도쯤', s: '2~3°C', lo: 2.0, hi: 3.0 },
+    { v: 'd', t: '3도 넘게', s: '크게 올랐다', lo: 3.0, hi: 999 }
   ];
-  var QUICK_THRS = [
-    { v: 22, t: '22°C', s: '이 정도면 덥다' },
-    { v: 25, t: '25°C', s: '여름에 흔히 쓰는 기준' },
-    { v: 28, t: '28°C', s: '이 정도는 돼야 덥다' }
-  ];
+  /* 절기마다 '이름이 약속하는 것'을 한 줄로 — 공개 뒤 해설에서 측정값과 나란히 놓는다.
+     뜻·한자 풀이는 D.terms에 이미 있으므로 여기서는 <b>무엇을 견줘 볼 것인가</b>만 적는다. */
+  var QUICK_TERM_NOTE = {
+    '소한': '이름은 ‘작은 추위’인데, 실제로는 한 해에서 가장 추운 무렵입니다.',
+    '대한': '이름은 ‘큰 추위’지만, 소한이 더 추웠던 해가 많습니다.',
+    '입춘': '달력은 봄이 시작됐다고 하는데, 기온은 아직 한겨울입니다.',
+    '우수': '눈이 비로 바뀐다는 뜻. 영상으로 올라서기 시작하는 무렵입니다.',
+    '경칩': '땅이 풀려 벌레가 깬다는 뜻. <b>24절기 중 기온이 가장 크게 달라진 무렵</b>입니다.',
+    '춘분': '낮과 밤의 길이는 예나 지금이나 같습니다 — 달라진 것은 기온뿐입니다.',
+    '청명': '하늘이 맑아 논밭갈이를 시작하던 때입니다.',
+    '곡우': '봄비가 곡식을 적신다는 뜻. 못자리를 마련하던 무렵입니다.',
+    '입하': '달력은 여름이라 하는데, ‘여름’이 언제 시작하는지는 기준을 어떻게 잡느냐에 달렸습니다.',
+    '소만': '햇볕이 차올라 보리가 익는 때입니다.',
+    '망종': '까끄라기 곡식을 거두고 모를 심던, 한 해 가장 바쁜 무렵입니다.',
+    '하지': '낮이 가장 긴 날입니다. 그런데 <b>가장 더운 날은 40일쯤 뒤</b>예요.',
+    '소서': '‘작은 더위’. 본격적인 더위가 시작되고 장마가 이어집니다.',
+    '대서': '이름은 ‘가장 더운 때’지만, 실제 최고기온일은 <b>7월 말~8월 초</b>입니다.',
+    '입추': '달력은 가을이 시작됐다고 하는데, 한낮은 아직 한여름입니다.',
+    '처서': '‘더위가 그친다’는 약속. 그 더위가 실제로 언제까지 가는지 봅니다.',
+    '백로': '밤 기온이 내려가 풀잎에 흰 이슬이 맺히기 시작하는 무렵입니다.',
+    '추분': '낮이 짧아지기 시작하는데, 기온은 한참 뒤에야 따라 내려갑니다.',
+    '한로': '이슬이 차가워지는 때. 단풍이 짙어지고 추수가 한창입니다.',
+    '상강': '‘서리가 내린다’는 약속. 실제 서리 조건일과 견줘 볼 수 있습니다.',
+    '입동': '달력은 겨울이 시작됐다고 합니다. 김장철 기온이 예전 같은지 봅니다.',
+    '소설': '첫눈이 내리기 시작한다는 무렵입니다.',
+    '대설': '눈이 가장 많이 온다고 여겨진 때입니다.',
+    '동지': '밤이 가장 긴 날입니다. 그런데 <b>가장 추운 날은 그보다 뒤</b>예요.'
+  };
   var FUT = window.FUTURE_DATA || null;
 
   var state = load();
@@ -703,6 +728,8 @@
   function eunNeun(w) { return hasJong(w) ? '은' : '는'; }
   function eulReul(w) { return hasJong(w) ? '을' : '를'; }
   function iGa(w) { return hasJong(w) ? '이' : '가'; }
+  /* '벌레이라는'이 나오던 곳 — 받침이 없으면 '라는'이다 */
+  function iRaNeun(w) { return hasJong(w) ? '이라는' : '라는'; }
 
   function load() {
     var base = { phase: 'intro', mi: 0, city: '서울', ti: 15, thr: 25, thr0: 25, metric: 'temp', pre: null, post: null,
@@ -716,8 +743,8 @@
                  /* R7 체험 모드 — 교육용 흐름과 상태를 공유하지 않는다.
                     같은 state.city/thr를 쓰면 체험에서 고른 값이 미션의 '내가 정한 기준'을
                     조용히 덮어써 봉인·판정의 전제가 무너진다. 접두사 quick*으로 완전히 분리한다. */
-                 quickStep: 0, quickCity: null, quickThr: null, quickPredict: null, quickDone: false,
-                 quickBonus: {},
+                 quickStep: 0, quickTi: null, quickWhen: null, quickCity: null, quickPredict: null,
+                 quickDone: false, quickBonus: {},
                  /* 미래 시나리오 화면 */
                  futScen: 'SSP5-8.5', futPeriod: 'p3', futRegion: null, futFrom: null,
                  /* 기후 상식 확인소 — 절기를 넘어선 기상·기후 오개념 2건 */
@@ -776,7 +803,8 @@
         /* R7: 손상된 저장값이 체험 모드로 흘러들면 '고르지 않은 지역의 결과'가 뜬다 */
         o.quickStep = Math.min(QUICK_STEPS.length - 1, Math.max(0, Number(o.quickStep) || 0));
         if (CITIES.indexOf(o.quickCity) === -1) o.quickCity = null;
-        if (!(o.quickThr >= 20 && o.quickThr <= 34)) o.quickThr = null;
+        if (!(typeof o.quickTi === 'number' && o.quickTi >= 0 && o.quickTi < D.terms.length)) o.quickTi = null;
+        if (['now', 'future'].indexOf(o.quickWhen) === -1) o.quickWhen = null;
         if (QUICK_BANDS.every(function (b) { return b.v !== o.quickPredict; })) o.quickPredict = null;
         if (!o.quickBonus || typeof o.quickBonus !== 'object' || Array.isArray(o.quickBonus)) o.quickBonus = {};
         o.quickDone = !!o.quickDone;
@@ -839,7 +867,11 @@
     else if (q.v === 'lab') { state.phase = 'lab'; touched = true; }
     /* 교사가 반마다 다른 입구를 배부할 수 있게 두 모드 모두 딥링크를 준다.
        체험 딥링크는 항상 1단계부터 — 앞 사람이 고른 지역·기준을 물려받으면 '내가 정한다'가 무너진다. */
-    else if (q.v === 'quick') { state.phase = 'quick'; state.quickStep = 0; state.quickCity = null; state.quickThr = null; state.quickPredict = null; state.quickBonus = {}; touched = true; }
+    else if (q.v === 'quick') {
+      state.phase = 'quick'; state.quickStep = 0;
+      state.quickTi = null; state.quickWhen = null; state.quickCity = null;
+      state.quickPredict = null; state.quickBonus = {}; touched = true;
+    }
     else if (q.v === 'myth') {
       state.phase = 'myth'; state.mythFrom = 'intro';
       state.mythStep = ['year', 'region'].indexOf(q.p) !== -1 ? q.p : 'hub';
@@ -2492,8 +2524,8 @@
       + '<div class="mode-grid">'
       + '<button class="mode-card mode-quick" id="modeQuick">'
       + '<span class="mode-icon" aria-hidden="true">⚡</span>'
-      + '<b class="mode-t">빠르게 체험하기</b><span class="mode-time">3분 · 4번 누르면 끝</span>'
-      + '<span class="mode-d">처서 하나만. 내가 먼저 <b>맞혀 보고</b> 실제 자료로 확인합니다.</span>'
+      + '<b class="mode-t">빠르게 절기 체험하기</b><span class="mode-time">3분 · 4번 누르면 끝</span>'
+      + '<span class="mode-d"><b>24절기 중 하나</b>를 골라, 내가 먼저 <b>맞혀 보고</b> 실제 자료로 확인합니다.</span>'
       + '<span class="mode-who">처음이거나, 지금 궁금한 것만 빨리 알고 싶다면</span></button>'
       + '<button class="mode-card mode-study" id="modeStudy">'
       + '<span class="mode-icon" aria-hidden="true">🔬</span>'
@@ -2546,39 +2578,52 @@
     $('introMission').addEventListener('click', function () { startMission(0); });
   }
 
-  /* ================= 체험 모드 (멘토링 ④·⑤) =================
+  /* ================= 빠르게 절기 체험하기 =================
      설계 원칙 세 가지.
       1) 개념 하나만. 목표문에 '그리고'가 들어가면 쪼갠다 — 여기서는 ①(절기 ≠ 기후)만 남기고
          지표 탭·기간 26창·방법론 서랍·CERL 작성은 전부 교육 모드에 둔다.
       2) 예측은 <b>답이 있는 양</b>에만 건다. '기준을 몇 도로 둘까'는 학습자가 정하는 약속이라
-         정답이 없다. 그래서 묻는 것은 "그 기준에서 <b>결과가 며칠</b>일까"다.
+         정답이 없다. 그래서 묻는 것은 "그 절기 무렵 기온이 <b>몇 도 달라졌나</b>"다.
       3) 결과는 차트가 아니라 <b>큰 숫자 두 개와 그 차이</b>로 보여 준다. 값이 두 개뿐일 때
          막대·덤벨은 오히려 힘을 뺀다. 절기선이 안 움직인다는 것만 작은 그림으로 남긴다.
-     과학 라벨은 교육 모드와 동일하게 유지한다 — 가볍게 만드는 것이 라벨을 지우는 구실이 되면 안 된다. */
+     과학 라벨은 교육 모드와 동일하게 유지한다 — 가볍게 만드는 것이 라벨을 지우는 구실이 되면 안 된다.
+
+     24절기 전부를 다룬다. 모든 절기에서 정직하게 나오는 값은 '그 절기 무렵(±7일) 평년기온'이라
+     그것을 공통 축으로 쓰고, 절기의 성격에 따라 <b>덤 카드</b>를 하나씩 더 얹는다
+     (더위 계열은 더위가 그치는 날, 상강은 서리 조건일, 하지·동지는 계절 지연). */
   function quickCity() { return state.quickCity || '서울'; }
-  function quickThr() { return state.quickThr == null ? 25 : state.quickThr; }
-  function quickStat() {
-    var city = quickCity(), thr = quickThr();
-    var a = lastInfo('past', thr, city, 'temp'), b = lastInfo('present', thr, city, 'temp');
-    var pl = a ? a[0] : -1, cl = b ? b[0] : -1;
-    return {
-      city: city, thr: thr, station: cityOf(city).station,
-      pl: pl, cl: cl, plStr: pl > 0 ? doyStr(pl) : '없음', clStr: cl > 0 ? doyStr(cl) : '없음',
-      drift: (pl > 0 && cl > 0) ? cl - pl : null,
-      pd: exceed('past', thr, city, 'temp'), cd: exceed('present', thr, city, 'temp')
-    };
+  function quickTi() {
+    var i = state.quickTi;
+    return (typeof i === 'number' && i >= 0 && i < D.terms.length) ? i : 15;   /* 기본 처서 */
   }
-  function quickBandOf(drift) {
+  function quickTerm() { return D.terms[quickTi()]; }
+
+  /* 절기 무렵(±7일) 평년기온 — 24절기 어디서나 같은 방식으로 나온다 */
+  function quickStat() {
+    var city = quickCity(), t = quickTerm();
+    var pa = series('past', city, 'temp'), pr = series('present', city, 'temp');
+    var mid = t.doy - 1, a = 0, b = 0, n = 0;
+    for (var k = -7; k <= 7; k++) {
+      var i = (mid + k + 365) % 365;
+      if (pa[i] != null && pr[i] != null) { a += pa[i]; b += pr[i]; n++; }
+    }
+    if (!n) return null;
+    var past = a / n, now = b / n;
+    return { city: city, station: cityOf(city).station, term: t,
+             past: past, now: now, diff: Math.round((now - past) * 10) / 10 };
+  }
+  function quickBandOf(diff) {
     for (var i = 0; i < QUICK_BANDS.length; i++) {
       var b = QUICK_BANDS[i];
-      if (drift >= b.lo && drift <= b.hi) return b;
+      /* 경계는 '초과 ~ 이하'로 한 번만 잡는다 — 1.0이 두 칸에 걸치면 정답이 둘이 된다 */
+      if (diff > b.lo && diff <= b.hi) return b;
     }
-    return null;
+    return QUICK_BANDS[0];
   }
   function startQuick() {
     state.phase = 'quick'; state.quickStep = 0;
-    state.quickCity = null; state.quickThr = null; state.quickPredict = null;
-    state.quickDone = false; state.quickBonus = {};
+    state.quickTi = null; state.quickWhen = null; state.quickCity = null;
+    state.quickPredict = null; state.quickDone = false; state.quickBonus = {};
     save(); renderQuick();
   }
   function setQuickStep(i) {
@@ -2586,10 +2631,18 @@
     state.phase = 'quick'; save(); renderQuick();
   }
   function quickHead(i, title) {
-    return '<div class="quick-head"><span class="quick-badge"><span aria-hidden="true">⚡</span> 빠르게 체험하기</span>'
+    return '<div class="quick-head"><span class="quick-badge"><span aria-hidden="true">⚡</span> 빠르게 절기 체험하기</span>'
       + '<div class="quick-dots" role="img" aria-label="' + (i + 1) + ' / ' + QUICK_STEPS.length + ' 단계">'
       + QUICK_STEPS.map(function (_, k) { return '<i class="' + (k <= i ? 'on' : '') + '"></i>'; }).join('') + '</div></div>'
       + '<h1 class="quick-h">' + title + '</h1>';
+  }
+  /* 지금까지 고른 것을 한 줄로 — 절기·시점·지역을 세 번에 나눠 고르므로 앞선 선택이 보여야 한다 */
+  function quickCrumb(upto) {
+    var bits = [];
+    if (upto >= 1 && state.quickTi != null) bits.push('<b>' + quickTerm().name + '</b>(' + quickTerm().date + ')');
+    if (upto >= 2 && state.quickWhen) bits.push(state.quickWhen === 'future' ? '2100년' : '지금');
+    if (upto >= 3 && state.quickCity) bits.push('<b>' + state.quickCity + '</b>');
+    return bits.length ? '<p class="quick-crumb">' + bits.join(' <i>›</i> ') + '</p>' : '';
   }
   function quickFoot(backTo) {
     return '<p class="quick-foot">'
@@ -2605,219 +2658,320 @@
 
   function renderQuick() {
     state.phase = 'quick'; save();
-    var step = QUICK_STEPS[state.quickStep] || 'city';
+    var step = QUICK_STEPS[state.quickStep] || 'term';
     /* 앞 단계를 건너뛴 상태로 되돌아오면(딥링크·저장값) 필요한 값이 비어 있다 — 그 자리로 되돌린다 */
-    if (step !== 'city' && !state.quickCity) step = 'city';
-    if (['thr', 'reveal', 'why', 'more'].indexOf(step) !== -1 && state.quickPredict == null) step = 'predict';
-    if (['reveal', 'why', 'more'].indexOf(step) !== -1 && state.quickThr == null) step = 'thr';
+    if (step !== 'term' && state.quickTi == null) step = 'term';
+    if (['city', 'predict', 'reveal', 'why', 'more'].indexOf(step) !== -1 && !state.quickWhen) step = 'when';
+    if (['predict', 'reveal', 'why', 'more'].indexOf(step) !== -1 && !state.quickCity) step = 'city';
+    if (['reveal', 'why', 'more'].indexOf(step) !== -1 && state.quickPredict == null) step = 'predict';
     state.quickStep = QUICK_STEPS.indexOf(step);
+    if (step === 'term') return quickTermStep();
+    if (step === 'when') return quickWhenStep();
     if (step === 'city') return quickCityStep();
     if (step === 'predict') return quickPredictStep();
-    if (step === 'thr') return quickThrStep();
     if (step === 'reveal') return quickRevealStep();
     if (step === 'why') return quickWhyStep();
     return quickMoreStep();
   }
 
-  function quickCityStep() {
+  /* ① 절기 고르기 — 24개를 계절 색으로 묶어 한 화면에 */
+  function quickTermStep() {
+    var SEASON_LABEL = { spring: '봄', summer: '여름', autumn: '가을', winter: '겨울' };
+    var order = ['spring', 'summer', 'autumn', 'winter'];
+    var groups = order.map(function (sn) {
+      var items = D.terms.map(function (t, i) { return { t: t, i: i }; })
+        .filter(function (x) { return x.t.season === sn; });
+      if (!items.length) return '';
+      return '<div class="qt-group"><p class="qt-season" style="color:' + (SEASON_COLOR[sn] || 'var(--muted2)') + '">' + SEASON_LABEL[sn] + '</p>'
+        + '<div class="qt-grid">' + items.map(function (x) {
+            return '<button class="qt-chip" data-qti="' + x.i + '" style="--qt-accent:' + (SEASON_COLOR[sn] || 'var(--muted3)') + '">'
+              + '<b>' + x.t.name + '</b><small>' + x.t.date + '</small><em>' + x.t.meaning + '</em></button>';
+          }).join('') + '</div></div>';
+    }).join('');
     setStage('<section class="card quick-card">'
-      + quickHead(0, '어느 지역이 궁금한가요?')
-      + '<p class="quick-sub">고른 지역의 <b>기상청 관측소 실제 기록</b>으로 확인합니다.</p>'
-      + '<div class="quick-cities">' + CITIES.map(function (c) {
-          var s = D.cities[c];
-          return '<button class="quick-chip" data-qcity="' + c + '"><b>' + c + '</b><small>' + s.station + '</small></button>';
-        }).join('') + '</div>'
+      + quickHead(0, '어느 절기가 궁금한가요?')
+      + '<p class="quick-sub">24절기는 <b>태양의 위치</b>로 정한 날짜예요. 이름마다 그 무렵의 날씨를 약속하고 있죠 — '
+      + '<b>그 약속이 지금도 맞는지</b> 기상청 실측 자료로 확인합니다.</p>'
+      + '<div class="qt-wrap">' + groups + '</div>'
       + quickFoot(null)
       + '</section>');
-    stage.querySelectorAll('[data-qcity]').forEach(function (b) {
+    stage.querySelectorAll('[data-qti]').forEach(function (b) {
       b.addEventListener('click', function () {
-        state.quickCity = b.dataset.qcity; save(); setQuickStep(1);
+        state.quickTi = Number(b.dataset.qti); state.quickPredict = null; save(); setQuickStep(1);
       });
     });
     bindQuickFoot(null);
   }
 
-  function quickPredictStep() {
-    var c = quickCity();
+  /* ② 언제를 볼까 — 지금(실측) / 2100년(전망) */
+  function quickWhenStep() {
+    var t = quickTerm();
     setStage('<section class="card quick-card">'
-      + quickHead(1, '먼저 맞혀 볼까요?')
-      + '<p class="po-eyebrow">🔒 아직 자료를 열지 않았습니다</p>'
-      + '<p class="quick-q">처서(8/23)는 <b>“더위가 그침”</b>이라는 뜻이에요.<br>'
-      + '그런데 <b>' + c + '</b>에서 더위가 실제로 그치는 날은, '
-      + '<b>옛날(' + PERIOD_PAST + ')보다 지금(' + PERIOD_NOW + ')이 며칠이나 늦어졌을까요?</b></p>'
-      + '<div class="quick-choices">' + QUICK_BANDS.map(function (b) {
-          return '<button class="quick-choice" data-qpre="' + b.v + '"><b>' + b.t + '</b><small>' + b.s + '</small></button>';
-        }).join('') + '</div>'
-      + '<p class="po-note">채점하지 않아요. 지금 생각을 그대로 골라 두면, 바로 다음 화면에서 실제 자료와 맞춰 봅니다.</p>'
+      + quickHead(1, '<b>' + t.name + '</b>의 언제를 볼까요?')
+      + quickCrumb(1)
+      + '<p class="quick-sub">같은 절기를 <b>두 가지 방식</b>으로 볼 수 있어요. 둘은 자료의 성격이 다릅니다.</p>'
+      + '<div class="mode-grid">'
+      + '<button class="mode-card mode-quick" data-qwhen="now"><span class="mode-icon" aria-hidden="true">📈</span>'
+      + '<b class="mode-t">지금까지 어떻게 달라졌나</b><span class="mode-time">기상청 <b>실측</b> · 1969–2025</span>'
+      + '<span class="mode-d">' + t.name + '(' + t.date + ') 무렵의 기온이 <b>옛날과 지금</b> 사이에 얼마나 달라졌는지 봅니다.</span>'
+      + '<span class="mode-who">실제로 관측된 기록</span></button>'
+      + (FUT ? '<button class="mode-card mode-study" data-qwhen="future"><span class="mode-icon" aria-hidden="true">🔮</span>'
+          + '<b class="mode-t">2100년에는 어떻게 될까</b><span class="mode-time">기상청 SSP <b>전망</b></span>'
+          + '<span class="mode-d">온실가스를 얼마나 줄이느냐에 따라 <b>계절이 ' + t.name + '을 얼마나 앞지르는지</b> 봅니다.</span>'
+          + '<span class="mode-who">관측이 아니라 모형이 계산한 값</span></button>' : '')
+      + '</div>'
+      + '<p class="quick-note"><b>둘을 섞어 읽지 마세요.</b> 왼쪽은 <b>실제로 관측된 기록</b>이고, 오른쪽은 '
+      + '<b>“이만큼 배출하면 이렇게 된다”는 계산</b>이에요. 기준이 되는 기간도 서로 다릅니다.</p>'
       + quickFoot(0)
       + '</section>');
-    stage.querySelectorAll('[data-qpre]').forEach(function (b) {
+    stage.querySelectorAll('[data-qwhen]').forEach(function (b) {
       b.addEventListener('click', function () {
-        state.quickPredict = b.dataset.qpre; save(); setQuickStep(2);
+        state.quickWhen = b.dataset.qwhen; save();
+        /* 미래는 이 앱에 이미 있는 ‘2100년에도 절기는 맞을까’ 화면이 답한다 —
+           같은 내용을 두 벌 만들지 않고, 고른 절기를 그 화면이 이어받게 한다. */
+        if (state.quickWhen === 'future') { state.ti = quickTi(); openFuture('quick'); return; }
+        setQuickStep(2);
       });
     });
     bindQuickFoot(0);
   }
 
-  function quickThrStep() {
+  /* ③ 지역 고르기 */
+  function quickCityStep() {
+    var t = quickTerm();
     setStage('<section class="card quick-card">'
-      /* 이 앱은 학습자를 2인칭('당신')이 아니라 1인칭('내/내가')으로 부른다 —
-         결론도 '내 결론'이고 기준도 '내가 정한 기준'이기 때문이다. verify_solar_terms의 N축이 이를 검사한다. */
-      + quickHead(2, '내가 생각하는 ‘덥다’는 몇 도부터일까?')
-      + '<p class="quick-sub">여기엔 <b>정답이 없습니다.</b> ‘덥다’는 기상청도 숫자로 정해 두지 않은 말이라, '
-      + '누가 세느냐에 따라 답이 달라져요. <b>그래서 직접 정해야 합니다.</b></p>'
-      + '<div class="quick-thrs">' + QUICK_THRS.map(function (t) {
-          return '<button class="quick-thr" data-qthr="' + t.v + '"><b>' + t.t + '</b><small>' + t.s + '</small></button>';
+      + quickHead(2, '어느 지역이 궁금한가요?')
+      + quickCrumb(2)
+      + '<p class="quick-sub">고른 지역의 <b>기상청 관측소 실제 기록</b>으로 확인합니다. 지역마다 답이 다를 수 있어요.</p>'
+      + '<div class="quick-cities">' + CITIES.map(function (c) {
+          var s = D.cities[c];
+          return '<button class="quick-chip" data-qcity="' + c + '"><b>' + c + '</b><small>' + s.station + '</small></button>';
         }).join('') + '</div>'
-      + '<p class="quick-note">고른 값은 <b>하루 평균기온</b> 기준이에요. 다음 화면에서 이 기준으로 실제 관측을 셉니다.</p>'
       + quickFoot(1)
       + '</section>');
-    stage.querySelectorAll('[data-qthr]').forEach(function (b) {
+    stage.querySelectorAll('[data-qcity]').forEach(function (b) {
       b.addEventListener('click', function () {
-        state.quickThr = Number(b.dataset.qthr); save(); setQuickStep(3);
+        state.quickCity = b.dataset.qcity; state.quickPredict = null; save(); setQuickStep(3);
       });
     });
     bindQuickFoot(1);
   }
 
-  /* 절기선은 고정, 곡선만 움직인다 — 이 앱의 한 문장을 한 그림으로.
-     체험 모드에서는 조작이 없으므로 읽기 전용 미니 그림으로만 둔다. */
-  function quickMiniSVG(n) {
-    var W = 640, H = 132, L = 40, R = 16, T = 16, B = 30;
-    var t = termDoyByName('처서') || 235;
-    var lo = 180, hi = 300;   /* 6월 말 ~ 10월 말 구간만 보여 준다 */
-    function x(d) { return L + (d - lo) / (hi - lo) * (W - L - R); }
-    var tx = x(t), px = x(n.pl), cx = x(n.cl);
-    var yP = T + 34, yC = T + 74;
-    function tick(d, lab) {
-      return '<line x1="' + x(d).toFixed(1) + '" y1="' + (H - B) + '" x2="' + x(d).toFixed(1) + '" y2="' + (H - B + 5) + '" stroke="var(--muted3)"/>'
-        + '<text x="' + x(d).toFixed(1) + '" y="' + (H - B + 18) + '" text-anchor="middle" font-size="11" fill="var(--muted2)">' + lab + '</text>';
-    }
-    return '<svg viewBox="0 0 ' + W + ' ' + H + '" class="quick-mini" role="img" aria-label="'
-      + '처서는 ' + doyStr(t) + '로 고정된 천문 날짜이고, 더위가 그치는 날은 과거 ' + n.plStr + '에서 현재 ' + n.clStr + '로 옮겨갔습니다">'
-      + '<line x1="' + L + '" y1="' + (H - B) + '" x2="' + (W - R) + '" y2="' + (H - B) + '" stroke="rgba(var(--line-rgb),.5)"/>'
-      + tick(182, '7/1') + tick(213, '8/1') + tick(244, '9/1') + tick(274, '10/1')
-      /* 절기 = 움직이지 않는 세로선 */
-      + '<line x1="' + tx.toFixed(1) + '" y1="' + T + '" x2="' + tx.toFixed(1) + '" y2="' + (H - B) + '" stroke="var(--sun)" stroke-width="2" stroke-dasharray="5 4"/>'
-      + '<text x="' + tx.toFixed(1) + '" y="' + (T - 3) + '" text-anchor="middle" font-size="12" font-weight="800" fill="var(--sun)">처서 ' + doyStr(t) + ' (고정)</text>'
-      /* 관측 = 움직인 두 점 */
-      + '<line x1="' + px.toFixed(1) + '" y1="' + yP + '" x2="' + cx.toFixed(1) + '" y2="' + yC + '" stroke="var(--coral)" stroke-width="1.5" stroke-dasharray="3 3" opacity=".6"/>'
-      + '<circle cx="' + px.toFixed(1) + '" cy="' + yP + '" r="7" fill="var(--muted)"/>'
-      + '<text x="' + (px + 12).toFixed(1) + '" y="' + (yP + 4) + '" font-size="12" fill="var(--muted)">과거 ' + n.plStr + '</text>'
-      + '<circle cx="' + cx.toFixed(1) + '" cy="' + yC + '" r="8" fill="var(--coral)"/>'
-      + '<text x="' + (cx + 13).toFixed(1) + '" y="' + (yC + 4) + '" font-size="12.5" font-weight="700" fill="var(--coral)">현재 ' + n.clStr + '</text>'
-      + '</svg>';
+  /* ④ 예측 — 답이 있는 양(기온 변화)만 묻는다 */
+  function quickPredictStep() {
+    var t = quickTerm(), c = quickCity();
+    setStage('<section class="card quick-card">'
+      + quickHead(3, '먼저 맞혀 볼까요?')
+      + quickCrumb(3)
+      + '<p class="po-eyebrow">🔒 아직 자료를 열지 않았습니다</p>'
+      + '<p class="quick-q"><b>' + t.name + '</b>(' + t.date + ')' + eunNeun(t.name) + ' <b>“' + t.meaning + '”</b>' + iRaNeun(t.meaning) + ' 뜻이에요.<br>'
+      + '<b>' + c + '</b>에서 이 절기 무렵의 기온은, '
+      + '<b>옛날(' + PERIOD_PAST + ')보다 지금(' + PERIOD_NOW + ')이 몇 도나 달라졌을까요?</b></p>'
+      + '<div class="quick-choices">' + QUICK_BANDS.map(function (b) {
+          return '<button class="quick-choice" data-qpre="' + b.v + '"><b>' + b.t + '</b><small>' + b.s + '</small></button>';
+        }).join('') + '</div>'
+      + '<p class="po-note">채점하지 않아요. 지금 생각을 그대로 골라 두면, 바로 다음 화면에서 실제 자료와 맞춰 봅니다.</p>'
+      + quickFoot(2)
+      + '</section>');
+    stage.querySelectorAll('[data-qpre]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        state.quickPredict = b.dataset.qpre; save(); setQuickStep(4);
+      });
+    });
+    bindQuickFoot(2);
   }
 
+  /* 절기선은 고정, 기온만 움직인다 — 이 앱의 한 문장을 한 그림으로.
+     절기 무렵 앞뒤 30일 구간의 과거·현재 곡선을 겹치고 절기 날짜에 세로선을 세운다. */
+  function quickMiniSVG(n) {
+    /* viewBox 640이 375px 화면에서 절반으로 눌린다 — 글자를 유저 단위로 키워야 읽힌다
+       (미래 띠·연도 막대·서리 타임라인에서 같은 규칙을 이미 쓰고 있다) */
+    var narrow = (window.innerWidth || 1024) < 620;
+    var FS = narrow ? { term: 23, ax: 20 } : { term: 12.5, ax: 11 };
+    var W = 640, L = narrow ? 62 : 44, R = 14, T = narrow ? 30 : 16, B = narrow ? 40 : 30, H = narrow ? 210 : 168;
+    var t = n.term, half = 30;
+    var pa = series('past', n.city, 'temp'), pr = series('present', n.city, 'temp');
+    var xs = [], vp = [], vc = [];
+    for (var k = -half; k <= half; k++) {
+      var i = (t.doy - 1 + k + 365) % 365;
+      xs.push(k); vp.push(pa[i]); vc.push(pr[i]);
+    }
+    var all = vp.concat(vc);
+    var lo = Math.min.apply(null, all), hi = Math.max.apply(null, all);
+    var pad = Math.max(1, (hi - lo) * 0.18); lo -= pad; hi += pad;
+    function X(k) { return L + (k + half) / (half * 2) * (W - L - R); }
+    function Y(v) { return T + (hi - v) / (hi - lo) * (H - T - B); }
+    function path(arr) {
+      return arr.map(function (v, i) { return (i ? 'L' : 'M') + X(xs[i]).toFixed(1) + ' ' + Y(v).toFixed(1); }).join('');
+    }
+    var g = '<line x1="' + X(0).toFixed(1) + '" y1="' + T + '" x2="' + X(0).toFixed(1) + '" y2="' + (H - B) + '" stroke="var(--sun)" stroke-width="2" stroke-dasharray="5 4"/>'
+      + '<text x="' + X(0).toFixed(1) + '" y="' + (T - 6) + '" text-anchor="middle" font-size="' + FS.term + '" font-weight="800" fill="var(--sun)">' + t.name + ' ' + t.date + ' (고정)</text>'
+      + '<path d="' + path(vp) + '" fill="none" stroke="var(--muted)" stroke-width="2" stroke-dasharray="4 3"/>'
+      + '<path d="' + path(vc) + '" fill="none" stroke="var(--coral)" stroke-width="2.4"/>'
+      + '<circle cx="' + X(0).toFixed(1) + '" cy="' + Y(n.past).toFixed(1) + '" r="5" fill="var(--muted)"/>'
+      + '<circle cx="' + X(0).toFixed(1) + '" cy="' + Y(n.now).toFixed(1) + '" r="6" fill="var(--coral)"/>'
+      + '<text x="2" y="' + (Y(hi - pad) + FS.ax * 0.36).toFixed(1) + '" font-size="' + FS.ax + '" fill="var(--muted2)">' + Math.round(hi - pad) + '°C</text>'
+      + '<text x="2" y="' + (Y(lo + pad) + FS.ax * 0.36).toFixed(1) + '" font-size="' + FS.ax + '" fill="var(--muted2)">' + Math.round(lo + pad) + '°C</text>'
+      + '<text x="' + X(-half).toFixed(1) + '" y="' + (H - 8) + '" font-size="' + FS.ax + '" fill="var(--muted2)">30일 전</text>'
+      + '<text x="' + X(half).toFixed(1) + '" y="' + (H - 8) + '" text-anchor="end" font-size="' + FS.ax + '" fill="var(--muted2)">30일 후</text>';
+    return '<svg viewBox="0 0 ' + W + ' ' + H + '" class="quick-mini" role="img" aria-label="'
+      + t.name + eunNeun(t.name) + ' ' + t.date + '로 고정된 천문 날짜이고, 그 무렵 기온은 과거 ' + n.past.toFixed(1) + '도에서 현재 ' + n.now.toFixed(1) + '도로 달라졌습니다">' + g + '</svg>';
+  }
+
+  /* 절기의 성격에 맞는 덤 카드 하나 — 24절기가 다 같은 화면이 되지 않게 한다 */
+  function quickBonusCard(n) {
+    var nm = n.term.name;
+    /* 더위가 그치는 날 — 처서를 비롯한 더위 계열에서만 뜻이 통한다 */
+    if (['소서', '대서', '입추', '처서'].indexOf(nm) !== -1) {
+      var a = lastInfo('past', 25, n.city, 'temp'), b = lastInfo('present', 25, n.city, 'temp');
+      if (a && b) {
+        return '<div class="qb-card"><p class="qb-k">덤 — ‘덥다’를 25°C로 보면</p>'
+          + '<p class="qb-v">더위가 그치는 날 <span class="v-past">' + doyStr(a[0]) + '</span> <i>→</i> <span class="v-now">' + doyStr(b[0]) + '</span>'
+          + ' <b class="hot">(' + (b[0] - a[0] >= 0 ? '+' : '') + (b[0] - a[0]) + '일)</b></p>'
+          + '<p class="qb-s">‘덥다’를 몇 도로 보느냐에 따라 이 날짜는 달라집니다 — <b>기준을 밝혀야 세어집니다.</b></p></div>';
+      }
+    }
+    /* 서리 조건일 — 상강의 이름이 약속하는 바로 그것 */
+    if (nm === '상강') {
+      var f = frostOf(n.city);
+      if (f) {
+        var sang = n.term.doy;
+        var side = function (d) { return d < sang ? '상강 전' : (d > sang ? '상강 뒤' : '상강 당일'); };
+        return '<div class="qb-card"><p class="qb-k">덤 — 서리가 내릴 조건이 갖춰진 날</p>'
+          + '<p class="qb-v"><span class="v-past">' + doyStr(f.past.first) + '</span>(' + side(f.past.first) + ') <i>→</i> '
+          + '<span class="v-now">' + doyStr(f.present.first) + '</span>(' + side(f.present.first) + ')</p>'
+          + '<p class="qb-s">지면 위 5cm 온도로 센 값이에요. 기상청 공식 ‘첫서리일’(육안 관측)은 아닙니다.</p></div>';
+      }
+    }
+    /* 계절 지연 — 하지·동지의 이름이 곧 질문이 된다 */
+    if (nm === '하지' || nm === '동지') {
+      var L2 = lagOf(n.city);
+      if (L2) {
+        var isS = nm === '하지';
+        var lag = isS ? L2.present.hotLag : L2.present.coldLag;
+        var act = isS ? L2.present.hotDoy : L2.present.coldDoy;
+        return '<div class="qb-card"><p class="qb-k">덤 — 가장 ' + (isS ? '더운' : '추운') + ' 날은 언제일까</p>'
+          + '<p class="qb-v"><span class="v-now">' + doyStr(act) + '</span> — ' + nm + '보다 <b class="hot">' + lag + '일 뒤</b></p>'
+          + '<p class="qb-s">해가 가장 ' + (isS ? '높이 떠도' : '낮게 떠도') + ' 땅과 바다가 ' + (isS ? '데워지는' : '식는') + ' 데 시간이 걸립니다(열관성).</p></div>';
+      }
+    }
+    return '';
+  }
+
+  /* ⑤ 공개 */
   function quickRevealStep() {
     var n = quickStat();
-    var band = n.drift == null ? null : quickBandOf(n.drift);
-    var picked = null;
+    if (!n) { setQuickStep(2); return; }
+    var band = quickBandOf(n.diff), picked = null;
     QUICK_BANDS.forEach(function (b) { if (b.v === state.quickPredict) picked = b; });
     var ok = !!(band && picked && band.v === picked.v);
     state.quickDone = true; save();
     setStage('<section class="card quick-card quick-reveal">'
-      + quickHead(3, '자료가 이렇게 답했어요.')
-      + '<p class="quick-cond"><b>' + n.city + '</b>(' + n.station + ' 관측소) · ‘덥다 <b>' + n.thr + '°C</b>’ 기준</p>'
-      + (n.drift == null
-          ? '<p class="quick-nodata">이 기준에서는 과거·현재 중 한쪽에 해당하는 날이 없어 “며칠 늦어졌다”를 계산할 수 없어요. '
-            + '<b>기준을 조금 낮춰</b> 다시 해 보세요 — 비교할 수 있는 기준을 고르는 것도 자료를 다루는 일입니다.</p>'
-          : '<p class="quick-label">더위가 그치는 날</p>'
-            + '<div class="bignum"><div class="bn-side"><small>과거 ' + PERIOD_PAST + '</small><b class="bn-past">' + n.plStr + '</b></div>'
-            + '<div class="bn-arrow" aria-hidden="true">→</div>'
-            + '<div class="bn-side"><small>현재 ' + PERIOD_NOW + '</small><b class="bn-now">' + n.clStr + '</b></div>'
-            + '<div class="bn-delta"><small>차이</small><b>' + (n.drift >= 0 ? '+' : '') + n.drift + '일</b></div></div>'
-            + quickMiniSVG(n))
-      + (band
-          ? '<div class="quick-verdict' + (ok ? ' is-ok' : '') + '"><p class="eyebrow">' + (ok ? '🎯 맞혔어요' : '🔓 예측과 자료가 갈렸어요') + '</p>'
-            + '<dl><dt>내 예측</dt><dd>' + escapeHTML(picked ? picked.t + ' (' + picked.s + ')' : '—') + '</dd>'
-            + '<dt>실제 자료</dt><dd><b>' + escapeHTML(band.t + ' (' + n.drift + '일)') + '</b></dd></dl></div>'
-          : '')
-      + '<div class="step-actions"><button class="ghost-btn" id="quickRedo">기준 다시 고르기</button>'
+      + quickHead(4, '자료가 이렇게 답했어요.')
+      + '<p class="quick-cond"><b>' + n.city + '</b>(' + n.station + ' 관측소) · <b>' + n.term.name + '</b>(' + n.term.date + ') 무렵 <small>(앞뒤 7일 평균)</small></p>'
+      + '<p class="quick-label">그 무렵의 기온</p>'
+      /* 세 숫자를 같은 자릿수로 — 화면 안에서 '과거 + 차이 = 현재'가 항상 맞아떨어져야 한다 */
+      + '<div class="bignum"><div class="bn-side"><small>과거 ' + PERIOD_PAST + '</small><b class="bn-past">' + n.past.toFixed(1) + '°C</b></div>'
+      + '<div class="bn-arrow" aria-hidden="true">→</div>'
+      + '<div class="bn-side"><small>현재 ' + PERIOD_NOW + '</small><b class="bn-now">' + n.now.toFixed(1) + '°C</b></div>'
+      + '<div class="bn-delta"><small>차이</small><b>' + (n.diff >= 0 ? '+' : '−') + Math.abs(n.diff).toFixed(1) + '°C</b></div></div>'
+      + quickMiniSVG(n)
+      + '<div class="quick-verdict' + (ok ? ' is-ok' : '') + '"><p class="eyebrow">' + (ok ? '🎯 맞혔어요' : '🔓 예측과 자료가 갈렸어요') + '</p>'
+      + '<dl><dt>내 예측</dt><dd>' + escapeHTML(picked ? picked.t + ' (' + picked.s + ')' : '—') + '</dd>'
+      + '<dt>실제 자료</dt><dd><b>' + escapeHTML(band.t) + ' (' + (n.diff >= 0 ? '+' : '−') + Math.abs(n.diff).toFixed(1) + '°C)</b></dd></dl></div>'
+      + quickBonusCard(n)
+      + '<div class="step-actions"><button class="ghost-btn" id="quickRedo">다른 지역으로</button>'
       + '<button class="primary-btn" id="quickNext">그래서 무슨 뜻일까? →</button></div>'
       + quickFoot(null)
       + '</section>');
-    $('quickRedo').addEventListener('click', function () { setQuickStep(2); });
-    $('quickNext').addEventListener('click', function () { setQuickStep(4); });
+    $('quickRedo').addEventListener('click', function () { state.quickPredict = null; save(); setQuickStep(2); });
+    $('quickNext').addEventListener('click', function () { setQuickStep(5); });
     bindQuickFoot(null);
   }
 
+  /* ⑥ 해설 — 절기 이름의 약속과 측정값을 나란히 */
   function quickWhyStep() {
     var n = quickStat();
+    if (!n) { setQuickStep(2); return; }
+    var t = n.term, note = QUICK_TERM_NOTE[t.name] || t.desc;
+    var dir = n.diff > 0 ? '올랐' : (n.diff < 0 ? '내렸' : '그대로');
     setStage('<section class="card quick-card">'
-      + quickHead(4, '절기가 틀린 게 아니에요.')
+      + quickHead(5, '절기가 틀린 게 아니에요.')
       + '<div class="quick-why">'
-      + '<p class="qw-line"><span class="qw-n">1</span><b>절기 날짜는 그대로입니다.</b> 처서(8/23)는 <b>태양의 위치(황경 150°)</b>로 정한 천문 날짜예요. '
-      + '더워지든 추워지든 해마다 거의 움직이지 않습니다.</p>'
-      + '<p class="qw-line"><span class="qw-n">2</span><b>달라진 것은 그 무렵의 날씨입니다.</b> ' + n.city + '에서 더위가 그치는 날이 '
-      + (n.drift == null ? '이 기준에서는 계산되지 않았지만, 다른 기준에서는 뒤로 밀립니다.' : '<b class="hot">' + n.drift + '일</b> 뒤로 밀렸어요.') + '</p>'
-      + '<p class="qw-line"><span class="qw-n">3</span><b>그래서 “처서가 지났는데도 덥다”가 맞습니다.</b> 절기가 더워진 게 아니라, '
-      + '<b>같은 날짜에 관측되는 더위가 늘어난 것</b>이에요.</p>'
+      + '<p class="qw-line"><span class="qw-n">1</span><b>' + t.name + '(' + t.hanja + ')' + eunNeun(t.name) + ' “' + t.meaning + '”' + iRaNeun(t.meaning) + ' 뜻입니다.</b> '
+      + t.hanja_gloss + '. ' + note + '</p>'
+      + '<p class="qw-line"><span class="qw-n">2</span><b>날짜는 그대로입니다.</b> ' + t.name + '은 <b>태양의 위치(황경 '
+      + termLongitude(quickTi()) + '°)</b>로 정한 천문 날짜예요. 더워지든 추워지든 해마다 거의 움직이지 않습니다.</p>'
+      + '<p class="qw-line"><span class="qw-n">3</span><b>달라진 것은 그 무렵의 날씨입니다.</b> ' + n.city + '에서 '
+      + t.name + ' 무렵 기온이 <b class="hot">' + Math.abs(n.diff).toFixed(1) + '°C</b> ' + dir + '어요'
+      + (Math.abs(n.diff) < 0.5 ? ' — 이 절기 무렵은 <b>거의 달라지지 않았습니다.</b> 모든 절기가 같은 크기로 변한 것은 아니에요.' : '.') + '</p>'
       + '</div>'
       + '<p class="quick-limit"><span aria-hidden="true">◈</span> <b>여기까지만 말할 수 있어요.</b> 이 숫자는 '
       + n.city + ' <b>관측소 한 곳</b>의 <b>5년 평균</b>입니다 — 기후를 말하는 국제 표준(보통 30년)의 <b>기후평년이 아니라 관측 신호</b>예요. '
-      + '그리고 ‘덥다’를 <b>' + n.thr + '°C가 아닌 다른 값</b>으로 정하면 이 날짜도 함께 바뀝니다.</p>'
+      + '그리고 <b>절기 무렵 앞뒤 7일</b>을 평균한 값이라, 어느 날 하루의 날씨와는 다릅니다.</p>'
       + '<div class="step-actions"><button class="ghost-btn" id="quickBackRev">← 숫자 다시 보기</button>'
       + '<button class="primary-btn" id="quickNext2">더 해 보기 →</button></div>'
       + quickFoot(null)
       + '</section>');
-    $('quickBackRev').addEventListener('click', function () { setQuickStep(3); });
-    $('quickNext2').addEventListener('click', function () { setQuickStep(5); });
+    $('quickBackRev').addEventListener('click', function () { setQuickStep(4); });
+    $('quickNext2').addEventListener('click', function () { setQuickStep(6); });
     bindQuickFoot(null);
   }
 
-  /* 마지막 화면의 다음 행동은 '다음 미션'이 아니라 <b>방금 생긴 궁금증</b>으로 받는다.
-     체험에서 교육으로 가는 다리는 진도가 아니라 질문이다. */
+  /* ⑦ 더 해 보기 — 방금 생긴 궁금증을 그대로 다음 행동으로 */
   function quickMoreStep() {
     var n = quickStat();
-    var other = QUICK_THRS.filter(function (t) { return t.v !== n.thr; });
+    if (!n) { setQuickStep(2); return; }
     var b = state.quickBonus || {};
     function bonusResult(kind) {
       if (!b[kind]) return '';
-      if (kind === 'thr') {
-        var rows = other.map(function (t) {
-          var a = lastInfo('past', t.v, n.city, 'temp'), c = lastInfo('present', t.v, n.city, 'temp');
-          var d = (a && c) ? (c[0] - a[0]) : null;
-          return '<li><b>' + t.t + '</b> ' + (a ? doyStr(a[0]) : '없음') + ' → <b class="hot">' + (c ? doyStr(c[0]) : '없음') + '</b>'
-            + (d == null ? ' <span class="v-none">(비교 불가)</span>' : ' (' + (d >= 0 ? '+' : '') + d + '일)') + '</li>';
-        }).join('');
-        return '<ul class="bonus-list"><li><b>' + n.thr + '°C</b>(내가 고른 값) ' + n.plStr + ' → <b class="hot">' + n.clStr + '</b>'
-          + (n.drift == null ? '' : ' (' + (n.drift >= 0 ? '+' : '') + n.drift + '일)') + '</li>' + rows + '</ul>'
-          + '<p class="bonus-why"><b>같은 자료인데 답이 달라졌죠?</b> 그래서 “며칠 늘었다”고 말할 때는 '
-          + '<b>어떤 기준으로 셌는지</b>를 반드시 함께 말해야 합니다.</p>';
-      }
       if (kind === 'region') {
         var list = ['제주', '강원', '서울'].filter(function (c) { return c !== n.city; }).slice(0, 2).concat([n.city]);
-        var li = list.map(function (c) {
-          var a = lastInfo('past', n.thr, c, 'temp'), q = lastInfo('present', n.thr, c, 'temp');
-          var d = (a && q) ? (q[0] - a[0]) : null;
-          return '<li><b>' + c + '</b>(' + cityOf(c).station + ') ' + (a ? doyStr(a[0]) : '없음') + ' → <b class="hot">' + (q ? doyStr(q[0]) : '없음') + '</b>'
-            + (d == null ? ' <span class="v-none">(비교 불가)</span>' : ' (' + (d >= 0 ? '+' : '') + d + '일)') + '</li>';
-        }).join('');
-        return '<ul class="bonus-list">' + li + '</ul>'
-          + '<p class="bonus-why"><b>지역마다 다릅니다.</b> 한 곳의 결과로 “전국이 이렇다”고 넓혀 말할 수 없어요 — '
-          + '범위를 넓히려면 <b>지점을 늘려야</b> 합니다.</p>';
+        return '<ul class="bonus-list">' + list.map(function (c) {
+            var save0 = state.quickCity; state.quickCity = c;
+            var m = quickStat(); state.quickCity = save0;
+            if (!m) return '';
+            return '<li><b>' + c + '</b>(' + cityOf(c).station + ') ' + m.past.toFixed(1) + '°C → <b class="hot">' + m.now.toFixed(1) + '°C</b>'
+              + ' (' + (m.diff >= 0 ? '+' : '−') + Math.abs(m.diff).toFixed(1) + '°C)</li>';
+          }).join('') + '</ul>'
+          + '<p class="bonus-why"><b>지역마다 다릅니다.</b> 한 곳의 결과로 “전국이 이렇다”고 넓혀 말할 수 없어요.</p>';
+      }
+      if (kind === 'term') {
+        /* 같은 지역에서 24절기 전부를 세어 가장 크게·가장 적게 달라진 절기를 찾는다 */
+        var rows = D.terms.map(function (t, i) {
+          var s0 = state.quickTi; state.quickTi = i;
+          var m = quickStat(); state.quickTi = s0;
+          return m ? { name: t.name, date: t.date, d: m.diff } : null;
+        }).filter(Boolean).sort(function (x, y) { return y.d - x.d; });
+        var top = rows.slice(0, 3), bot = rows.slice(-3).reverse();
+        return '<ul class="bonus-list">'
+          + top.map(function (r) { return '<li>가장 많이 — <b>' + r.name + '</b>(' + r.date + ') <b class="hot">+' + r.d.toFixed(1) + '°C</b></li>'; }).join('')
+          + bot.map(function (r) { return '<li>가장 적게 — <b>' + r.name + '</b>(' + r.date + ') ' + (r.d >= 0 ? '+' : '−') + Math.abs(r.d).toFixed(1) + '°C</li>'; }).join('')
+          + '</ul>'
+          + '<p class="bonus-why"><b>절기마다 다릅니다.</b> 한 해가 통째로 같은 만큼 더워진 것이 아니라, '
+          + '<b>계절에 따라 변한 크기가 다릅니다</b> — 그래서 “몇 도 올랐다” 한 문장으로는 다 말할 수 없어요.</p>';
       }
       return '';
     }
     setStage('<section class="card quick-card">'
-      + quickHead(5, '한 가지씩 더 눌러 볼까요?')
+      + quickHead(6, '한 가지씩 더 눌러 볼까요?')
+      + quickCrumb(3)
       + '<p class="quick-sub">각각 한 번만 누르면 됩니다. 전부 실제 관측 자료예요.</p>'
-      + '<div class="bonus-box"><button class="bonus-btn' + (b.thr ? ' is-on' : '') + '" data-bonus="thr">'
-      + '<b>기준을 바꾸면 답도 바뀔까?</b><small>' + other.map(function (t) { return t.t; }).join(' · ') + '로도 세어 보기</small></button>'
-      + '<div class="bonus-out">' + bonusResult('thr') + '</div></div>'
+      + '<div class="bonus-box"><button class="bonus-btn' + (b.term ? ' is-on' : '') + '" data-bonus="term">'
+      + '<b>어느 절기가 가장 많이 달라졌을까?</b><small>' + n.city + '에서 24절기 전부 세어 보기</small></button>'
+      + '<div class="bonus-out">' + bonusResult('term') + '</div></div>'
       + '<div class="bonus-box"><button class="bonus-btn' + (b.region ? ' is-on' : '') + '" data-bonus="region">'
-      + '<b>다른 지역도 똑같을까?</b><small>같은 기준으로 다른 관측소 보기</small></button>'
+      + '<b>다른 지역도 똑같을까?</b><small>같은 절기로 다른 관측소 보기</small></button>'
       + '<div class="bonus-out">' + bonusResult('region') + '</div></div>'
-      + '<div class="bonus-box"><button class="bonus-btn" id="quickMyth">'
-      + '<b>“대구가 제일 덥다”는 정말일까?</b><small>절기 밖의 기후 상식도 자료로 확인하기 →</small></button></div>'
       + (FUT ? '<div class="bonus-box"><button class="bonus-btn" id="quickFuture">'
           + '<b>2100년에는 어떻게 될까?</b><small>기상청 SSP 기후변화 시나리오로 보기 →</small></button></div>' : '')
+      + '<div class="bonus-box"><button class="bonus-btn" id="quickMyth">'
+      + '<b>“대구가 제일 덥다”는 정말일까?</b><small>절기 밖의 기후 상식도 자료로 확인하기 →</small></button></div>'
       + '<div class="quick-bridge"><p class="qb-h">더 깊이 들어가 볼까요?</p>'
       + '<p class="qb-p">방금 본 것은 <b>절기 하나</b>였어요. ‘제대로 배우기’에서는 여름 길이·지역 차이·강수 강도·계절 지연까지 '
       + '<b>미션 ' + REQ.length + '개</b>를 직접 조작하고, 마지막에 <b>내 결론</b>을 스스로 씁니다.</p>'
       + '<button class="primary-btn" id="quickGoStudy">🔬 제대로 배우기 시작 →</button></div>'
-      + '<p class="quick-foot"><button class="linkish" id="quickAgain">↺ 다시 체험하기</button><span class="quick-sep">·</span>'
+      + '<p class="quick-foot"><button class="linkish" id="quickAgain">↺ 다른 절기로 다시</button><span class="quick-sep">·</span>'
       + '<button class="linkish" id="quickHome">처음 화면</button></p>'
       + '</section>');
     stage.querySelectorAll('[data-bonus]').forEach(function (btn) {
@@ -2826,7 +2980,7 @@
         state.quickBonus[btn.dataset.bonus] = 1; save(); renderQuick();
       });
     });
-    if ($('quickFuture')) $('quickFuture').addEventListener('click', function () { openFuture('quick'); });
+    if ($('quickFuture')) $('quickFuture').addEventListener('click', function () { state.ti = quickTi(); openFuture('quick'); });
     if ($('quickMyth')) $('quickMyth').addEventListener('click', function () { openMyths('quick'); });
     $('quickGoStudy').addEventListener('click', renderIntroMethod);
     $('quickAgain').addEventListener('click', startQuick);
@@ -2926,6 +3080,9 @@
        "입하(5/5, ‘여름의 시작’)"처럼 그대로 적으므로 정보가 사라지지 않는다.
        남기는 넷은 계절의 시작을 말하는 절기 셋 + 이 앱의 주인공 처서다. */
     var marks = narrow ? ['입춘', '입하', '처서', '입동'] : ['입춘', '입하', '하지', '입추', '처서', '입동', '동지'];
+    /* 체험 모드에서 절기를 고르고 넘어온 경우 그 절기가 눈금에 없으면 화면이 질문에 답하지 않는다 */
+    var picked = D.terms[state.ti] && D.terms[state.ti].name;
+    if (picked && marks.indexOf(picked) === -1) marks = marks.concat([picked]);
     var ticks = '';
     marks.forEach(function (nm) {
       var d = termDoyByName(nm); if (!d) return;
@@ -5979,6 +6136,7 @@
       if (state.phase === 'future' && FUT && stage.querySelector('.fut-band')) renderFuture();
       /* 막대 그림도 폭에 따라 글자 크기가 달라진다 — 회전·창 크기 변경에서 다시 그린다 */
       if (state.phase === 'myth' && stage.querySelector('.myth-bars')) renderMyths();
+      if (state.phase === 'quick' && stage.querySelector('.quick-mini')) renderQuick();
       /* 서리 타임라인도 폭에 따라 글자 크기가 달라진다 */
       if (stage.querySelector('.frost-svg') && MISSIONS[state.mi] && MISSIONS[state.mi].frostMode) renderMissionFlow();
     }, 150);

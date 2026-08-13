@@ -1415,3 +1415,35 @@ small { font-size: max(11.5px, .86em); }
   background: rgba(var(--sun-rgb),.08); border: 1px solid rgba(var(--sun-rgb),.26); }
 .dew-why { background: rgba(var(--sky-rgb),.08); border-color: rgba(var(--sky-rgb),.26); }
 .dew-body .data-table th small { display: block; font-weight: 500; color: var(--muted2); font-size: 11.5px; }
+
+/* ── 빠르게 절기 체험하기 — 24절기 선택 ────────────────────────
+   계절로 묶어 한 화면에 24개를 다 보인다. 이름 아래 뜻을 붙여야 고를 수 있다. */
+.qt-wrap { display: grid; gap: var(--sp-3); }
+.qt-season { margin: 0 0 7px; font-size: 12.5px; font-weight: 800; letter-spacing: .02em; }
+.qt-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; }
+.qt-chip { display: flex; flex-direction: column; align-items: flex-start; gap: 1px;
+  padding: 10px 11px; min-height: 66px; border: 1px solid var(--line); border-radius: 13px;
+  background: var(--panel2); color: var(--ink); text-align: left;
+  border-left: 3px solid var(--qt-accent, var(--muted3)); }
+.qt-chip b { font-size: 14.5px; font-weight: 700; }
+.qt-chip small { font-size: 11px; color: var(--muted3); }
+.qt-chip em { font-style: normal; font-size: 11.5px; line-height: 1.45; color: var(--muted); }
+.qt-chip:hover { background: rgba(var(--sun-rgb),.10); border-color: var(--sun); border-left-color: var(--qt-accent, var(--sun)); }
+.qt-chip:focus-visible { outline: 3px solid var(--sun); outline-offset: 2px; }
+@media (max-width: 480px) { .qt-grid { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); } }
+
+/* 지금까지 고른 것 */
+.quick-crumb { margin: 0 0 var(--sp-3); font-size: 13px; color: var(--muted); }
+.quick-crumb b { color: var(--ink2); font-weight: 700; }
+.quick-crumb i { margin: 0 5px; font-style: normal; color: var(--muted3); }
+
+/* 절기별 덤 카드 */
+.qb-card { margin-top: var(--sp-3); padding: 13px 15px; border-radius: 14px;
+  background: rgba(var(--sea-rgb),.08); border: 1px solid rgba(var(--sea-rgb),.26); }
+.qb-k { margin: 0 0 5px; font-size: 12.5px; font-weight: 800; color: var(--on-sea); }
+.qb-v { margin: 0 0 5px; font-size: 15.5px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
+.qb-v i { margin: 0 6px; font-style: normal; color: var(--muted); }
+.qb-v .v-past { color: var(--muted); }
+.qb-v .v-now { color: var(--coral); }
+.qb-s { margin: 0; font-size: 12.5px; line-height: 1.7; color: var(--muted); }
+.qb-s b { color: var(--ink2); }
