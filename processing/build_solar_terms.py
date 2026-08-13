@@ -385,6 +385,99 @@ def extreme_index(name):
     return out
 
 
+# ── 일조시간 · 이슬점 ────────────────────────────────────────────────
+# 둘 다 8지점 별도 수집분(kma_asos_daily_*.csv)에만 있는 컬럼이다.
+#
+# sumSsHr(일조시간) — '해가 떠 있던 시간'이 아니라 '실제로 햇빛이 든 시간'이라 구름에 좌우된다.
+#   그래서 최대일이 하지(6/21)와 크게 어긋난다(실측: 강릉 4/5 ~ 부산 8/1).
+#   낮 길이(천문) · 일조시간(구름) · 기온(열관성) 세 날짜가 모두 다르다는 것이 학습 내용이다.
+#   기온 최대일도 여기서 같은 자료·같은 기간으로 다시 구한다 — 다른 블록의 값을 끌어다 쓰면
+#   기간이 달라 세 날짜를 나란히 놓을 수 없다.
+#
+# avgTd(이슬점) — 공기가 실제로 머금은 수증기의 양(절대량). 상대습도(%)는 기온에 따라 변하는
+#   상대량이라 둘은 다른 것을 말한다. 실측: 백로 무렵 이슬점은 8지점 전부 올랐는데(+0.8~+2.9℃)
+#   상대습도는 6곳에서 내려갔다 — 무엇을 재느냐에 따라 결론이 뒤집히는 사례다.
+DEW_TERMS = ["백로", "추분", "한로", "상강", "입동"]
+
+
+def _daily_frames(name, cols):
+    frames = []
+    for span in (f"{EXTREME_PAST[0]}_{EXTREME_PAST[1]}", "2022_2026"):
+        f = DAILY_SRC / f"kma_asos_daily_{name}_{span}.csv"
+        if not f.exists():
+            return None
+        frames.append(pd.read_csv(f, usecols=lambda c: c in (("date",) + tuple(cols))))
+    df = pd.concat(frames, ignore_index=True)
+    df["date"] = pd.to_datetime(df["date"])
+    df["year"] = df["date"].dt.year
+    return df
+
+
+def _clim_of(df, col, y0, y1):
+    """365일 평활 평년곡선. 값이 너무 적으면 None."""
+    s = df[(df["year"] >= y0) & (df["year"] <= y1)].copy()
+    s["_v"] = pd.to_numeric(s[col], errors="coerce")
+    if s["_v"].notna().sum() < 300:
+        return None
+    s = s[~((s["date"].dt.month == 2) & (s["date"].dt.day == 29))]
+    md = s.groupby([s["date"].dt.month, s["date"].dt.day])["_v"].mean()
+    arr = np.full(365, np.nan)
+    for (m, dd), v in md.items():
+        arr[md_to_doy(int(m), int(dd)) - 1] = v
+    return csmooth(pd.Series(arr).interpolate(limit_direction="both").to_numpy(), 7)
+
+
+def sunshine_block(name):
+    """낮 길이(천문)·일조시간(구름)·기온(열관성) 세 최대일. 자료가 없으면 None."""
+    df = _daily_frames(name, ("sumSsHr", "avgTa"))
+    if df is None or "sumSsHr" not in df.columns:
+        return None
+    out = {"solsticeDoy": md_to_doy(6, 21),
+           "periods": {"past": f"{EXTREME_PAST[0]}–{EXTREME_PAST[1]}",
+                       "present": f"{EXTREME_NOW[0]}–{EXTREME_NOW[1]}"}}
+    for pk, (y0, y1) in (("past", EXTREME_PAST), ("present", EXTREME_NOW)):
+        ss = _clim_of(df, "sumSsHr", y0, y1)
+        ta = _clim_of(df, "avgTa", y0, y1)
+        if ss is None or ta is None:
+            return None
+        si, ti = int(np.argmax(ss)), int(np.argmax(ta))
+        out[pk] = {"sunDoy": si + 1, "sunVal": round(float(ss[si]), 1),
+                   "hotDoy": ti + 1, "hotVal": round(float(ta[ti]), 1),
+                   # 하지 무렵 일조시간 — '해는 가장 오래 떠 있는데 햇빛은 최대가 아니다'의 근거
+                   "sunAtSolstice": round(float(np.mean([ss[(md_to_doy(6, 21) - 1 + k) % 365]
+                                                         for k in range(-7, 8)])), 1)}
+    return out
+
+
+def dew_block(name):
+    """가을 절기 5개 무렵(±7일)의 이슬점과 상대습도. 자료가 없으면 None."""
+    df = _daily_frames(name, ("avgTd", "avgRhm"))
+    if df is None or "avgTd" not in df.columns:
+        return None
+    doys = {t[0]: md_to_doy(t[2], t[3]) for t in TERMS if t[0] in DEW_TERMS}
+    out = {"periods": {"past": f"{EXTREME_PAST[0]}–{EXTREME_PAST[1]}",
+                       "present": f"{EXTREME_NOW[0]}–{EXTREME_NOW[1]}"},
+           "terms": {}}
+    curves = {}
+    for pk, (y0, y1) in (("past", EXTREME_PAST), ("present", EXTREME_NOW)):
+        td = _clim_of(df, "avgTd", y0, y1)
+        rh = _clim_of(df, "avgRhm", y0, y1)
+        if td is None or rh is None:
+            return None
+        curves[pk] = (td, rh)
+    for nm in DEW_TERMS:
+        d = doys.get(nm)
+        if not d:
+            continue
+        row = {"doy": d}
+        for pk in ("past", "present"):
+            td, rh = curves[pk]
+            w = lambda a: float(np.mean([a[(d - 1 + k) % 365] for k in range(-7, 8)]))
+            row[pk] = {"td": round(w(td), 1), "rh": round(w(rh), 0)}
+        out["terms"][nm] = row
+    return out
+
+
 def frost_window(name):
     """서리 조건일 — 가을 첫 조건일 · 봄 마지막 조건일 · 그 사이 무상기간.
 
@@ -564,6 +657,12 @@ def main():
         fr = frost_window(name)                             # 상강(10/23)의 실측 대응
         if fr:
             e["frost"] = fr
+        sn = sunshine_block(name)                           # 하지·일조·기온 세 최대일
+        if sn:
+            e["sun"] = sn
+        dw = dew_block(name)                                # 백로~입동 이슬점·상대습도
+        if dw:
+            e["dew"] = dw
         e["windows"] = sliding_windows(df, range(20, 35))
         cities[name] = e
         d25 = e["temp"]["exceedDays"]
@@ -661,6 +760,16 @@ def main():
               f"{doy_str(fr['present']['first'])}({side(fr['present']['first'])}) · "
               f"무상기간 {fr['past']['free']}일 → {fr['present']['free']}일")
     print(f"  서리 조건일: {nfr}지점 (최저초상온도 minTg ≤ 0℃)")
+    nsn = sum(1 for c in cities.values() if c.get("sun"))
+    ndw = sum(1 for c in cities.values() if c.get("dew"))
+    for n, c in cities.items():
+        sn = c.get("sun")
+        if not sn:
+            continue
+        p_, q_ = sn["present"], sn["solsticeDoy"]
+        print(f"    일조·기온 {n}: 하지 {doy_str(q_)} · 일조최대 {doy_str(p_['sunDoy'])}({p_['sunVal']}h) · "
+              f"기온최대 {doy_str(p_['hotDoy'])}({p_['hotVal']}℃)")
+    print(f"  일조시간: {nsn}지점 · 이슬점: {ndw}지점")
     print(f"\n  ✓ {OUT_JSON.name} ({OUT_JSON.stat().st_size // 1024} KB) · "
           f"{OUT_JS.name} ({OUT_JS.stat().st_size // 1024} KB) · nationwide {nat['years'][0]}~{nat['years'][-1]}")
 

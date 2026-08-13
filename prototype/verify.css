@@ -1402,3 +1402,16 @@ small { font-size: max(11.5px, .86em); }
 
 /* 서리 미션 타임라인 */
 .frost-svg { width: 100%; height: auto; }
+
+/* 일조시간 · 이슬점 심화 서랍 */
+.sun-body p, .dew-body p { margin: 0 0 10px; font-size: 13.5px; line-height: 1.8; color: var(--ink2); }
+.sun-body b, .dew-body b { color: var(--ink-max); font-weight: 700; }
+.sun-list { margin: 0 0 10px; padding-left: 20px; display: grid; gap: 9px; }
+.sun-list li { font-size: 13.5px; line-height: 1.7; color: var(--ink2); }
+.sun-list li small { display: block; margin-top: 3px; font-size: 12.5px; line-height: 1.7; color: var(--muted); }
+.sun-list li small b { color: var(--ink2); }
+.sun-list b.v-now { color: var(--coral); font-size: 15px; }
+.sun-why, .dew-why { padding: 11px 13px; border-radius: 12px;
+  background: rgba(var(--sun-rgb),.08); border: 1px solid rgba(var(--sun-rgb),.26); }
+.dew-why { background: rgba(var(--sky-rgb),.08); border-color: rgba(var(--sky-rgb),.26); }
+.dew-body .data-table th small { display: block; font-weight: 500; color: var(--muted2); font-size: 11.5px; }

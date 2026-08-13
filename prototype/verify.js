@@ -1514,7 +1514,9 @@
     var f = frostOf(city); if (!f) return '';
     var sang = termDoyByName('상강');
     var narrow = (window.innerWidth || 1024) < 620;
-    var FS = narrow ? { lab: 21, tick: 19, note: 19 } : { lab: 12, tick: 11, note: 11.5 };
+    /* 375px에서 viewBox 700이 절반으로 눌린다 — 화면에서 11px가 되려면 유저 단위로 22 이상이어야 한다
+       (미래 띠·연도 막대에서 이미 두 번 겪은 결함이라 같은 값으로 맞춘다) */
+    var FS = narrow ? { lab: 24, tick: 23, note: 23 } : { lab: 12, tick: 11, note: 11.5 };
     var W = 700, L = 14, R = 14, T = narrow ? 34 : 26, H = narrow ? 176 : 132;
     var lo = 274, hi = 351;                       /* 10/1 ~ 12/17 */
     function x(d) { return L + (Math.max(lo, Math.min(hi, d)) - lo) / (hi - lo) * (W - L - R); }
@@ -1559,6 +1561,105 @@
       + '과거 ' + f0.periods.past + ' vs 현재 ' + f0.periods.present + '</caption>'
       + '<thead><tr><th scope="col">지역</th><th scope="col">과거</th><th scope="col">현재</th><th scope="col">변화</th>'
       + '<th scope="col">무상기간</th><th scope="col">상강(10/23) 대비</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+  }
+
+  /* ---------- 일조시간 (미션 5 심화) ----------
+     하지는 '낮이 가장 긴 날'이지 '햇빛이 가장 많은 날'도 '가장 더운 날'도 아니다.
+     세 날짜가 모두 다르고, 어긋나는 이유가 각각 다르다는 것이 이 서랍의 내용이다.
+       · 낮 길이 → 천문(지구 자전축) · 하지에 최대, 해마다 그대로
+       · 일조시간 → 구름·장마 · 실측하면 4월~8월로 지점마다 흩어진다
+       · 기온 → 열관성 · 하지보다 40일쯤 뒤
+     미션 5가 이미 세 번째를 다루므로, 두 번째를 더해 '지연의 이유가 하나가 아님'을 보인다. */
+  function sunOf(city) { return (D.cities[city || state.city] || {}).sun || null; }
+  function sunBlockHTML() {
+    var s = sunOf(); if (!s || isSealed()) return '';
+    var p = s.present, sol = s.solsticeDoy;
+    var gapSun = p.sunDoy - sol, gapHot = p.hotDoy - sol;
+    var all = CITIES.filter(function (c) { return sunOf(c); });
+    var spread = all.map(function (c) { return sunOf(c).present.sunDoy; });
+    var lo = Math.min.apply(null, spread), hi = Math.max.apply(null, spread);
+    return '<details class="brief-box"><summary><span aria-hidden="true">☀</span> 그런데 ‘햇빛이 가장 많은 날’은 또 다릅니다 <small>일조시간 실측 · 8지점</small></summary>'
+      + '<div class="sun-body"><p>세 날짜가 <b>전부 다릅니다.</b> ' + state.city + '(' + cityOf().station + ' 관측소) · ' + s.periods.present + ' 기준이에요.</p>'
+      + '<ol class="sun-list">'
+      + '<li><b>낮이 가장 긴 날</b> — <b class="v-now">' + doyStr(sol) + '</b>(하지)'
+      + '<small>지구 자전축이 정하는 <b>천문</b> 날짜. 해마다 그대로입니다.</small></li>'
+      + '<li><b>햇빛이 가장 많이 든 날</b> — <b class="v-now">' + doyStr(p.sunDoy) + '</b>(하루 ' + p.sunVal + '시간)'
+      /* 지점에 따라 하지보다 앞이기도 뒤이기도 하다(강릉 4/5, 부산 8/1) — '밀린다'로 쓰면 절반이 틀린다 */
+      + '<small>하지보다 <b>' + Math.abs(gapSun) + '일 ' + (gapSun >= 0 ? '뒤' : '앞') + '</b>입니다. 일조시간은 <b>구름</b>에 좌우돼요 — '
+      + '하지 무렵은 <b>장마</b>라 해가 오래 떠 있어도 햇빛은 가려집니다(하지 무렵 ' + p.sunAtSolstice + '시간).</small></li>'
+      + '<li><b>가장 더운 날</b> — <b class="v-now">' + doyStr(p.hotDoy) + '</b>(' + p.hotVal + '°C)'
+      + '<small>하지보다 <b>' + gapHot + '일</b> 뒤. 땅과 바다가 데워지는 데 걸리는 시간(<b>열관성</b>)입니다.</small></li>'
+      + '</ol>'
+      + '<p class="sun-why"><b>어긋나는 이유가 서로 다릅니다.</b> 햇빛이 최대인 날이 하지와 <b>어긋나는</b> 것은 <b>구름</b> 때문이고, '
+      + '기온이 최대인 날이 <b>뒤로 밀리는</b> 것은 <b>열관성</b> 때문이에요. 8지점에서 햇빛 최대일은 '
+      + '<b>' + doyStr(lo) + '~' + doyStr(hi) + '</b>로 크게 흩어지는데, 기온 최대일은 거의 같은 시기에 모입니다 — '
+      + '<b>구름은 지역마다 다르지만 열관성은 어디서나 같기 때문</b>입니다.</p>'
+      + '<p class="table-note"><b>한계</b> 일조시간은 최고·최저기온 수집분이 있는 <b>' + all.length + '지점</b>만 있고, '
+      + '비교 기간도 미션 본문(' + PERIOD_PAST + ' vs ' + PERIOD_NOW + ')과 달라 <b>' + s.periods.past + ' vs ' + s.periods.present + '</b>입니다. '
+      + '그리고 이 값은 <b>실제 햇빛이 든 시간</b>이지 지표에 도달한 <b>에너지의 양</b>(일사량)이 아닙니다.</p>'
+      + '</div></details>';
+  }
+
+  /* ---------- 이슬점 (서리 미션 심화) ----------
+     백로(흰 이슬) → 한로(찬 이슬) → 상강(서리). 절기 이름이 이슬에서 서리로 바뀌는데,
+     그 사이에 실제로 무엇이 내려가는가를 이슬점으로 본다.
+     핵심은 상대습도와의 대비다 — 실측하면 이슬점은 8지점 전부 올랐는데
+     상대습도는 6곳에서 내려갔다. 무엇을 재느냐에 따라 결론이 뒤집힌다. */
+  function dewOf(city) { return (D.cities[city || state.city] || {}).dew || null; }
+  function dewBlockHTML() {
+    var w = dewOf(); if (!w || isSealed()) return '';
+    var names = ['백로', '추분', '한로', '상강', '입동'].filter(function (n) { return w.terms[n]; });
+    if (!names.length) return '';
+    var rows = names.map(function (n) {
+      var t = w.terms[n], dTd = Math.round((t.present.td - t.past.td) * 10) / 10, dRh = Math.round(t.present.rh - t.past.rh);
+      var meaning = D.terms.filter(function (x) { return x.name === n; })[0];
+      return '<tr' + (n === '상강' ? ' class="is-cur"' : '') + '><th scope="row">' + n
+        + '<small>' + (meaning ? meaning.date + ' · ' + meaning.meaning : '') + '</small></th>'
+        + '<td>' + num1(t.past.td) + '°C</td><td>' + num1(t.present.td) + '°C</td>'
+        + '<td class="' + (dTd > 0 ? 'up' : (dTd < 0 ? 'down' : '')) + '">' + (dTd > 0 ? '+' : '') + num1(dTd) + '°C</td>'
+        + '<td>' + t.past.rh + '%</td><td>' + t.present.rh + '%</td>'
+        + '<td class="' + (dRh > 0 ? 'up' : (dRh < 0 ? 'down' : '')) + '">' + (dRh > 0 ? '+' : '') + dRh + '%p</td></tr>';
+    }).join('');
+    /* 8지점을 통틀어 방향이 갈리는지 세어 결론을 데이터로 말한다 */
+    var all = CITIES.filter(function (c) { return dewOf(c); });
+    var tdUp = 0, rhDown = 0;
+    all.forEach(function (c) {
+      var t = dewOf(c).terms['백로']; if (!t) return;
+      if (t.present.td > t.past.td) tdUp++;
+      if (t.present.rh < t.past.rh) rhDown++;
+    });
+    var b = w.terms['백로'], s2 = w.terms['상강'];
+    return '<details class="brief-box"><summary><span aria-hidden="true">💧</span> 백로에서 상강까지 — 이슬이 서리가 되기까지 <small>이슬점 실측 · 8지점</small></summary>'
+      + '<div class="dew-body">'
+      + '<p>가을 절기의 이름은 <b>이슬 → 찬 이슬 → 서리</b>로 바뀝니다. 그 사이에 실제로 내려가는 것이 <b>이슬점</b>이에요 — '
+      + '공기가 <b>머금고 있는 물의 양</b>을 온도로 나타낸 값입니다. 이슬점까지 식으면 물이 맺히고(이슬), '
+      + '그 이슬점이 <b>0°C 아래</b>면 물 대신 얼음이 붙습니다(서리).</p>'
+      /* doy를 화면에 그대로 흘리지 않는다 — 절기 날짜는 학습자가 아는 표기(9/8)로 쓴다 */
+      + (b && s2 ? '<p>' + state.city + '에서 이슬점은 <b>백로(' + doyStr(b.doy) + ') 무렵 ' + num1(b.present.td) + '°C</b>에서 '
+          + '<b>상강(' + doyStr(s2.doy) + ') 무렵 ' + num1(s2.present.td) + '°C</b>로, <b class="hot">' + num1(b.present.td - s2.present.td) + '°C</b> 내려갑니다.</p>' : '')
+      + '<div class="table-wrap"><table class="data-table"><caption>' + state.city + '(' + cityOf().station + ' 관측소) · 절기 무렵 15일 평균 — '
+      + '과거 ' + w.periods.past + ' vs 현재 ' + w.periods.present + '</caption>'
+      + '<thead><tr><th scope="col">절기</th><th scope="col" colspan="3">이슬점(머금은 물의 양)</th><th scope="col" colspan="3">상대습도</th></tr>'
+      + '<tr><th scope="col"></th><th scope="col">과거</th><th scope="col">현재</th><th scope="col">변화</th>'
+      + '<th scope="col">과거</th><th scope="col">현재</th><th scope="col">변화</th></tr></thead>'
+      + '<tbody>' + rows + '</tbody></table></div>'
+      /* 지금 보고 있는 지점이 전국 서술의 예외일 수 있다(대구·광주는 상대습도도 올랐다).
+         화면의 표와 문장이 어긋나 보이지 않게, 이 지점이 어느 쪽인지 먼저 말한다. */
+      + (function () {
+          var here = b ? (b.present.rh < b.past.rh) : null;
+          return '<p class="dew-why"><b>여기가 핵심입니다.</b> 백로 무렵을 ' + all.length + '지점에서 보면 '
+            + '<b>이슬점은 ' + tdUp + '곳 전부 올랐는데</b>, <b>상대습도는 ' + rhDown + '곳에서 내려갔습니다.</b> 방향이 갈리죠. '
+            + (here === false
+                ? '(지금 보는 <b>' + state.city + '</b>' + eunNeun(state.city) + ' 상대습도도 함께 오른 ' + (all.length - rhDown) + '곳 중 하나예요 — 그래서 위 표만으로는 이 대비가 안 보입니다. 다른 지역을 눌러 보세요.) '
+                : '')
+            + '상대습도는 <b>같은 기온에서 얼마나 찼는가</b>라서 기온이 오르면 같은 물의 양으로도 숫자가 내려갑니다. '
+            + '<b>“상대습도가 낮아졌으니 건조해졌다”고 읽으면 틀립니다</b> — 공기가 머금은 물은 오히려 늘었어요. '
+            + '<b>무엇을 재느냐에 따라 결론이 뒤집힙니다.</b></p>';
+        })()
+      + '<p class="table-note"><b>한계</b> 이슬점은 <b>하루 평균</b>이고 서리 판정에 쓴 초상온도는 <b>하루 최저</b>라, '
+      + '두 값을 곧바로 견주어 “이날 이슬/서리”라고 단정할 수는 없습니다. 여기서는 <b>계절이 바뀌는 방향</b>만 읽습니다. '
+      + '자료는 ' + all.length + '지점뿐이고 기간도 미션 본문과 다릅니다.</p>'
+      + '</div></details>';
   }
 
   function frostBlockHTML() {
@@ -4227,6 +4328,11 @@
       + deepHintOf(m)
       + '<div id="kmaRefMount"></div><div id="methodMount"></div>'
       + (m.id === 'chuseo' ? '<details class="brief-box"><summary>결론은 다른 5년에도 남을까? · 비교 기간 26창</summary><div id="winMount"></div></details>' : '')
+      /* 미션 5는 '가장 더운 날이 하지가 아니다'까지 왔다 — 여기에 '햇빛이 가장 많은 날'을 더하면
+         어긋나는 이유가 하나가 아니라는 것(구름 / 열관성)이 관측만으로 보인다. */
+      + (m.lagMode ? sunBlockHTML() : '')
+      /* 서리 미션은 '무엇을 어디서 쟀는가'가 주제다 — 이슬점은 그 질문을 습도로 한 번 더 묻는다. */
+      + (m.frostMode ? dewBlockHTML() : '')
       + '</div>'
       + '<div class="step-actions"><button class="ghost-btn" id="evidenceBack">← 다시 해 보기</button>'
       + '<button class="primary-btn" id="evidenceWrite">이 증거로 CERL 쓰기 →</button></div>'
@@ -5873,6 +5979,8 @@
       if (state.phase === 'future' && FUT && stage.querySelector('.fut-band')) renderFuture();
       /* 막대 그림도 폭에 따라 글자 크기가 달라진다 — 회전·창 크기 변경에서 다시 그린다 */
       if (state.phase === 'myth' && stage.querySelector('.myth-bars')) renderMyths();
+      /* 서리 타임라인도 폭에 따라 글자 크기가 달라진다 */
+      if (stage.querySelector('.frost-svg') && MISSIONS[state.mi] && MISSIONS[state.mi].frostMode) renderMissionFlow();
     }, 150);
   });
 
