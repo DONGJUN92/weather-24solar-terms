@@ -636,7 +636,7 @@
   function load() {
     var base = { phase: 'intro', mi: 0, city: '서울', ti: 15, thr: 25, thr0: 25, metric: 'temp', pre: null, post: null,
                  predicts: {}, done: [], touched: false, moved: false, missionDraft: {}, missionCerl: {}, cerlSubmitted: {},
-                 selfChecks: {}, freeDraft: '', zoom: false, view: 'chart',
+                 selfChecks: {}, freeDraft: '', zoom: false, view: 'chart', cerlSkipped: {},
                  missionStep: null, cerlStepById: {}, evidenceById: {}, introStep: 'landing', termIntroStep: 0,
                  completeStep: 0, freeTab: 0, labTab: 0,
                  markDoy: null, lagRevealed: false, lagSeason: 'summer', winI: null, lab: null, labFrom: null,
@@ -648,7 +648,9 @@
                  quickStep: 0, quickCity: null, quickThr: null, quickPredict: null, quickDone: false,
                  quickBonus: {},
                  /* 미래 시나리오 화면 */
-                 futScen: 'SSP5-8.5', futPeriod: 'p3', futRegion: null, futFrom: null };
+                 futScen: 'SSP5-8.5', futPeriod: 'p3', futRegion: null, futFrom: null,
+                 /* 기후 상식 확인소 — 절기를 넘어선 기상·기후 오개념 2건 */
+                 mythStep: 'hub', mythCity: null, mythYearPick: null, mythRegionPick: null, mythFrom: null };
     try {
       /* v4는 ‘자료를 보기 전 예측’과 학생 CERL 필수 제출을 상태 스키마에 포함한다.
          이전 버전의 완료 기록을 그대로 살리면 빈 CERL로 완료 화면에 들어갈 수 있으므로
@@ -657,7 +659,7 @@
       if (s && typeof s === 'object') {
         var o = Object.assign(base, s);
         /* 저장된 값이 현재 스키마를 벗어나면 기본값으로 되돌린다 (RC-R) */
-        if (['intro', 'tutorial', 'terms', 'mission', 'verdict', 'complete', 'free', 'lab', 'quick', 'future'].indexOf(o.phase) === -1) o.phase = 'intro';
+        if (['intro', 'tutorial', 'terms', 'mission', 'verdict', 'complete', 'free', 'lab', 'quick', 'future', 'myth'].indexOf(o.phase) === -1) o.phase = 'intro';
         if (CITIES.indexOf(o.city) === -1) o.city = base.city;
         if (!METRICS[o.metric]) o.metric = base.metric;
         if (!(o.ti >= 0 && o.ti < D.terms.length)) o.ti = base.ti;
@@ -666,6 +668,7 @@
         if (!o.missionDraft || typeof o.missionDraft !== 'object') o.missionDraft = {};
         if (!o.missionCerl || typeof o.missionCerl !== 'object') o.missionCerl = {};
         if (!o.cerlSubmitted || typeof o.cerlSubmitted !== 'object') o.cerlSubmitted = {};
+        if (!o.cerlSkipped || typeof o.cerlSkipped !== 'object' || Array.isArray(o.cerlSkipped)) o.cerlSkipped = {};
         if (!o.selfChecks || typeof o.selfChecks !== 'object') o.selfChecks = {};
         if (!o.cerlStepById || typeof o.cerlStepById !== 'object') o.cerlStepById = {};
         if (!o.evidenceById || typeof o.evidenceById !== 'object') o.evidenceById = {};
@@ -710,6 +713,11 @@
         if (!FUT || !FUT.seasons['서울'] || !FUT.seasons['서울'].summer[o.futScen]) o.futScen = 'SSP5-8.5';
         if (['now', 'p1', 'p2', 'p3'].indexOf(o.futPeriod) === -1) o.futPeriod = 'p3';
         if (o.futFrom && ['intro', 'quick', 'complete', 'free', 'mission'].indexOf(o.futFrom) === -1) o.futFrom = null;
+        if (['hub', 'year', 'region'].indexOf(o.mythStep) === -1) o.mythStep = 'hub';
+        if (CITIES.indexOf(o.mythCity) === -1) o.mythCity = null;
+        if (['top3', 'top10', 'top20', 'below'].indexOf(o.mythYearPick) === -1) o.mythYearPick = null;
+        if (['daegu', 'jeju', 'seoul', 'depends'].indexOf(o.mythRegionPick) === -1) o.mythRegionPick = null;
+        if (o.mythFrom && ['intro', 'quick', 'complete', 'free'].indexOf(o.mythFrom) === -1) o.mythFrom = null;
         return o;
       }
     } catch (e) {}
@@ -727,6 +735,7 @@
       + (state.phase === 'free' ? '&v=free' : state.phase === 'lab' ? '&v=lab'
          : state.phase === 'quick' ? '&v=quick'
          : state.phase === 'future' ? '&v=future&fs=' + encodeURIComponent(state.futScen) + '&fp=' + state.futPeriod
+         : state.phase === 'myth' ? '&v=myth' + (state.mythStep !== 'hub' ? '&p=' + state.mythStep : '')
          : (state.phase === 'mission' ? '&v=m' + state.mi + (state.missionStep ? '&p=' + state.missionStep : '') : ''));
   }
   function applyHash() {
@@ -756,6 +765,12 @@
     /* 교사가 반마다 다른 입구를 배부할 수 있게 두 모드 모두 딥링크를 준다.
        체험 딥링크는 항상 1단계부터 — 앞 사람이 고른 지역·기준을 물려받으면 '내가 정한다'가 무너진다. */
     else if (q.v === 'quick') { state.phase = 'quick'; state.quickStep = 0; state.quickCity = null; state.quickThr = null; state.quickPredict = null; state.quickBonus = {}; touched = true; }
+    else if (q.v === 'myth') {
+      state.phase = 'myth'; state.mythFrom = 'intro';
+      state.mythStep = ['year', 'region'].indexOf(q.p) !== -1 ? q.p : 'hub';
+      state.mythYearPick = null; state.mythRegionPick = null;
+      touched = true;
+    }
     else if (q.v === 'future' && FUT) {
       state.phase = 'future'; state.futFrom = 'intro';
       if (q.fs && FUT.seasons['서울'].summer[q.fs]) state.futScen = q.fs;
@@ -821,7 +836,7 @@
     /* R7: 이 눈금은 '제대로 배우기'의 길이를 나타낸다. 모드를 고르기 전 화면과 체험 모드에
        미션 5칸이 떠 있으면, 3분짜리를 고르러 온 사람에게 먼저 보이는 것이 '갈 길 5개'가 된다 —
        진입장벽 지적의 절반이 여기서 나온다. 해당 모드의 화면에서는 접는다. */
-    var hide = state.phase === 'quick' || state.phase === 'future'
+    var hide = state.phase === 'quick' || state.phase === 'future' || state.phase === 'myth'
       || (state.phase === 'intro' && state.introStep !== 'method');
     bar.hidden = hide;
     if (hide) { bar.innerHTML = ''; return; }
@@ -2254,6 +2269,7 @@
       + '<p class="intro-lead intro-lead-compact intro-lead-sub">움직이지 않는 <b>절기</b>와 움직이는 <b>기후</b>를 나란히 놓고, 기준은 내가 정합니다.</p>'
       + '<div class="intro-actions intro-actions-sub"><button class="ghost-btn" id="introTerms">🌍 24절기가 뭐예요?</button>'
       + (FUT ? '<button class="ghost-btn" id="introFuture">🔮 2100년의 절기</button>' : '')
+      + '<button class="ghost-btn" id="introMyth">🧭 그거 정말이야?</button>'
       + '<button class="ghost-btn" id="introLab">🔬 열관성 실험실</button>'
       + '<button class="ghost-btn" id="introGuide"><span aria-hidden="true">✦</span> 조작법 먼저 익히기</button></div>'
       + '<p class="intro-teacher"><a href="./교사_학습지.html" target="_blank" rel="noopener">📄 교사용 학습지 — 수업 흐름·활동지·오개념 표·평가 루브릭 →</a></p>'
@@ -2264,6 +2280,7 @@
     $('introLab').addEventListener('click', renderLab);
     $('introGuide').addEventListener('click', renderTutorial);
     if ($('introFuture')) $('introFuture').addEventListener('click', function () { openFuture('intro'); });
+    $('introMyth').addEventListener('click', function () { openMyths('intro'); });
   }
 
   function renderIntroMethod() {
@@ -2557,6 +2574,8 @@
       + '<div class="bonus-box"><button class="bonus-btn' + (b.region ? ' is-on' : '') + '" data-bonus="region">'
       + '<b>다른 지역도 똑같을까?</b><small>같은 기준으로 다른 관측소 보기</small></button>'
       + '<div class="bonus-out">' + bonusResult('region') + '</div></div>'
+      + '<div class="bonus-box"><button class="bonus-btn" id="quickMyth">'
+      + '<b>“대구가 제일 덥다”는 정말일까?</b><small>절기 밖의 기후 상식도 자료로 확인하기 →</small></button></div>'
       + (FUT ? '<div class="bonus-box"><button class="bonus-btn" id="quickFuture">'
           + '<b>2100년에는 어떻게 될까?</b><small>기상청 SSP 기후변화 시나리오로 보기 →</small></button></div>' : '')
       + '<div class="quick-bridge"><p class="qb-h">더 깊이 들어가 볼까요?</p>'
@@ -2573,6 +2592,7 @@
       });
     });
     if ($('quickFuture')) $('quickFuture').addEventListener('click', function () { openFuture('quick'); });
+    if ($('quickMyth')) $('quickMyth').addEventListener('click', function () { openMyths('quick'); });
     $('quickGoStudy').addEventListener('click', renderIntroMethod);
     $('quickAgain').addEventListener('click', startQuick);
     $('quickHome').addEventListener('click', renderIntro);
@@ -2829,6 +2849,259 @@
       else renderIntro();
     });
     $('futHome').addEventListener('click', renderIntro);
+  }
+
+  /* ================= 기후 상식 확인소 (멘토링 — 최예지) =================
+     “올해 정말 더웠을까에 답을 줄 수 있으면 좋겠다”, “절기를 넘어 기상·기후 오개념도
+     생각해 보면 좋겠다 — 정말 대구가 제일 더울까”. 두 지적을 한 화면에서 받는다.
+
+     둘 다 <b>절기와 무관한</b> 기상·기후 통념이라 미션 흐름에 끼우지 않고 선택 화면으로 둔다.
+     대신 미션과 같은 루프를 쓴다 — 먼저 예측하고, 자료로 확인하고, 어디까지 말할 수 있는지 적는다.
+
+     두 답이 모두 “기준에 따라 다르다”로 수렴하는 것이 이 화면의 노림수다.
+     이 앱이 다섯 미션 내내 말한 것과 같은 문장을, 절기 밖 소재로 한 번 더 만나게 한다. */
+  function mythCity() { return state.mythCity || '서울'; }
+  /* 연도별 더위일 시계열 — 불완결 연도는 값이 없다(그 사실 자체가 이 화면의 첫 교훈이다) */
+  function hotSeries(city) {
+    var tl = cityOf(city).timeline;
+    if (!tl || !tl.hotDays) return null;
+    var pairs = [];
+    for (var i = 0; i < tl.years.length; i++) {
+      if (tl.hotDays[i] != null) pairs.push([tl.years[i], tl.hotDays[i]]);
+    }
+    if (!pairs.length) return null;
+    var sorted = pairs.slice().sort(function (a, b) { return b[1] - a[1]; });
+    var last = pairs[pairs.length - 1];
+    var rank = 1;
+    for (var k = 0; k < sorted.length; k++) if (sorted[k][0] === last[0]) { rank = k + 1; break; }
+    return { thr: tl.hotThr, pairs: pairs, sorted: sorted, last: last, rank: rank,
+             n: pairs.length, max: sorted[0], min: sorted[sorted.length - 1] };
+  }
+  var MYTH_YEAR_BANDS = [
+    { v: 'top3', t: '1~3위', s: '손꼽히게 더운 해', lo: 1, hi: 3 },
+    { v: 'top10', t: '4~10위', s: '꽤 더운 해', lo: 4, hi: 10 },
+    { v: 'top20', t: '11~20위', s: '평범한 편', lo: 11, hi: 20 },
+    { v: 'below', t: '21위 아래', s: '오히려 시원한 편', lo: 21, hi: 9999 }
+  ];
+
+  function openMyths(from) {
+    state.mythFrom = from || 'intro';
+    state.phase = 'myth'; state.mythStep = 'hub'; save(); renderMyths();
+  }
+  function setMythStep(s) { state.mythStep = s; state.phase = 'myth'; save(); renderMyths(); }
+  function mythFoot() {
+    return '<p class="quick-foot"><button class="linkish" id="mythBack">← 돌아가기</button>'
+      + '<span class="quick-sep">·</span><button class="linkish" id="mythHome">처음 화면</button></p>';
+  }
+  function bindMythFoot() {
+    if ($('mythBack')) $('mythBack').addEventListener('click', function () {
+      if (state.mythStep !== 'hub') { setMythStep('hub'); return; }
+      var f = state.mythFrom;
+      if (f === 'quick') { state.phase = 'quick'; save(); renderQuick(); }
+      else if (f === 'complete') renderComplete();
+      else if (f === 'free') renderFree();
+      else renderIntro();
+    });
+    if ($('mythHome')) $('mythHome').addEventListener('click', renderIntro);
+  }
+
+  function renderMyths() {
+    state.phase = 'myth'; save();
+    if (state.mythStep === 'year') return renderMythYear();
+    if (state.mythStep === 'region') return renderMythRegion();
+    setStage('<section class="card quick-card">'
+      + '<p class="eyebrow"><span aria-hidden="true">🧭</span> 기후 상식 확인소 · 절기 밖의 이야기</p>'
+      + '<h1 class="quick-h">“그거 정말이야?”를 자료로 확인해 봅시다.</h1>'
+      + '<p class="quick-sub">절기 미션에서 쓴 방법 그대로예요 — <b>먼저 예측하고, 자료로 확인하고, 어디까지 말할 수 있는지 적습니다.</b> '
+      + '각각 1분이면 됩니다.</p>'
+      + '<div class="mode-grid">'
+      + '<button class="mode-card mode-quick" id="mythGoYear"><span class="mode-icon" aria-hidden="true">🌡️</span>'
+      + '<b class="mode-t">올해 정말 더웠을까?</b><span class="mode-time">1분 · 우리 지역 57년 기록</span>'
+      + '<span class="mode-d">“올여름 역대급이었다”는 말, <b>몇 번째로 더운 해</b>였는지 세어 봅니다.</span>'
+      + '<span class="mode-who">뉴스에서 자주 듣는 말을 직접 확인하기</span></button>'
+      + '<button class="mode-card mode-study" id="mythGoRegion"><span class="mode-icon" aria-hidden="true">🔥</span>'
+      + '<b class="mode-t">정말 대구가 제일 더울까?</b><span class="mode-time">1분 · 16지점 순위</span>'
+      + '<span class="mode-d">‘대프리카’라는 별명이 있죠. <b>기준을 바꿔 가며</b> 1위를 찾아봅니다.</span>'
+      + '<span class="mode-who">아는 이야기를 자료로 흔들어 보기</span></button>'
+      + '</div>'
+      + mythFoot() + '</section>');
+    $('mythGoYear').addEventListener('click', function () { setMythStep('year'); });
+    $('mythGoRegion').addEventListener('click', function () { setMythStep('region'); });
+    bindMythFoot();
+  }
+
+  /* 연도별 더위일 막대 — 고른 해만 강조한다. 57개를 다 읽게 하려는 그림이 아니라
+     '내가 고른 해가 이 무리에서 어디쯤인가'만 보이면 되는 그림이다. */
+  function hotBarsSVG(H0) {
+    /* futBandSVG와 같은 규칙 — viewBox 700이 좁은 화면에서 절반으로 눌리므로
+       글자 크기를 유저 단위로 키운다. CSS로 키우면 축척과 함께 다시 줄어든다. */
+    var narrow = (window.innerWidth || 1024) < 620;
+    var FS = narrow ? { yr: 23, ax: 20, end: 0 } : { yr: 11.5, ax: 10.5, end: 10.5 };
+    var W = 700, L = narrow ? 56 : 34, R = 10, T = narrow ? 20 : 12, B = narrow ? 34 : 26, h = narrow ? 168 : 132;
+    var vals = H0.pairs.map(function (p) { return p[1]; });
+    var hi = Math.max.apply(null, vals) || 1;
+    var n = H0.pairs.length, bw = (W - L - R) / n;
+    var g = '';
+    H0.pairs.forEach(function (p, i) {
+      var isLast = p[0] === H0.last[0];
+      var bh = (p[1] / hi) * (h - T - B);
+      g += '<rect x="' + (L + i * bw + 0.6).toFixed(1) + '" y="' + (h - B - bh).toFixed(1)
+        + '" width="' + Math.max(1.2, bw - 1.2).toFixed(1) + '" height="' + Math.max(0.6, bh).toFixed(1)
+        + '" fill="' + (isLast ? 'var(--coral)' : 'rgba(var(--line-rgb),.30)') + '" rx="1">'
+        + '<title>' + p[0] + '년 ' + p[1] + '일</title></rect>';
+    });
+    var li = H0.pairs.length - 1, lx = L + li * bw + bw / 2;
+    g += '<text x="' + lx.toFixed(1) + '" y="' + (h - B - (H0.last[1] / hi) * (h - T - B) - 5).toFixed(1)
+      + '" text-anchor="end" font-size="' + FS.yr + '" font-weight="800" fill="var(--coral)">' + H0.last[0] + '</text>';
+    g += '<text x="2" y="' + (T + FS.ax * 0.55) + '" font-size="' + FS.ax + '" fill="var(--muted2)">' + hi + '일</text>'
+      + '<text x="2" y="' + (h - B) + '" font-size="' + FS.ax + '" fill="var(--muted2)">0</text>'
+      + '<text x="' + L + '" y="' + (h - 6) + '" font-size="' + FS.ax + '" fill="var(--muted2)">' + H0.pairs[0][0] + '</text>'
+      /* 좁은 화면에서는 오른쪽 끝 연도를 뺀다 — 강조 막대에 이미 같은 연도가 붙어 두 번 읽힌다 */
+      + (FS.end ? '<text x="' + (W - R) + '" y="' + (h - 6) + '" text-anchor="end" font-size="' + FS.end + '" fill="var(--muted2)">' + H0.last[0] + '</text>' : '');
+    return '<svg viewBox="0 0 ' + W + ' ' + h + '" class="myth-bars" role="img" aria-label="'
+      + mythCity() + '의 ' + H0.pairs[0][0] + '년부터 ' + H0.last[0] + '년까지 연도별 더위일수. '
+      + H0.last[0] + '년은 ' + H0.last[1] + '일로 ' + H0.n + '년 중 ' + H0.rank + '번째입니다.">' + g + '</svg>';
+  }
+
+  function renderMythYear() {
+    var H0 = hotSeries(mythCity());
+    if (!H0) { setMythStep('hub'); return; }
+    var picked = state.mythYearPick;
+    var truth = null;
+    MYTH_YEAR_BANDS.forEach(function (b) { if (H0.rank >= b.lo && H0.rank <= b.hi) truth = b; });
+    var ok = !!(picked && truth && picked === truth.v);
+    var pickedB = null;
+    MYTH_YEAR_BANDS.forEach(function (b) { if (b.v === picked) pickedB = b; });
+    /* 관측이 아직 다 들어오지 않은 해를 '올해'로 세면 가장 시원한 해가 된다 —
+       이 화면이 가장 먼저 가르치는 것이 그것이다. */
+    var lastYear = D.cities['서울'].timeline.years[D.cities['서울'].timeline.years.length - 1];
+    setStage('<section class="card quick-card">'
+      + '<p class="eyebrow"><span aria-hidden="true">🌡️</span> 기후 상식 확인소 1</p>'
+      + '<h1 class="quick-h">올해 정말 더웠을까?</h1>'
+      + '<p class="quick-limit"><span aria-hidden="true">◈</span> <b>먼저 정직하게 —  ‘올해’는 아직 셀 수 없습니다.</b> '
+      + '이 앱의 관측 자료는 <b>' + (lastYear + 1) + '년치가 한 해를 다 채우지 못했습니다</b>(연중 일부까지만 들어와 있어요). '
+      + '한 해를 다 세지 않고 “올해가 제일 더웠다”고 말하면 틀립니다 — 그래서 <b>가장 최근에 한 해가 다 채워진 ' + H0.last[0] + '년</b>으로 답합니다.</p>'
+      + '<div class="picker"><div class="picker-block"><span class="picker-label">우리 지역 <small>(지역마다 대표 관측소 1곳)</small></span>'
+      + '<div class="chips" id="mythCities" role="tablist" aria-label="지역">' + CITIES.map(function (c) {
+          return '<button class="chip' + (c === mythCity() ? ' is-on' : '') + '" role="tab" aria-selected="' + (c === mythCity()) + '" data-mcity="' + c + '"><b>' + c + '</b></button>';
+        }).join('') + '</div></div></div>'
+      + (picked
+        ? '<div class="bignum"><div class="bn-side"><small>' + mythCity() + ' · ' + H0.last[0] + '년 더위일</small><b class="bn-now">' + H0.last[1] + '일</b></div>'
+          + '<div class="bn-delta"><small>' + H0.n + '년 중</small><b>' + H0.rank + '위</b></div></div>'
+          + hotBarsSVG(H0)
+          + '<div class="quick-verdict' + (ok ? ' is-ok' : '') + '"><p class="eyebrow">' + (ok ? '🎯 맞혔어요' : '🔓 자료는 이렇게 말합니다') + '</p>'
+          + '<dl><dt>내 예측</dt><dd>' + escapeHTML(pickedB ? pickedB.t : '—') + '</dd>'
+          + '<dt>실제</dt><dd><b>' + H0.n + '년 중 ' + H0.rank + '위</b> — ' + escapeHTML(truth ? truth.t : '') + '</dd></dl>'
+          + '<p class="pr-why">가장 더웠던 해는 <b>' + H0.max[0] + '년 ' + H0.max[1] + '일</b>, 가장 적었던 해는 <b>' + H0.min[0] + '년 ' + H0.min[1] + '일</b>입니다.</p></div>'
+          + '<p class="quick-limit"><span aria-hidden="true">◈</span> <b>여기까지만 말할 수 있어요.</b> '
+          + '<b>한 해가 더웠다는 것은 ‘날씨’입니다.</b> 기후는 여러 해에 걸친 경향이에요 — 위 막대에서 <b>최근 쪽이 전반적으로 높아진 것</b>이 기후 신호이고, '
+          + '어느 한 해가 몇 위인지는 그해 날씨에 크게 흔들립니다. '
+          + '그리고 이 순위는 <b>‘일평균 ' + H0.thr + '°C 이상’으로 셌을 때</b>의 순위예요 — 기준을 바꾸면 순위도 바뀝니다.</p>'
+          + '<div class="step-actions"><button class="ghost-btn" id="mythYearRedo">다시 예측하기</button>'
+          + '<button class="primary-btn" id="mythYearNext">다음: 대구가 제일 더울까? →</button></div>'
+        : '<p class="quick-q"><b>' + mythCity() + '</b>에서 <b>' + H0.last[0] + '년</b>의 더위일(일평균 ' + H0.thr + '°C 이상)은 '
+          + '<b>' + H0.n + '년 기록 중 몇 번째</b>였을까요?</p>'
+          + '<div class="quick-choices">' + MYTH_YEAR_BANDS.map(function (b) {
+              return '<button class="quick-choice" data-myear="' + b.v + '"><b>' + b.t + '</b><small>' + b.s + '</small></button>';
+            }).join('') + '</div>'
+          + '<p class="po-note">지역을 먼저 바꿔도 됩니다. 고르면 바로 자료가 열립니다.</p>')
+      + mythFoot() + '</section>');
+    stage.querySelectorAll('[data-mcity]').forEach(function (b) {
+      b.addEventListener('click', function () { state.mythCity = b.dataset.mcity; state.mythYearPick = null; save(); renderMythYear(); });
+    });
+    stage.querySelectorAll('[data-myear]').forEach(function (b) {
+      b.addEventListener('click', function () { state.mythYearPick = b.dataset.myear; save(); renderMythYear(); });
+    });
+    if ($('mythYearRedo')) $('mythYearRedo').addEventListener('click', function () { state.mythYearPick = null; save(); renderMythYear(); });
+    if ($('mythYearNext')) $('mythYearNext').addEventListener('click', function () { setMythStep('region'); });
+    bindMythFoot();
+  }
+
+  /* 네 가지 기준으로 1위를 각각 뽑는다. 답이 갈리는 것이 이 화면의 결론이다. */
+  function heatRankings() {
+    function rank(fn, cities) {
+      var r = (cities || CITIES).map(function (c) { return [c, fn(c)]; })
+        .filter(function (x) { return x[1] != null && isFinite(x[1]); })
+        .sort(function (a, b) { return b[1] - a[1]; });
+      return r;
+    }
+    function yearMeanOf(c) {
+      var a = cityOf(c).temp.present; if (!a || !a.length) return null;
+      var s = 0; for (var i = 0; i < a.length; i++) s += a[i];
+      return s / a.length;
+    }
+    var withMax = CITIES.filter(function (c) { return extremesOf(c) && extremesOf(c).idx.heatwave && extremesOf(c).idx.heatwave.present != null; });
+    return [
+      { k: '연평균기온', unit: '°C', d: 1, note: '1년 내내의 평균 — 겨울까지 포함합니다',
+        rows: rank(yearMeanOf) },
+      { k: '일평균 25°C 이상 일수', unit: '일', d: 1, note: '이 앱의 기본 기준 — 여름이 얼마나 긴가',
+        rows: rank(function (c) { return exceed('present', 25, c, 'temp'); }) },
+      { k: '일평균 30°C 이상 일수', unit: '일', d: 1, note: '아주 더운 날이 얼마나 잦은가',
+        rows: rank(function (c) { return exceed('present', 30, c, 'temp'); }) },
+      { k: '폭염일 (일 최고 33°C 이상)', unit: '일', d: 1, note: '기상청 기후통계 정의 — <b>낮 최고기온</b>으로 셉니다 · 8지점만',
+        rows: rank(function (c) { return extremesOf(c).idx.heatwave.present; }, withMax) }
+    ];
+  }
+
+  function renderMythRegion() {
+    var R = heatRankings();
+    var picked = state.mythRegionPick;
+    var winners = R.map(function (x) { return x.rows.length ? x.rows[0][0] : null; });
+    var uniq = winners.filter(function (v, i, a) { return v && a.indexOf(v) === i; });
+    var daeguWins = R.filter(function (x) { return x.rows.length && x.rows[0][0] === '대구'; });
+    setStage('<section class="card quick-card">'
+      + '<p class="eyebrow"><span aria-hidden="true">🔥</span> 기후 상식 확인소 2</p>'
+      + '<h1 class="quick-h">정말 대구가 제일 더울까?</h1>'
+      + (picked
+        ? '<p class="quick-sub">기준을 <b>네 가지</b>로 바꿔 가며 1위를 뽑아 봤습니다. 결과입니다.</p>'
+          + '<div class="myth-ranks">' + R.map(function (x) {
+              var top = x.rows.slice(0, 3);
+              return '<div class="myth-rank"><p class="mr-k">' + x.k + '</p>'
+                + '<ol class="mr-list">' + top.map(function (row, i) {
+                    return '<li' + (row[0] === '대구' ? ' class="is-daegu"' : '') + '><b>' + row[0] + '</b>'
+                      + '<span>' + (Math.round(row[1] * 10) / 10) + x.unit + '</span></li>';
+                  }).join('') + '</ol>'
+                + '<p class="mr-note">' + x.note + '</p>'
+                + (function () {
+                    var di = -1;
+                    x.rows.forEach(function (row, i) { if (row[0] === '대구') di = i + 1; });
+                    return di > 0 ? '<p class="mr-daegu">대구 <b>' + di + '위</b> / ' + x.rows.length + '지점</p>' : '';
+                  })() + '</div>';
+            }).join('') + '</div>'
+          + '<div class="quick-verdict' + (picked === 'depends' ? ' is-ok' : '') + '"><p class="eyebrow">'
+          + (picked === 'depends' ? '🎯 맞혔어요' : '🔓 자료는 이렇게 말합니다') + '</p>'
+          + '<p class="pr-why"><b>‘가장 더운 곳’은 기준에 따라 달라집니다.</b> '
+          + (daeguWins.length
+              ? '대구가 1위인 것은 <b>' + daeguWins.map(function (x) { return x.k; }).join(' · ') + '</b>일 때입니다. '
+              : '이 네 기준에서 대구가 1위인 것은 없습니다. ')
+          /* '제주이 1위'가 나오던 곳 — 이 파일의 조사 도우미를 쓴다 */
+          + (function () {
+              var others = uniq.filter(function (w) { return w !== '대구'; });
+              var nm = others.join(' · ');
+              return '다른 기준으로는 <b>' + nm + '</b>' + iGa(others[others.length - 1] || nm) + ' 1위예요. ';
+            })()
+          + '‘대프리카’라는 별명이 <b>틀린 것이 아니라</b>, <b>어떤 더위를 말하는지에 따라 맞기도 하고 아니기도 한</b> 것입니다.</p></div>'
+          + '<p class="quick-limit"><span aria-hidden="true">◈</span> <b>여기까지만 말할 수 있어요.</b> '
+          + '<b>폭염일은 8지점에서만</b> 셀 수 있었습니다(최고기온 수집분이 그 지점들에만 있어요) — 나머지 8지점이 더 높을 가능성을 배제하지 못합니다. '
+          + '그리고 각 지역은 <b>관측소 한 곳</b>의 기록이라 그 도 전체를 대표하지 않습니다. '
+          + '체감하는 더위에는 습도·바람·도시 구조도 함께 작용하는데, 이 표는 <b>기온만</b>으로 세었습니다.</p>'
+          + '<div class="step-actions"><button class="ghost-btn" id="mythRegionRedo">다시 예측하기</button>'
+          + '<button class="primary-btn" id="mythRegionDone">확인소 처음으로 →</button></div>'
+        : '<p class="quick-q">대구는 <b>‘대프리카’</b>라고 불릴 만큼 덥기로 유명하죠.<br>'
+          + '기상청 관측 자료로 세면, <b>우리나라에서 가장 더운 곳</b>은 어디일까요?</p>'
+          + '<div class="quick-choices">'
+          + '<button class="quick-choice" data-mregion="daegu"><b>대구</b><small>별명이 괜히 붙은 게 아니다</small></button>'
+          + '<button class="quick-choice" data-mregion="jeju"><b>제주</b><small>가장 남쪽이니까</small></button>'
+          + '<button class="quick-choice" data-mregion="seoul"><b>서울</b><small>도시가 크고 열섬이 있으니까</small></button>'
+          + '<button class="quick-choice" data-mregion="depends"><b>기준에 따라 다르다</b><small>‘덥다’를 어떻게 세느냐에 달렸다</small></button>'
+          + '</div><p class="po-note">채점하지 않아요. 고르면 네 가지 기준으로 각각 세어 보여 드립니다.</p>')
+      + mythFoot() + '</section>');
+    stage.querySelectorAll('[data-mregion]').forEach(function (b) {
+      b.addEventListener('click', function () { state.mythRegionPick = b.dataset.mregion; save(); renderMythRegion(); });
+    });
+    if ($('mythRegionRedo')) $('mythRegionRedo').addEventListener('click', function () { state.mythRegionPick = null; save(); renderMythRegion(); });
+    if ($('mythRegionDone')) $('mythRegionDone').addEventListener('click', function () { setMythStep('hub'); });
+    bindMythFoot();
   }
 
   /* ---------- 24절기 입문: 공전 궤도 시각화 ----------
@@ -3351,7 +3624,9 @@
     var step = state.missionStep || 'orient';
     if (step === 'predict' || step === 'lens') step = 'orient';
     if ((step === 'evidence' || ['write', 'check', 'expert', 'transfer', 'audit'].indexOf(step) !== -1) && !canJudge(m)) step = 'explore';
-    if (['check', 'expert', 'transfer', 'audit'].indexOf(step) !== -1 && (!state.cerlSubmitted[m.id] || cerlErrors(m).length)) step = 'write';
+    if (['check', 'expert', 'transfer', 'audit'].indexOf(step) !== -1
+        && !state.cerlSkipped[m.id]
+        && (!state.cerlSubmitted[m.id] || cerlErrors(m).length)) step = 'write';
     if (['expert', 'transfer', 'audit'].indexOf(step) !== -1 && !state.selfChecks[m.id]) step = 'check';
     if (step === 'transfer' && !m.askPost) step = 'audit';
     /* 5차 F14: 미션 5는 실험실을 한 번 열어 본 뒤에 점검·완료로 간다(목표 ⑤).
@@ -3887,6 +4162,15 @@
       + '</div><p class="cerl-error" id="cerlError" role="alert"></p>'
       + '<div class="step-actions"><button class="ghost-btn" id="cerlPrev" type="button"' + (ci === 0 ? ' hidden' : '') + '>← 이전 요소</button>'
       + '<button class="primary-btn" id="cerlNext" type="button">' + (ci === CERL_FIELDS.length - 1 ? '내 결론 저장하고 이해 확인 →' : '다음 요소 →') + '</button></div>'
+      /* 멘토링 지적(최예지) — "CERL 검증을 스킵할 수 있으면 좋겠다".
+         쓰기는 이 앱의 핵심 산출물이라 없애지 않는다. 대신 <b>막히지 않게</b> 한다.
+         건너뛰면 그 사실이 '내 기록'에 남고 완료 화면의 집계에서 빠진다 —
+         안 쓴 것을 쓴 것처럼 세면 교사가 회수하는 산출물이 거짓이 된다. */
+      + '<details class="cerl-skip"><summary>지금은 쓰기 어려워요 — 건너뛰고 계속하기</summary>'
+      + '<p>건너뛰어도 <b>다음 단계로 넘어갈 수 있습니다.</b> 다만 두 가지를 알려 드릴게요.</p>'
+      + '<ul><li>이 미션은 <b>‘건너뜀’으로 기록</b>됩니다. 완료 화면의 “CERL ' + MISSIONS.length + '편”에서 빠져요.</li>'
+      + '<li>쓰기가 이 앱에서 가장 오래 남는 활동이에요 — <b>나중에 언제든 돌아와</b> 채울 수 있습니다.</li></ul>'
+      + '<button class="ghost-btn" id="cerlSkip" type="button">이 미션은 건너뛰고 이해 확인으로 →</button></details>'
       + '</div>';
   }
   function bindStudentCerl(m) {
@@ -3933,6 +4217,14 @@
       var missing = cerlErrors(m);
       if (missing.length) { err.textContent = '아직 필요한 내용: ' + missing.join(' · ') + '.'; return; }
       state.missionDraft[m.id] = cerlText(m); state.cerlSubmitted[m.id] = true;
+      /* 다 쓰고 제출하면 '건너뜀' 표시를 걷는다 — 나중에 돌아와 채운 경우다 */
+      delete state.cerlSkipped[m.id];
+      state.missionStep = 'check'; save(); renderMissionFlow();
+    });
+    if ($('cerlSkip')) $('cerlSkip').addEventListener('click', function () {
+      if (!state.cerlSkipped || typeof state.cerlSkipped !== 'object') state.cerlSkipped = {};
+      state.cerlSkipped[m.id] = 1;
+      /* 쓰다 만 글은 지우지 않는다 — 초안으로 남겨 두어야 돌아와서 이어 쓸 수 있다 */
       state.missionStep = 'check'; save(); renderMissionFlow();
     });
     var active = box.querySelector('.cerl-step-field:not([hidden]) textarea');
@@ -4157,7 +4449,11 @@
 
   /* ---------- 완료 · 내 기후 카드 ---------- */
   function renderComplete() {
-    var missingCerl = MISSIONS.filter(function (m) { return !state.cerlSubmitted[m.id] || cerlErrors(m).length; });
+    /* 건너뛴 미션은 '아직 안 쓴 것'이 아니라 '안 쓰기로 한 것'이다 — 막지 않고 기록에 남긴다 */
+    var skipped = MISSIONS.filter(function (m) { return state.cerlSkipped[m.id]; });
+    var missingCerl = MISSIONS.filter(function (m) {
+      return !state.cerlSkipped[m.id] && (!state.cerlSubmitted[m.id] || cerlErrors(m).length);
+    });
     if (missingCerl.length) {
       /* 오래된 딥링크·손상된 저장 상태도 빈 산출물로 ‘완료’를 주장하지 못한다. */
       state.phase = 'mission';
@@ -4206,6 +4502,8 @@
       }
       /* R6: 정답/오답 2분기로만 남기면 교사가 난이도를 읽을 수 없다. 몇 번째 시도였는지 함께 남긴다. */
       parts.push(s ? (s.correct ? (s.tries > 1 ? '이해 확인 정답(2차 시도)' : '이해 확인 정답(1차)') : '이해 확인 미해결') : '이해 확인 미응답');
+      /* 건너뛴 사실은 기록에 남긴다 — 교사가 회수했을 때 무엇이 비었는지 보여야 한다 */
+      if (state.cerlSkipped[m.id]) parts.push('<b>CERL 건너뜀</b>');
       return '<li><b>' + m.title + '</b><br>' + parts.join(' · ') + '</li>';
     }).join('');
     /* R6: 목표 ②③이 전이로 확인된 적이 없었다(askPost는 미션 1 단독). 완료 화면에
@@ -4232,10 +4530,23 @@
       drafts += '<li><b>자유탐구 — 내가 고른 조건</b><br>' + escapeHTML(state.freeDraft) + '</li>';
     var yrs = D.cities['서울'].timeline.years;
     var completeStep = Math.max(0, Math.min(3, Number(state.completeStep) || 0));
-    setStage('<section class="card done-card"><div class="burst" aria-hidden="true">✦</div><p class="eyebrow">' + MISSIONS.length + '개 미션 · CERL ' + MISSIONS.length + '편 완료</p>'
+    /* 건너뛴 편수를 빼고 센다 — 안 쓴 것을 쓴 것처럼 세면 교사가 회수하는 산출물이 거짓이 된다 */
+    setStage('<section class="card done-card"><div class="burst" aria-hidden="true">✦</div><p class="eyebrow">'
+      + MISSIONS.length + '개 미션 · CERL ' + (MISSIONS.length - skipped.length) + '편 작성'
+      + (skipped.length ? ' · ' + skipped.length + '편 건너뜀' : ' 완료') + '</p>'
       + '<h1 class="stage-h">검증을 마쳤어요.</h1>'
-      + '<p class="sub">자료를 보기 전에 예측하고, 기준을 직접 정해 확인한 뒤, 미션마다 주장·근거·추론·한계를 스스로 작성했습니다.</p>'
-      + '<div class="skill-row"><span>① 절기≠기후</span><span>② 자료의 범위</span><span>③ 기준 정의</span><span>④ 근거만큼 결론</span>'
+      /* 한 편도 안 썼는데 "작성했습니다"라고 하면 이 앱이 스스로 과장하는 것이 된다.
+         목표 ④(근거만큼 결론)는 CERL 쓰기로 확인되는 목표라, 전부 건너뛴 경우 배지도 '미확인'으로 둔다. */
+      + '<p class="sub">자료를 보기 전에 예측하고, 기준을 직접 정해 확인했습니다.'
+      + (skipped.length === MISSIONS.length
+          ? ' <b>내 결론(주장·근거·추론·한계)은 아직 쓰지 않았어요</b> — 미션으로 돌아가면 언제든 채울 수 있습니다.'
+          : skipped.length
+            ? ' 미션 <b>' + (MISSIONS.length - skipped.length) + '개</b>에서 주장·근거·추론·한계를 스스로 작성했습니다(' + skipped.length + '개는 건너뜀).'
+            : ' 그리고 미션마다 주장·근거·추론·한계를 스스로 작성했습니다.') + '</p>'
+      + '<div class="skill-row"><span>① 절기≠기후</span><span>② 자료의 범위</span><span>③ 기준 정의</span>'
+      + (skipped.length === MISSIONS.length
+          ? '<span class="is-unmet">④ 근거만큼 결론 <small>미확인</small></span>'
+          : '<span>④ 근거만큼 결론</span>')
       + (state.labSeen ? '<span>⑤ 관측과 모형</span>' : '') + '</div>'
       + '<nav class="panel-tabs" aria-label="완료 활동"><button data-complete-step="0" aria-current="' + (completeStep === 0 ? 'step' : 'false') + '">1. 내 기록</button>'
       + '<button data-complete-step="1" aria-current="' + (completeStep === 1 ? 'step' : 'false') + '">2. 기후 카드</button>'
@@ -4265,6 +4576,7 @@
       + '<p class="panel-kicker">선택 확장</p><h2>배운 검증 방법을 새로운 질문에 적용해 보세요.</h2>'
       + '<div class="done-next"><button class="ghost-btn" id="startLab">🔬 열관성 실험실 — 왜 그런지 직접 계산해 보기</button>'
       + (FUT ? '<button class="ghost-btn" id="startFuture">🔮 2100년에도 절기는 맞을까 — 기상청 SSP 시나리오</button>' : '')
+      + '<button class="ghost-btn" id="startMyth">🧭 그거 정말이야? — 올해 더웠나 · 대구가 제일 더운가</button>'
       + '<button class="ghost-btn" id="startFree">내 지역·지표로 자유탐구 →</button></div>'
       + '<p class="intro-teacher"><a href="./교사_학습지.html" target="_blank" rel="noopener">📄 교사용 학습지 (인쇄용) →</a></p>'
       + '<div class="step-actions"><button class="ghost-btn" data-complete-step="2">← 지구 맥락</button></div></div></section>');
@@ -4308,6 +4620,7 @@
     $('startFree').addEventListener('click', renderFree);
     if ($('startLab')) $('startLab').addEventListener('click', renderLab);
     if ($('startFuture')) $('startFuture').addEventListener('click', function () { openFuture('complete'); });
+    if ($('startMyth')) $('startMyth').addEventListener('click', function () { openMyths('complete'); });
     bindPanelTabs('complete', 4);
     var gb = $('globalBox');
     if (gb) gb.addEventListener('toggle', function () { if (gb.open) renderGlobal(); });
@@ -5300,6 +5613,8 @@
       if ($('heroSvg')) drawHero();
       /* 계절 띠는 폭에 따라 눈금 수와 글자 크기가 달라진다 — 회전·창 크기 변경에서 다시 그린다 */
       if (state.phase === 'future' && FUT && stage.querySelector('.fut-band')) renderFuture();
+      /* 막대 그림도 폭에 따라 글자 크기가 달라진다 — 회전·창 크기 변경에서 다시 그린다 */
+      if (state.phase === 'myth' && stage.querySelector('.myth-bars')) renderMyths();
     }, 150);
   });
 
@@ -5311,6 +5626,7 @@
     else if (state.phase === 'lab') renderLab();
     else if (state.phase === 'quick') renderQuick();
     else if (state.phase === 'future') FUT ? renderFuture() : renderIntro();
+    else if (state.phase === 'myth') renderMyths();
     else if (state.phase === 'complete') renderComplete();
     else if (state.phase === 'terms') renderTerms();
     else if (state.phase === 'intro') state.introStep === 'method' ? renderIntroMethod() : renderIntro();

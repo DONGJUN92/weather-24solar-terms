@@ -504,6 +504,24 @@ def annual_series(df, col, agg):
     return out
 
 
+# '올해 정말 더웠을까'에 답하려면 연평균기온만으로는 얇다 — 학습자가 내내 만져 온 것은
+# '기준을 넘은 날이 며칠인가'이기 때문이다. 같은 잣대로 연도별 시계열을 만든다.
+# 25℃는 이 앱의 기본 기준이고, 화면이 "다른 기준으로 세면 순위가 달라진다"고 함께 밝힌다.
+ANNUAL_HOT_THR = 25.0
+
+
+def annual_hot_days(df):
+    """연도별 '일평균기온 ANNUAL_HOT_THR 이상' 일수. 불완결 연도는 None."""
+    v = pd.to_numeric(df["avgTa"], errors="coerce")
+    tmp = pd.DataFrame({"year": df["year"], "hit": (v >= ANNUAL_HOT_THR), "ok": v.notna()})
+    out = {}
+    for y, grp in tmp.groupby("year"):
+        if int(grp["ok"].sum()) < MIN_DAYS:
+            continue                      # 셀 수 없는 해를 0일로 적으면 '가장 시원한 해'가 된다
+        out[int(y)] = int((grp["hit"] & grp["ok"]).sum())
+    return out
+
+
 def main():
     cities = {}
     year_lo, year_hi = 1969, 2025
@@ -532,6 +550,9 @@ def main():
         tl["years"] = yrs
         for mk, *_ in METRICS:
             tl[mk] = [(round(series[mk][y], 1) if y in series[mk] else None) for y in yrs]
+        hot = annual_hot_days(df)
+        tl["hotDays"] = [hot.get(y) for y in yrs]
+        tl["hotThr"] = ANNUAL_HOT_THR
         e["timeline"] = tl
         e["sensitivity"] = window_sensitivity(df)
         e["rainFlip"] = rain_flip(e)
