@@ -1447,3 +1447,37 @@ small { font-size: max(11.5px, .86em); }
 .qb-v .v-now { color: var(--coral); }
 .qb-s { margin: 0; font-size: 12.5px; line-height: 1.7; color: var(--muted); }
 .qb-s b { color: var(--ink2); }
+
+/* ── 줄바꿈 품질 ───────────────────────────────────────────────
+   base.css가 이미 전역으로 word-break:keep-all(어절 중간 절단 금지)과
+   text-wrap:pretty(마지막 줄 고아 방지)를 켠다. 여기서 더하는 것은 <b>균형</b>이다.
+
+   pretty는 마지막 줄이 한 어절만 남는 것을 막을 뿐, 줄 길이를 고르게 하지는 않는다.
+   카드·칩·보기처럼 <b>폭이 좁고 두세 줄로 끊기는 짧은 블록</b>에서는 balance가
+   줄 길이를 맞춰 준다(브라우저가 미지원이면 조용히 pretty로 남는다).
+   긴 문단(해설·한계)에는 balance를 쓰지 않는다 — 줄 수가 많으면 브라우저가 포기하고,
+   오히려 pretty의 고아 방지가 더 낫다. */
+.qt-chip em,
+.quick-choice b, .quick-choice small,
+.quick-thr small,
+.quick-chip small,
+.mode-card .mode-d, .mode-card .mode-who, .mode-card .mode-t,
+.bonus-btn b, .bonus-btn small,
+.qb-k, .qb-s,
+.mr-k, .mr-note, .mr-daegu,
+.sun-list li small,
+.quick-cond, .quick-label,
+.quick-crumb,
+.fut-idx .ro-k, .readout .ro-k,
+.howto-list b, .howto-list p,
+.step-strip small { text-wrap: balance; }
+
+/* 질문 한 줄은 문장이 그대로 읽혀야 한다 — 두 줄이 되면 길이를 맞춘다 */
+.quick-q, .quick-sub, .po-q, .quick-h { text-wrap: balance; }
+
+/* 표 안의 머리글은 좁은 칸에서 자주 두 줄이 된다 */
+.data-table th, .kma-table th, .method-table th { text-wrap: balance; }
+
+/* 한 덩어리인 값은 쪼개지지 않게 — '8월 30일'이 '8월 /30일'로 끊기면 값이 두 개로 읽힌다.
+   판독 카드(.ro-v)는 화살표까지 한 줄에 들어가 nowrap으로 묶으면 좁은 화면에서 넘치므로 제외한다. */
+.bn-side b, .bn-delta b, .mr-list li span { white-space: nowrap; }

@@ -730,6 +730,14 @@
   function iGa(w) { return hasJong(w) ? '이' : '가'; }
   /* '벌레이라는'이 나오던 곳 — 받침이 없으면 '라는'이다 */
   function iRaNeun(w) { return hasJong(w) ? '이라는' : '라는'; }
+  /* '으로/로'는 은/는·을/를과 규칙이 다르다 — 받침이 없을 때뿐 아니라 <b>ㄹ받침</b>에서도 '로'다.
+     그래서 '9월 12일으로'·'21세기 후반기으로'가 나왔다. 종성 8번이 ㄹ이다. */
+  function euRo(w) {
+    var ch = lastHangul(w);
+    if (ch < 0) return '로';
+    var jong = (ch - 0xac00) % 28;
+    return (jong === 0 || jong === 8) ? '로' : '으로';
+  }
 
   function load() {
     var base = { phase: 'intro', mi: 0, city: '서울', ti: 15, thr: 25, thr0: 25, metric: 'temp', pre: null, post: null,
@@ -1549,25 +1557,40 @@
     /* 375px에서 viewBox 700이 절반으로 눌린다 — 화면에서 11px가 되려면 유저 단위로 22 이상이어야 한다
        (미래 띠·연도 막대에서 이미 두 번 겪은 결함이라 같은 값으로 맞춘다) */
     var FS = narrow ? { lab: 24, tick: 23, note: 23 } : { lab: 12, tick: 11, note: 11.5 };
-    var W = 700, L = 14, R = 14, T = narrow ? 34 : 26, H = narrow ? 176 : 132;
+    /* 좌표를 손으로 계산해 보니 좁은 화면에서 두 가지가 어긋나 있었다.
+       ① 눈금 라벨(10/1·11/1·12/1)이 viewBox 아래로 밀려 <b>잘려 있었다</b>
+          — SVG 루트는 기본이 overflow:hidden이라 DOM에는 있는데 화면에는 없다.
+       ② 상강 라벨과 ‘과거’ 라벨이 세로로 2유닛만 떨어져 있었다. 서울은 과거 10/17,
+          상강 10/23으로 6일밖에 차이가 안 나 가로로도 겹친다.
+       라벨이 서로 스치지 않도록 세로 간격을 넉넉히 벌리고 높이를 그만큼 늘린다. */
+    /* 간격은 눈이 아니라 계산으로 정한다. 라벨 상자를 (글자크기 × 0.75) 위 + (× 0.25) 아래로 보고
+       ⓐ상강 라벨 ⓑ과거 라벨 ⓒ과거 마커선 ⓓ현재 라벨 ⓔ현재 마커선 ⓕ눈금 라벨이
+       이 순서로 서로 닿지 않게 잡았다. 두 마커의 날짜가 하루 차이여도(부산 11/16→11/15)
+       가로로 같은 자리에 오므로 <b>세로 간격만으로</b> 떨어져야 한다. */
+    var LG = narrow
+      ? { T: 46, gapA: 48, gapB: 62, base: 36, lift: 30, lineUp: 15, lineDn: 9, r: 8, sw: 4, tickGap: 9, pad: 16 }
+      : { T: 26, gapA: 24, gapB: 38, base: 26, lift: 17, lineUp: 11, lineDn: 7, r: 6, sw: 3, tickGap: 7, pad: 8 };
+    var W = 700, L = 14, R = 14, T = LG.T;
     var lo = 274, hi = 351;                       /* 10/1 ~ 12/17 */
     function x(d) { return L + (Math.max(lo, Math.min(hi, d)) - lo) / (hi - lo) * (W - L - R); }
-    var yA = T + (narrow ? 34 : 24), yB = yA + (narrow ? 46 : 34), base = yB + (narrow ? 34 : 26);
+    var yA = T + LG.gapA, yB = yA + LG.gapB, base = yB + LG.base;
+    var H = base + FS.tick + LG.tickGap + LG.pad;
     function mark(d, y, color, label, bold) {
       var px = x(d);
-      return '<line x1="' + px.toFixed(1) + '" y1="' + (y - (narrow ? 15 : 11)) + '" x2="' + px.toFixed(1) + '" y2="' + (y + (narrow ? 9 : 7)) + '" stroke="' + color + '" stroke-width="' + (narrow ? 4 : 3) + '" stroke-linecap="round"/>'
-        + '<circle cx="' + px.toFixed(1) + '" cy="' + y + '" r="' + (narrow ? 8 : 6) + '" fill="' + color + '"/>'
-        + '<text x="' + px.toFixed(1) + '" y="' + (y - (narrow ? 22 : 17)) + '" text-anchor="middle" font-size="' + FS.lab
+      return '<line x1="' + px.toFixed(1) + '" y1="' + (y - LG.lineUp) + '" x2="' + px.toFixed(1) + '" y2="' + (y + LG.lineDn) + '" stroke="' + color + '" stroke-width="' + LG.sw + '" stroke-linecap="round"/>'
+        + '<circle cx="' + px.toFixed(1) + '" cy="' + y + '" r="' + LG.r + '" fill="' + color + '"/>'
+        + '<text x="' + px.toFixed(1) + '" y="' + (y - LG.lift) + '" text-anchor="middle" font-size="' + FS.lab
         + '" font-weight="' + (bold ? 800 : 700) + '" fill="' + color + '">' + label + '</text>';
     }
     var g = '<line x1="' + L + '" y1="' + base + '" x2="' + (W - R) + '" y2="' + base + '" stroke="rgba(var(--line-rgb),.5)"/>';
     [[274, '10/1'], [305, '11/1'], [335, '12/1']].forEach(function (t) {
       g += '<line x1="' + x(t[0]).toFixed(1) + '" y1="' + base + '" x2="' + x(t[0]).toFixed(1) + '" y2="' + (base + 5) + '" stroke="var(--muted3)"/>'
-        + '<text x="' + x(t[0]).toFixed(1) + '" y="' + (base + FS.tick + 7) + '" text-anchor="middle" font-size="' + FS.tick + '" fill="var(--muted2)">' + t[1] + '</text>';
+        + '<text x="' + x(t[0]).toFixed(1) + '" y="' + (base + FS.tick + LG.tickGap) + '" text-anchor="middle" font-size="' + FS.tick + '" fill="var(--muted2)">' + t[1] + '</text>';
     });
-    /* 절기 — 이 그림에서 유일하게 움직이지 않는 것 */
-    g += '<line x1="' + x(sang).toFixed(1) + '" y1="' + (T - 6) + '" x2="' + x(sang).toFixed(1) + '" y2="' + base + '" stroke="var(--sun)" stroke-width="2" stroke-dasharray="5 4"/>'
-      + '<text x="' + x(sang).toFixed(1) + '" y="' + (T - 10) + '" text-anchor="middle" font-size="' + FS.lab + '" font-weight="800" fill="var(--sun)">상강 ' + doyStr(sang) + ' (고정)</text>';
+    /* 절기 — 이 그림에서 유일하게 움직이지 않는 것.
+       라벨은 첫 마커 라벨(yA - lift)보다 한 줄 위에 둔다 — 겹치면 절기와 관측을 못 가른다. */
+    g += '<line x1="' + x(sang).toFixed(1) + '" y1="' + (T - 4) + '" x2="' + x(sang).toFixed(1) + '" y2="' + base + '" stroke="var(--sun)" stroke-width="2" stroke-dasharray="5 4"/>'
+      + '<text x="' + x(sang).toFixed(1) + '" y="' + (T - 12) + '" text-anchor="middle" font-size="' + FS.lab + '" font-weight="800" fill="var(--sun)">상강 ' + doyStr(sang) + ' (고정)</text>';
     g += mark(f.past.first, yA, 'var(--muted)', '과거 ' + doyStr(f.past.first), false);
     g += mark(f.present.first, yB, 'var(--coral)', '현재 ' + doyStr(f.present.first), true);
     return '<svg viewBox="0 0 ' + W + ' ' + H + '" class="frost-svg" role="img" aria-label="'
@@ -2717,7 +2740,7 @@
       + '<span class="mode-who">실제로 관측된 기록</span></button>'
       + (FUT ? '<button class="mode-card mode-study" data-qwhen="future"><span class="mode-icon" aria-hidden="true">🔮</span>'
           + '<b class="mode-t">2100년에는 어떻게 될까</b><span class="mode-time">기상청 SSP <b>전망</b></span>'
-          + '<span class="mode-d">온실가스를 얼마나 줄이느냐에 따라 <b>계절이 ' + t.name + '을 얼마나 앞지르는지</b> 봅니다.</span>'
+          + '<span class="mode-d">온실가스를 얼마나 줄이느냐에 따라 <b>계절이 ' + t.name + eulReul(t.name) + ' 얼마나 앞지르는지</b> 봅니다.</span>'
           + '<span class="mode-who">관측이 아니라 모형이 계산한 값</span></button>' : '')
       + '</div>'
       + '<p class="quick-note"><b>둘을 섞어 읽지 마세요.</b> 왼쪽은 <b>실제로 관측된 기록</b>이고, 오른쪽은 '
@@ -2788,7 +2811,11 @@
        (미래 띠·연도 막대·서리 타임라인에서 같은 규칙을 이미 쓰고 있다) */
     var narrow = (window.innerWidth || 1024) < 620;
     var FS = narrow ? { term: 23, ax: 20 } : { term: 12.5, ax: 11 };
-    var W = 640, L = narrow ? 62 : 44, R = 14, T = narrow ? 30 : 16, B = narrow ? 40 : 30, H = narrow ? 210 : 168;
+    /* 절기 라벨은 그림 위쪽 바깥에 놓이므로 T가 글자 높이보다 작으면 viewBox 밖으로 잘린다
+       (실측: 데스크톱에서 '상강 10/23 (고정)'의 윗변이 y<0). 글자 높이만큼 여백을 확보한다. */
+    var W = 640, L = narrow ? 62 : 44, R = 14;
+    var T = Math.round(FS.term * 0.9) + 14, B = narrow ? 40 : 30;
+    var H = T + (narrow ? 140 : 122) + B;
     var t = n.term, half = 30;
     var pa = series('past', n.city, 'temp'), pr = series('present', n.city, 'temp');
     var xs = [], vp = [], vc = [];
@@ -2900,7 +2927,8 @@
       + '<div class="quick-why">'
       + '<p class="qw-line"><span class="qw-n">1</span><b>' + t.name + '(' + t.hanja + ')' + eunNeun(t.name) + ' “' + t.meaning + '”' + iRaNeun(t.meaning) + ' 뜻입니다.</b> '
       + t.hanja_gloss + '. ' + note + '</p>'
-      + '<p class="qw-line"><span class="qw-n">2</span><b>날짜는 그대로입니다.</b> ' + t.name + '은 <b>태양의 위치(황경 '
+      /* '동지은'이 나오던 곳 — 받침 없는 절기 이름이 절반이라 하드코딩하면 안 된다 */
+      + '<p class="qw-line"><span class="qw-n">2</span><b>날짜는 그대로입니다.</b> ' + t.name + eunNeun(t.name) + ' <b>태양의 위치(황경 '
       + termLongitude(quickTi()) + '°)</b>로 정한 천문 날짜예요. 더워지든 추워지든 해마다 거의 움직이지 않습니다.</p>'
       + '<p class="qw-line"><span class="qw-n">3</span><b>달라진 것은 그 무렵의 날씨입니다.</b> ' + n.city + '에서 '
       + t.name + ' 무렵 기온이 <b class="hot">' + Math.abs(n.diff).toFixed(1) + '°C</b> ' + dir + '어요'
@@ -3039,12 +3067,26 @@
          이미 적으므로 정보가 사라지지 않고, 그만큼을 이름 글자 크기로 돌린다. */
       ? { row: 24, seg: 24, tick: 25, date: 0, edge: 24, gone: 24, minSeg: 46, segDays: false }
       : { row: 12, seg: 12, tick: 11, date: 10, edge: 11.5, gone: 11.5, minSeg: 44, segDays: true };
-    var W = 700, L = 12, R = 12, rowH = narrow ? 46 : 34, gap = narrow ? 44 : 30, T = narrow ? 44 : 34;
+    var W = 700, L = 12, R = 12, rowH = narrow ? 46 : 34, gap = narrow ? 44 : 30;
+    /* 위쪽에 글자 줄이 둘 있다 — ①양 끝 날짜(1월 1일·12월 31일) ②줄 이름(+‘사라짐’ 주석).
+       둘 다 x가 양 끝이라 y가 가까우면 반드시 겹친다(실측: '12월 31일'↔'겨울 0일 — 사라짐').
+       두 줄의 baseline을 글자 높이로 계산해 떨어뜨린다. */
+    var edgeBase = Math.round(FS.edge) + 2;
+    var T = edgeBase + Math.round(FS.edge * 0.3) + 9 + Math.round(FS.row * 0.9) + 7;
     var H = T + rowH * 2 + gap + (narrow ? 62 : 46);
     var SC = { spring: 'var(--green)', summer: 'var(--coral)', autumn: 'var(--sun)', winter: 'var(--sky)' };
     function x(doy) { return L + (doy - 1) / 364 * (W - L - R); }
     function row(period, y, label) {
-      var g = '<text x="' + L + '" y="' + (y - 7) + '" font-size="' + FS.row + '" font-weight="700" fill="var(--ink2)">' + label + '</text>';
+      /* 사라진 계절은 빈칸이 아니라 사실이다 — 화면이 말하지 않으면 '자료 없음'으로 읽힌다.
+         예전에는 이 문구를 띠 <b>아래</b>에 뒀는데, 아래 줄 절기 눈금 라벨과 y가 2.5유닛밖에
+         차이나지 않아 겹쳤다("입퉁울 0일 — 사롱짐"). SVG에는 줄바꿈도 회피도 없으므로
+         빈 자리를 찾아 옮긴다 — 줄 이름과 같은 줄의 <b>오른쪽 끝</b>은 항상 비어 있다. */
+      var gone = FUT.seasonKeys.filter(function (s) { var c = futCell(s.key, period); return c && c.days === 0; });
+      var g = '<text x="' + L + '" y="' + (y - 7) + '" font-size="' + FS.row + '" font-weight="700" fill="var(--ink2)">' + label + '</text>'
+        + (gone.length
+            ? '<text x="' + (W - R) + '" y="' + (y - 7) + '" text-anchor="end" font-size="' + FS.gone + '" font-weight="700" fill="var(--on-coral)">'
+              + gone.map(function (s) { return s.label; }).join('·') + ' 0일 — 사라짐</text>'
+            : '');
       FUT.seasonKeys.forEach(function (s) {
         var c = futCell(s.key, period);
         if (!c || !c.days || !c.doy) return;
@@ -3067,12 +3109,6 @@
           }
         });
       });
-      /* 사라진 계절은 빈칸이 아니라 사실이다 — 화면이 말하지 않으면 '자료 없음'으로 읽힌다 */
-      var gone = FUT.seasonKeys.filter(function (s) { var c = futCell(s.key, period); return c && c.days === 0; });
-      if (gone.length) {
-        g += '<text x="' + (W - R) + '" y="' + (y + rowH + FS.gone + 2) + '" text-anchor="end" font-size="' + FS.gone + '" font-weight="700" fill="var(--on-coral)">'
-          + gone.map(function (s) { return s.label; }).join('·') + ' 0일 — 사라짐</text>';
-      }
       return g;
     }
     /* 절기 눈금 — 이 화면에서 유일하게 움직이지 않는 것 */
@@ -3095,9 +3131,9 @@
     });
     var p = futPeriodLabel(state.futPeriod);
     return '<svg viewBox="0 0 ' + W + ' ' + H + '" class="fut-band" role="img" aria-label="'
-      + futRegion() + '의 계절 구간을 현재와 ' + p.label + '으로 나란히 놓은 띠. 절기 눈금은 두 줄 모두에서 같은 자리에 있습니다.">'
-      + '<text x="' + L + '" y="' + (FS.edge + 3) + '" font-size="' + FS.edge + '" fill="var(--muted2)">1월 1일</text>'
-      + '<text x="' + (W - R) + '" y="' + (FS.edge + 3) + '" text-anchor="end" font-size="' + FS.edge + '" fill="var(--muted2)">12월 31일</text>'
+      + futRegion() + '의 계절 구간을 현재와 ' + p.label + euRo(p.label) + ' 나란히 놓은 띠. 절기 눈금은 두 줄 모두에서 같은 자리에 있습니다.">'
+      + '<text x="' + L + '" y="' + edgeBase + '" font-size="' + FS.edge + '" fill="var(--muted2)">1월 1일</text>'
+      + '<text x="' + (W - R) + '" y="' + edgeBase + '" text-anchor="end" font-size="' + FS.edge + '" fill="var(--muted2)">12월 31일</text>'
       + ticks
       + row('now', T, '현재 (2000–2019)')
       + row(state.futPeriod, T + rowH + gap, state.futScen + ' · ' + p.label + ' (' + p.span + ')')
@@ -3885,7 +3921,7 @@
       if (n.drift == null || n.drift <= 0) return null;
       truth = 'b';
       why = '서울에서 ‘' + n.thr + '°C’ 기준으로 더위가 그치는 날이 과거 ' + n.plStr + ' → 지금 ' + n.clStr
-        + '으로 <b>' + n.drift + '일</b> 늦어졌습니다. 절기 날짜(8/23)는 그대로입니다.';
+        + euRo(n.clStr) + ' <b>' + n.drift + '일</b> 늦어졌습니다. 절기 날짜(8/23)는 그대로입니다.';
     } else if (m.id === 'summer') {
       var g25 = exceed('present', 25) - exceed('past', 25);
       var g28 = exceed('present', 28) - exceed('past', 28);
