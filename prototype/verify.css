@@ -1189,6 +1189,8 @@ small { font-size: max(11.5px, .86em); }
   color: var(--ink-max); font-weight: 800; text-wrap: balance; }
 .quick-sub { margin: 0 0 var(--sp-4); font-size: 14.5px; line-height: 1.75; color: var(--muted); }
 .quick-sub b { color: var(--ink2); font-weight: 700; }
+/* ⑦단계에서 '이 화면에서 펼쳐지는 것'과 '다른 화면으로 가는 것'을 눈으로 가른다 */
+.quick-sub-div { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
 .quick-q { margin: var(--sp-2) 0 var(--sp-4); font-size: 16px; line-height: 1.8; color: var(--ink); }
 .quick-q b { color: var(--ink-max); font-weight: 800; }
 .quick-note, .quick-cond { margin: var(--sp-3) 0 0; font-size: 13px; line-height: 1.7; color: var(--muted); }
@@ -1251,6 +1253,8 @@ small { font-size: max(11.5px, .86em); }
 .qw-line { display: flex; gap: 12px; margin: 0; font-size: 14.5px; line-height: 1.8; color: var(--ink2); }
 .qw-line b { color: var(--ink-max); font-weight: 700; }
 .qw-line b.hot { color: var(--coral); }
+/* 384조합 중 11건은 기온이 내려갔다 — 그 숫자에 상승색을 칠하면 화면이 없는 상승을 말한다 */
+.qw-line b.cool { color: var(--on-sky); }
 .qw-n { flex: 0 0 auto; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center;
   background: rgba(var(--sea-rgb),.16); color: var(--on-sea); font-size: 13px; font-weight: 800; }
 .quick-limit { margin: 0 0 var(--sp-4); padding: var(--sp-3); border-left: 3px solid rgba(var(--sea-rgb),.45);
@@ -1347,7 +1351,7 @@ small { font-size: max(11.5px, .86em); }
 
 /* 인쇄에서는 체험 모드 장식과 미래 화면 조작칩을 뺀다 */
 @media print {
-  .quick-dots, .quick-foot, .bonus-btn, .fut-card .picker { display: none !important; }
+  .quick-dots, .quick-foot, .bonus-btn, .quick-sub-div, .fut-card .picker { display: none !important; }
 }
 
 /* ══════════════════════════════════════════════════════════════

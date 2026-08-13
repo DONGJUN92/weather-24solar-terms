@@ -586,39 +586,55 @@
   /* 예측은 <b>답이 있는 양</b>에만 건다. 24절기 전부에서 정직하게 나오는 값은
      '그 절기 무렵(±7일) 평년기온이 과거와 지금 사이에 얼마나 달라졌는가'다.
      구간은 24절기 × 16지점 = 384조합의 실측(−0.7 ~ +6.5℃)을 사분위로 나눈 것이다. */
+  /* 부제를 격자 범위로 못 박는다. '1~2°C'처럼 열린 말로 두면 차이가 딱 2.0인 조합에서
+     판정은 b(1.0 초과 2.0 이하)인데 라벨은 '2~3'도 참인 것처럼 읽혀, 화면 안에서 숫자가
+     라벨을 반박한다(384조합 중 36건이 정확히 1.0·2.0·3.0이다). 실측이 전부 0.1 격자 위에
+     있음을 확인했으므로, 격자로 적으면 배타적이면서 말투도 상하지 않는다. */
   var QUICK_BANDS = [
-    { v: 'a', t: '거의 그대로', s: '1°C 안쪽', lo: -99, hi: 1.0 },
-    { v: 'b', t: '1도쯤', s: '1~2°C', lo: 1.0, hi: 2.0 },
-    { v: 'c', t: '2도쯤', s: '2~3°C', lo: 2.0, hi: 3.0 },
-    { v: 'd', t: '3도 넘게', s: '크게 올랐다', lo: 3.0, hi: 999 }
+    { v: 'a', t: '거의 그대로', s: '1.0°C 이하', lo: -99, hi: 1.0 },
+    { v: 'b', t: '1~2도', s: '1.1~2.0°C', lo: 1.0, hi: 2.0 },
+    { v: 'c', t: '2~3도', s: '2.1~3.0°C', lo: 2.0, hi: 3.0 },
+    { v: 'd', t: '3도 넘게', s: '3.1°C 이상', lo: 3.0, hi: 999 }
   ];
   /* 절기마다 '이름이 약속하는 것'을 한 줄로 — 공개 뒤 해설에서 측정값과 나란히 놓는다.
      뜻·한자 풀이는 D.terms에 이미 있으므로 여기서는 <b>무엇을 견줘 볼 것인가</b>만 적는다. */
   var QUICK_TERM_NOTE = {
-    '소한': '이름은 ‘작은 추위’인데, 실제로는 한 해에서 가장 추운 무렵입니다.',
+    /* 지역을 모르는 고정 문장이 전국 공통 사실을 단정하면, 두 화면 뒤의 계산이 앞 화면을 반박한다.
+       16지점 실측으로 반례를 확인한 것들을 '거의 참'이 아니라 '항상 참'인 말로 낮췄다.
+       소한: 가장 추운 절기가 제주는 입춘, 강릉은 대한이다(14/16만 소한). */
+    '소한': '이름은 ‘작은 추위’인데, 실제로는 한겨울 추위의 한복판입니다.',
     '대한': '이름은 ‘큰 추위’지만, 소한이 더 추웠던 해가 많습니다.',
     '입춘': '달력은 봄이 시작됐다고 하는데, 기온은 아직 한겨울입니다.',
-    '우수': '눈이 비로 바뀐다는 뜻. 영상으로 올라서기 시작하는 무렵입니다.',
-    '경칩': '땅이 풀려 벌레가 깬다는 뜻. <b>24절기 중 기온이 가장 크게 달라진 무렵</b>입니다.',
+    /* 우수: '영상으로 올라선다'는 지금 16지점 모두 이미 영상이라(강원 0.3 ~ 제주 7.9) 성립하지 않는다 */
+    '우수': '‘얼음이 풀린다’는 약속. 이 무렵 기온이 0°C에서 얼마나 떨어져 있는지, 과거와 지금을 나란히 봅니다.',
+    /* 경칩: 16지점 중 15곳에서 1위지만 경남은 춘분(+3.1)이 1위다 — 최상급을 빼면
+       ⑦단계 '어느 절기가 가장 많이 달라졌을까'의 답을 미리 말하는 문제도 함께 사라진다. */
+    '경칩': '언 땅이 풀리기 시작하는 때입니다. 기온이 크게 달라진 축에 드는 절기인데, 어느 절기가 가장 많이 달라졌는지는 지역마다 달라요.',
     '춘분': '낮과 밤의 길이는 예나 지금이나 같습니다 — 달라진 것은 기온뿐입니다.',
     '청명': '하늘이 맑아 논밭갈이를 시작하던 때입니다.',
-    '곡우': '봄비가 곡식을 적신다는 뜻. 못자리를 마련하던 무렵입니다.',
+    /* 바로 앞 조각이 뜻과 한자 풀이를 이미 두 번 말한다(596행 규약) — 되풀이를 뺀다 */
+    '곡우': '못자리를 마련하던 무렵입니다.',
     '입하': '달력은 여름이라 하는데, ‘여름’이 언제 시작하는지는 기준을 어떻게 잡느냐에 달렸습니다.',
     '소만': '햇볕이 차올라 보리가 익는 때입니다.',
     '망종': '까끄라기 곡식을 거두고 모를 심던, 한 해 가장 바쁜 무렵입니다.',
-    '하지': '낮이 가장 긴 날입니다. 그런데 <b>가장 더운 날은 40일쯤 뒤</b>예요.',
-    '소서': '‘작은 더위’. 본격적인 더위가 시작되고 장마가 이어집니다.',
+    '하지': '그런데 <b>가장 더운 날은 하지보다 40일쯤 뒤</b>예요.',
+    '소서': '본격적인 더위가 시작되고 장마가 이어지는 무렵입니다.',
     '대서': '이름은 ‘가장 더운 때’지만, 실제 최고기온일은 <b>7월 말~8월 초</b>입니다.',
     '입추': '달력은 가을이 시작됐다고 하는데, 한낮은 아직 한여름입니다.',
     '처서': '‘더위가 그친다’는 약속. 그 더위가 실제로 언제까지 가는지 봅니다.',
     '백로': '밤 기온이 내려가 풀잎에 흰 이슬이 맺히기 시작하는 무렵입니다.',
-    '추분': '낮이 짧아지기 시작하는데, 기온은 한참 뒤에야 따라 내려갑니다.',
+    /* 낮이 줄기 시작하는 절기는 하지다(같은 표의 하지 노트가 스스로 반박했다). 게다가 서울 기준
+       입추 28.4 → 추분 22.0으로 이미 7주째 내려가는 중이라 '한참 뒤에야'도 사실이 아니다.
+       두 분점은 태양 적위 0°로 같은데 기온은 16지점 전부에서 추분이 춘분보다 11~14°C 높다. */
+    '추분': '태양 높이는 춘분과 같은데, 기온은 봄보다 한참 높습니다 — 여름의 열이 아직 남아 있어요.',
     '한로': '이슬이 차가워지는 때. 단풍이 짙어지고 추수가 한창입니다.',
-    '상강': '‘서리가 내린다’는 약속. 실제 서리 조건일과 견줘 볼 수 있습니다.',
+    /* 서리 자료는 16지점 중 8곳(서울·부산·인천·대구·광주·대전·제주·강릉)에만 있다.
+       나머지 8개 도에서는 '견줘 볼 수 있습니다'가 화면에 없는 것을 가리켰다. */
+    '상강': '‘서리가 내린다’는 약속. 그 서리가 정말 이 무렵에 오는지가 이 절기의 시험대입니다.',
     '입동': '달력은 겨울이 시작됐다고 합니다. 김장철 기온이 예전 같은지 봅니다.',
     '소설': '첫눈이 내리기 시작한다는 무렵입니다.',
     '대설': '눈이 가장 많이 온다고 여겨진 때입니다.',
-    '동지': '밤이 가장 긴 날입니다. 그런데 <b>가장 추운 날은 그보다 뒤</b>예요.'
+    '동지': '그런데 <b>가장 추운 날은 동지가 지난 뒤</b>에 옵니다.'
   };
   var FUT = window.FUTURE_DATA || null;
 
@@ -728,6 +744,8 @@
   function eunNeun(w) { return hasJong(w) ? '은' : '는'; }
   function eulReul(w) { return hasJong(w) ? '을' : '를'; }
   function iGa(w) { return hasJong(w) ? '이' : '가'; }
+  /* 절기 이름 24개 중 절반이 받침이 없다 — '입동와'가 되지 않게 */
+  function waGwa(w) { return hasJong(w) ? '과' : '와'; }
   /* '벌레이라는'이 나오던 곳 — 받침이 없으면 '라는'이다 */
   function iRaNeun(w) { return hasJong(w) ? '이라는' : '라는'; }
   /* '으로/로'는 은/는·을/를과 규칙이 다르다 — 받침이 없을 때뿐 아니라 <b>ㄹ받침</b>에서도 '로'다.
@@ -2547,7 +2565,9 @@
       + '<div class="mode-grid">'
       + '<button class="mode-card mode-quick" id="modeQuick">'
       + '<span class="mode-icon" aria-hidden="true">⚡</span>'
-      + '<b class="mode-t">빠르게 절기 체험하기</b><span class="mode-time">3분 · 4번 누르면 끝</span>'
+      /* '4번 누르면 끝'인데 진행 점은 7개다 — 고르는 횟수는 4번(절기·시점·지역·예측)이고
+         그 뒤 공개·해설·더 보기가 이어진다. 약속을 정확히 적는다. */
+      + '<b class="mode-t">빠르게 절기 체험하기</b><span class="mode-time">3분 · 4번 고르면 답이 나와요</span>'
       + '<span class="mode-d"><b>24절기 중 하나</b>를 골라, 내가 먼저 <b>맞혀 보고</b> 실제 자료로 확인합니다.</span>'
       + '<span class="mode-who">처음이거나, 지금 궁금한 것만 빨리 알고 싶다면</span></button>'
       + '<button class="mode-card mode-study" id="modeStudy">'
@@ -2632,8 +2652,15 @@
     }
     if (!n) return null;
     var past = a / n, now = b / n;
+    /* 세 숫자를 각자 반올림하면 화면 안에서 '과거 + 차이 = 현재'가 384조합 중 96에서 깨진다
+       (서울·춘분: 4.5 + 5.1 ≠ 9.5). 이 앱은 학습자에게 검산을 시키는 화면이라 그러면 안 된다.
+       과거를 앵커로 두고 현재를 차이에서 <b>유도</b>해, 표시값끼리 항상 맞아떨어지게 한다.
+       표시 오차는 최대 0.1°C 안쪽이고, 곡선 위의 점 좌표는 원값(past/now)을 그대로 쓴다. */
+    var diff = Math.round((now - past) * 10) / 10;
+    var pastR = Math.round(past * 10) / 10;
+    var nowR = Math.round((pastR + diff) * 10) / 10;
     return { city: city, station: cityOf(city).station, term: t,
-             past: past, now: now, diff: Math.round((now - past) * 10) / 10 };
+             past: past, now: now, diff: diff, pastR: pastR, nowR: nowR };
   }
   function quickBandOf(diff) {
     for (var i = 0; i < QUICK_BANDS.length; i++) {
@@ -2740,7 +2767,9 @@
       + '<span class="mode-who">실제로 관측된 기록</span></button>'
       + (FUT ? '<button class="mode-card mode-study" data-qwhen="future"><span class="mode-icon" aria-hidden="true">🔮</span>'
           + '<b class="mode-t">2100년에는 어떻게 될까</b><span class="mode-time">기상청 SSP <b>전망</b></span>'
-          + '<span class="mode-d">온실가스를 얼마나 줄이느냐에 따라 <b>계절이 ' + t.name + eulReul(t.name) + ' 얼마나 앞지르는지</b> 봅니다.</span>'
+          /* '앞지른다'는 여름 쪽 이야기다 — 겨울은 204/204 조합에서 지금보다 <b>늦어진다</b>.
+             한 방향으로 단정하면 겨울 절기를 고른 학습자에게 화면이 거짓말을 한다. */
+          + '<span class="mode-d">온실가스를 얼마나 줄이느냐에 따라 <b>계절이 ' + t.name + waGwa(t.name) + ' 얼마나 어긋나는지</b> 봅니다 — 여름 시작은 <b>지금보다 빨라지고</b>, 겨울 시작은 <b>지금보다 늦어집니다.</b></span>'
           + '<span class="mode-who">관측이 아니라 모형이 계산한 값</span></button>' : '')
       + '</div>'
       + '<p class="quick-note"><b>둘을 섞어 읽지 마세요.</b> 왼쪽은 <b>실제로 관측된 기록</b>이고, 오른쪽은 '
@@ -2842,7 +2871,7 @@
       + '<text x="' + X(-half).toFixed(1) + '" y="' + (H - 8) + '" font-size="' + FS.ax + '" fill="var(--muted2)">30일 전</text>'
       + '<text x="' + X(half).toFixed(1) + '" y="' + (H - 8) + '" text-anchor="end" font-size="' + FS.ax + '" fill="var(--muted2)">30일 후</text>';
     return '<svg viewBox="0 0 ' + W + ' ' + H + '" class="quick-mini" role="img" aria-label="'
-      + t.name + eunNeun(t.name) + ' ' + t.date + '로 고정된 천문 날짜이고, 그 무렵 기온은 과거 ' + n.past.toFixed(1) + '도에서 현재 ' + n.now.toFixed(1) + '도로 달라졌습니다">' + g + '</svg>';
+      + t.name + eunNeun(t.name) + ' ' + t.date + '로 고정된 천문 날짜이고, 그 무렵 기온은 과거 ' + n.pastR.toFixed(1) + '도에서 현재 ' + n.nowR.toFixed(1) + '도로 달라졌습니다">' + g + '</svg>';
   }
 
   /* 절기의 성격에 맞는 덤 카드 하나 — 24절기가 다 같은 화면이 되지 않게 한다 */
@@ -2852,10 +2881,15 @@
     if (['소서', '대서', '입추', '처서'].indexOf(nm) !== -1) {
       var a = lastInfo('past', 25, n.city, 'temp'), b = lastInfo('present', 25, n.city, 'temp');
       if (a && b) {
-        return '<div class="qb-card"><p class="qb-k">덤 — ‘덥다’를 25°C로 보면</p>'
+        /* 무엇의 25°C인지 밝힌다 — 이 앱은 일평균으로 세는데 기상청 '여름일'은 일 최고기온
+           25°C 이상이라, 같은 25라는 숫자가 전혀 다른 날짜를 만든다. */
+        return '<div class="qb-card"><p class="qb-k">덤 — <b>하루 평균기온</b> 25°C를 ‘덥다’로 보면</p>'
           + '<p class="qb-v">더위가 그치는 날 <span class="v-past">' + doyStr(a[0]) + '</span> <i>→</i> <span class="v-now">' + doyStr(b[0]) + '</span>'
           + ' <b class="hot">(' + (b[0] - a[0] >= 0 ? '+' : '') + (b[0] - a[0]) + '일)</b></p>'
-          + '<p class="qb-s">‘덥다’를 몇 도로 보느냐에 따라 이 날짜는 달라집니다 — <b>기준을 밝혀야 세어집니다.</b></p></div>';
+          /* '밝혀야'는 이 앱에서 '결론에 기준을 함께 밝힌다'(CERL)에 쓰는 말이다.
+             여기서 하는 일은 기준을 <b>정하는</b> 것이라 학습목표 ③과 같은 말로 통일한다. */
+          + '<p class="qb-s">‘덥다’를 몇 도로 보느냐에 따라 이 날짜는 달라집니다 — <b>기준을 정해야 세어집니다.</b> '
+          + '기상청 ‘여름일’은 <b>일 최고기온</b> 25°C 이상이라, 같은 25°C라도 날짜가 크게 달라져요.</p></div>';
       }
     }
     /* 서리 조건일 — 상강의 이름이 약속하는 바로 그것 */
@@ -2867,8 +2901,20 @@
         return '<div class="qb-card"><p class="qb-k">덤 — 서리가 내릴 조건이 갖춰진 날</p>'
           + '<p class="qb-v"><span class="v-past">' + doyStr(f.past.first) + '</span>(' + side(f.past.first) + ') <i>→</i> '
           + '<span class="v-now">' + doyStr(f.present.first) + '</span>(' + side(f.present.first) + ')</p>'
-          + '<p class="qb-s">지면 위 5cm 온도로 센 값이에요. 기상청 공식 ‘첫서리일’(육안 관측)은 아닙니다.</p></div>';
+          /* 기간과 표본 수를 밝힌다 — 위 기온 숫자(1969–1973 vs 2021–2025)와 기간이 다른데
+             그 말이 없으면 부산 11/16 → 11/15 같은 하루 차이가 변화처럼 읽힌다.
+             강릉은 3년뿐이라 값을 박지 않고 자료에서 그대로 읽는다. */
+          + '<p class="qb-s">지면 위 5cm 온도로 센 값이에요. 기상청 공식 ‘첫서리일’(육안 관측)은 아닙니다. '
+          + '비교 기간도 위 기온 숫자와 달라 <b>' + f.periods.past + '</b>(' + f.past.n + '년) vs <b>' + f.periods.present + '</b>(' + f.present.n + '년)이고, '
+          + '모은 해가 적어 하루이틀 차이는 해마다 흔들립니다.</p></div>';
       }
+      /* 자료가 없는 8개 도에서 이 카드만 조용히 사라지면 '상강엔 볼 게 없다'로 읽힌다.
+         왜 없는지, 어디서 볼 수 있는지를 화면 안에서 말한다. */
+      return '<div class="qb-card"><p class="qb-k">덤 — 서리는 이 지점에서 셀 수 없어요</p>'
+        + '<p class="qb-v">' + n.city + ' <small>(' + n.station + ' 관측소)</small></p>'
+        + '<p class="qb-s">서리 조건은 <b>최저초상온도</b>(지면 위 약 5cm)로 세는데, 이 앱이 담은 자료에는 '
+        + CITIES.filter(function (c) { return frostOf(c); }).join('·') + ' <b>8지점</b>만 있습니다. '
+        + '아래 <b>다른 지역으로</b>를 눌러 그중 한 곳을 골라 보면 볼 수 있어요.</p></div>';
     }
     /* 계절 지연 — 하지·동지의 이름이 곧 질문이 된다 */
     if (nm === '하지' || nm === '동지') {
@@ -2895,17 +2941,20 @@
     state.quickDone = true; save();
     setStage('<section class="card quick-card quick-reveal">'
       + quickHead(4, '자료가 이렇게 답했어요.')
-      + '<p class="quick-cond"><b>' + n.city + '</b>(' + n.station + ' 관측소) · <b>' + n.term.name + '</b>(' + n.term.date + ') 무렵 <small>(앞뒤 7일 평균)</small></p>'
-      + '<p class="quick-label">그 무렵의 기온</p>'
+      /* 바탕 곡선이 이미 15일 이동평균이라, ±7일을 다시 평균하면 실제로는 앞뒤 2주가량이 섞인다 */
+      + '<p class="quick-cond"><b>' + n.city + '</b>(' + n.station + ' 관측소) · <b>' + n.term.name + '</b>(' + n.term.date + ') 무렵 <small>(앞뒤 7일 평균 · 곡선 자체도 15일 이동평균)</small></p>'
+      + '<p class="quick-label">그 무렵의 하루 평균기온</p>'
       /* 세 숫자를 같은 자릿수로 — 화면 안에서 '과거 + 차이 = 현재'가 항상 맞아떨어져야 한다 */
-      + '<div class="bignum"><div class="bn-side"><small>과거 ' + PERIOD_PAST + '</small><b class="bn-past">' + n.past.toFixed(1) + '°C</b></div>'
+      + '<div class="bignum"><div class="bn-side"><small>과거 ' + PERIOD_PAST + '</small><b class="bn-past">' + n.pastR.toFixed(1) + '°C</b></div>'
       + '<div class="bn-arrow" aria-hidden="true">→</div>'
-      + '<div class="bn-side"><small>현재 ' + PERIOD_NOW + '</small><b class="bn-now">' + n.now.toFixed(1) + '°C</b></div>'
+      + '<div class="bn-side"><small>현재 ' + PERIOD_NOW + '</small><b class="bn-now">' + n.nowR.toFixed(1) + '°C</b></div>'
       + '<div class="bn-delta"><small>차이</small><b>' + (n.diff >= 0 ? '+' : '−') + Math.abs(n.diff).toFixed(1) + '°C</b></div></div>'
       + quickMiniSVG(n)
       + '<div class="quick-verdict' + (ok ? ' is-ok' : '') + '"><p class="eyebrow">' + (ok ? '🎯 맞혔어요' : '🔓 예측과 자료가 갈렸어요') + '</p>'
       + '<dl><dt>내 예측</dt><dd>' + escapeHTML(picked ? picked.t + ' (' + picked.s + ')' : '—') + '</dd>'
-      + '<dt>실제 자료</dt><dd><b>' + escapeHTML(band.t) + ' (' + (n.diff >= 0 ? '+' : '−') + Math.abs(n.diff).toFixed(1) + '°C)</b></dd></dl></div>'
+      /* '내 예측'과 같은 형식으로 적는다 — 정확한 차이값은 바로 위 큰 숫자에 이미 있어,
+         화면 안에서 '+3.0°C ∈ 2.1~3.0°C'가 눈으로 검산된다. */
+      + '<dt>실제 자료</dt><dd><b>' + escapeHTML(band.t + ' (' + band.s + ')') + '</b></dd></dl></div>'
       + quickBonusCard(n)
       + '<div class="step-actions"><button class="ghost-btn" id="quickRedo">다른 지역으로</button>'
       + '<button class="primary-btn" id="quickNext">그래서 무슨 뜻일까? →</button></div>'
@@ -2921,7 +2970,17 @@
     var n = quickStat();
     if (!n) { setQuickStep(2); return; }
     var t = n.term, note = QUICK_TERM_NOTE[t.name] || t.desc;
-    var dir = n.diff > 0 ? '올랐' : (n.diff < 0 ? '내렸' : '그대로');
+    /* '올랐'·'내렸'는 어간이라 '-어요'가 붙지만 '그대로'는 부사다 — 차이가 정확히 0인 조합
+       (인천·대한 raw −0.040, 강원·동지 −0.007)에서 '그대로어요'가 찍혔다. 어간을 갈아 끼우는 대신
+       완성된 서술어를 통째로 분기시킨다. 색도 함께 나눈다 — 384조합 중 11건이 내려갔는데
+       그 숫자에까지 hot(상승) 색을 칠하면 화면이 없는 상승을 말한다. */
+    var d1 = Math.abs(n.diff).toFixed(1);
+    var tailFlat = ' — 이 절기 무렵은 <b>거의 달라지지 않았습니다.</b> 모든 절기가 같은 크기로 변한 것은 아니에요.';
+    var body = n.diff > 0
+      ? '기온이 <b class="hot">' + d1 + '°C</b> 올랐어요' + (n.diff <= 0.5 ? tailFlat : '.')
+      : n.diff < 0
+        ? '기온이 <b class="cool">' + d1 + '°C</b> 내렸어요 — 모든 절기가 같은 방향·같은 크기로 달라진 것은 아니에요.'
+        : '기온은 옛날과 지금이 <b>거의 같습니다</b> <small>(차이 0.0°C)</small>.' + tailFlat;
     setStage('<section class="card quick-card">'
       + quickHead(5, '절기가 틀린 게 아니에요.')
       + '<div class="quick-why">'
@@ -2931,12 +2990,12 @@
       + '<p class="qw-line"><span class="qw-n">2</span><b>날짜는 그대로입니다.</b> ' + t.name + eunNeun(t.name) + ' <b>태양의 위치(황경 '
       + termLongitude(quickTi()) + '°)</b>로 정한 천문 날짜예요. 더워지든 추워지든 해마다 거의 움직이지 않습니다.</p>'
       + '<p class="qw-line"><span class="qw-n">3</span><b>달라진 것은 그 무렵의 날씨입니다.</b> ' + n.city + '에서 '
-      + t.name + ' 무렵 기온이 <b class="hot">' + Math.abs(n.diff).toFixed(1) + '°C</b> ' + dir + '어요'
-      + (Math.abs(n.diff) < 0.5 ? ' — 이 절기 무렵은 <b>거의 달라지지 않았습니다.</b> 모든 절기가 같은 크기로 변한 것은 아니에요.' : '.') + '</p>'
+      + t.name + ' 무렵 ' + body + '</p>'
       + '</div>'
       + '<p class="quick-limit"><span aria-hidden="true">◈</span> <b>여기까지만 말할 수 있어요.</b> 이 숫자는 '
       + n.city + ' <b>관측소 한 곳</b>의 <b>5년 평균</b>입니다 — 기후를 말하는 국제 표준(보통 30년)의 <b>기후평년이 아니라 관측 신호</b>예요. '
-      + '그리고 <b>절기 무렵 앞뒤 7일</b>을 평균한 값이라, 어느 날 하루의 날씨와는 다릅니다.</p>'
+      + '그리고 <b>절기 무렵 앞뒤 7일</b>을 평균한 값인 데다 바탕 자료도 이미 15일 이동평균으로 다듬어져 있어, '
+      + '<b>사실상 앞뒤 2주가량을 함께 고른 값</b>입니다 — 어느 날 하루의 날씨와는 다릅니다.</p>'
       + '<div class="step-actions"><button class="ghost-btn" id="quickBackRev">← 숫자 다시 보기</button>'
       + '<button class="primary-btn" id="quickNext2">더 해 보기 →</button></div>'
       + quickFoot(null)
@@ -2959,7 +3018,7 @@
             var save0 = state.quickCity; state.quickCity = c;
             var m = quickStat(); state.quickCity = save0;
             if (!m) return '';
-            return '<li><b>' + c + '</b>(' + cityOf(c).station + ') ' + m.past.toFixed(1) + '°C → <b class="hot">' + m.now.toFixed(1) + '°C</b>'
+            return '<li><b>' + c + '</b>(' + cityOf(c).station + ') ' + m.pastR.toFixed(1) + '°C → <b class="hot">' + m.nowR.toFixed(1) + '°C</b>'
               + ' (' + (m.diff >= 0 ? '+' : '−') + Math.abs(m.diff).toFixed(1) + '°C)</li>';
           }).join('') + '</ul>'
           + '<p class="bonus-why"><b>지역마다 다릅니다.</b> 한 곳의 결과로 “전국이 이렇다”고 넓혀 말할 수 없어요.</p>';
@@ -2984,15 +3043,18 @@
     setStage('<section class="card quick-card">'
       + quickHead(6, '한 가지씩 더 눌러 볼까요?')
       + quickCrumb(3)
-      + '<p class="quick-sub">각각 한 번만 누르면 됩니다. 전부 실제 관측 자료예요.</p>'
+      /* '전부 실제 관측 자료'라고 해 놓고 아래에 SSP 모형 전망 버튼이 있었다 —
+         이 앱이 학습자에게 지키라고 하는 구분을 스스로 어기는 자리였다. */
+      + '<p class="quick-sub"><b>아래 두 가지</b>는 한 번만 누르면 이 화면에서 바로 펼쳐집니다 — 둘 다 방금 본 것과 같은 <b>기상청 관측 자료</b>예요.</p>'
       + '<div class="bonus-box"><button class="bonus-btn' + (b.term ? ' is-on' : '') + '" data-bonus="term">'
       + '<b>어느 절기가 가장 많이 달라졌을까?</b><small>' + n.city + '에서 24절기 전부 세어 보기</small></button>'
       + '<div class="bonus-out">' + bonusResult('term') + '</div></div>'
       + '<div class="bonus-box"><button class="bonus-btn' + (b.region ? ' is-on' : '') + '" data-bonus="region">'
       + '<b>다른 지역도 똑같을까?</b><small>같은 절기로 다른 관측소 보기</small></button>'
       + '<div class="bonus-out">' + bonusResult('region') + '</div></div>'
+      + '<p class="quick-sub quick-sub-div">여기서부터는 <b>다른 화면으로 이동합니다.</b></p>'
       + (FUT ? '<div class="bonus-box"><button class="bonus-btn" id="quickFuture">'
-          + '<b>2100년에는 어떻게 될까?</b><small>기상청 SSP 기후변화 시나리오로 보기 →</small></button></div>' : '')
+          + '<b>2100년에는 어떻게 될까?</b><small>기상청 SSP 시나리오 · <b>관측이 아니라 모형 전망</b> →</small></button></div>' : '')
       + '<div class="bonus-box"><button class="bonus-btn" id="quickMyth">'
       + '<b>“대구가 제일 덥다”는 정말일까?</b><small>절기 밖의 기후 상식도 자료로 확인하기 →</small></button></div>'
       + '<div class="quick-bridge"><p class="qb-h">더 깊이 들어가 볼까요?</p>'
@@ -3008,7 +3070,13 @@
         state.quickBonus[btn.dataset.bonus] = 1; save(); renderQuick();
       });
     });
-    if ($('quickFuture')) $('quickFuture').addEventListener('click', function () { state.ti = quickTi(); openFuture('quick'); });
+    if ($('quickFuture')) $('quickFuture').addEventListener('click', function () {
+      state.ti = quickTi();
+      /* 체험에서 고른 지역을 이어 준다 — 여기서 서울로 돌아가면 방금 본 화면과 딴 얘기가 된다.
+         quickCity()는 서울 폴백이 있어 '고른 적 없음'과 구별되지 않으므로 state를 직접 본다. */
+      if (state.quickCity && FUT.stationToRegion[state.quickCity]) state.futRegion = FUT.stationToRegion[state.quickCity];
+      openFuture('quick');
+    });
     if ($('quickMyth')) $('quickMyth').addEventListener('click', function () { openMyths('quick'); });
     $('quickGoStudy').addEventListener('click', renderIntroMethod);
     $('quickAgain').addEventListener('click', startQuick);
@@ -3271,16 +3339,29 @@
         var already = !!(wiNow && wiNow.days === 0);
         out.push({ k: '겨울', v: (wiNow ? wiNow.days + '일 → ' : '') + '0일',
           s: already
+            /* 입춘은 이 앱 자신이 season:'spring'으로 분류하고 1단계 '봄' 묶음에 넣는다 —
+               겨울 절기로 부르면 앱이 스스로를 반박한다. 겨울 묶음의 앞 셋으로 바꾼다.
+               (입동은 두 화면폭 모두에서 띠 눈금이라 화면 밖을 가리키지 않는다.) */
             ? '<b>이 지역은 지금도 겨울이 나타나지 않습니다</b>(기상청 계절 정의 기준). 이 시나리오에서도 마찬가지예요 — '
-              + '소한·대한·입춘이라는 절기는 달력에 그대로 있지만, 그 이름이 가리키는 계절은 여기에 없습니다.'
-            : '<b>겨울이 사라집니다.</b> 소한·대한·입춘은 달력에 그대로 남지만, 그 이름이 가리키는 계절 자체가 없어지는 거예요.' });
+              + '입동·소한·대한이라는 절기는 달력에 그대로 있지만, 그 이름이 가리키는 계절은 여기에 없습니다.'
+            : '<b>겨울이 사라집니다.</b> 입동·소한·대한은 달력에 그대로 남지만, 그 이름이 가리키는 계절 자체가 없어지는 거예요.' });
       } else if (wi.doy && ipdong) {
+        /* 겨울 시작이 해를 넘기면 doy가 작은 수로 돌아온다(대전 SSP5-8.5 후반기 = 1/17, doy 17).
+           그대로 빼면 −294가 되어 '입동 무렵'으로 떨어지는데, 바로 윗줄 값은 '11/28 → 1/17'을 찍는다
+           — 71일 밀린 것을 안 밀렸다고 말하는 셈이다. 이 자료의 겨울 시작 doy는 17 이하 아니면
+           319 이상이라 −180으로 두 무리가 깨끗이 갈린다. 해당 5건: 대전·경북 SSP5-8.5 후반기,
+           울산 SSP5-8.5 중반기(각 71일), 부산 58일·울산 57일 SSP2-4.5 중반기. */
         var late = wi.doy - ipdong;
+        var wrapped = late < -180;
+        if (wrapped) late += 365;
         out.push({
           k: '겨울의 시작 vs 입동(11/7, ‘겨울의 시작’)',
           v: (wiNow && wiNow.start ? wiNow.start + ' → ' : '') + wi.start + ' · ' + (wiNow ? wiNow.days + '일 → ' : '') + wi.days + '일',
-          s: late > 0 ? '겨울이 <b>입동보다 ' + late + '일 늦게</b> 시작합니다' + (late > 45 ? ' — 대설(12/7)·동지(12/22)가 다 지난 뒤예요.' : '.')
-            : '겨울이 입동 무렵에 시작합니다.'
+          s: wrapped
+            ? '겨울이 <b>해를 넘겨 ' + wi.start + '에야</b> 시작합니다 — 입동보다 <b>' + late + '일</b> 늦어요. 대설(12/7)·동지(12/22)가 다 지난 뒤입니다.'
+            : late > 0 ? '겨울이 <b>입동보다 ' + late + '일 늦게</b> 시작합니다' + (late > 45 ? ' — 대설(12/7)·동지(12/22)가 다 지난 뒤예요.' : '.')
+            : late < 0 ? '겨울이 <b>입동보다 ' + (-late) + '일 먼저</b> 시작합니다.'
+            : '겨울이 입동과 같은 날 시작합니다.'
         });
       }
     }
@@ -3313,7 +3394,8 @@
       + '<p class="eyebrow"><span aria-hidden="true">🔮</span> 미래 기후 시나리오 · 기상청 공식 전망</p>'
       + '<h1 class="stage-h">2100년에도 절기는 맞을까?</h1>'
       + '<p class="sub">절기 날짜는 <b>바뀌지 않습니다.</b> 바뀌는 것은 그 무렵의 계절이에요. '
-      + '온실가스를 얼마나 줄이느냐에 따라 <b>계절이 절기를 얼마나 앞지르는지</b> 직접 바꿔 보세요.</p>'
+      + '온실가스를 얼마나 줄이느냐에 따라 <b>계절이 절기와 얼마나 어긋나는지</b> 직접 바꿔 보세요 — '
+      + '여름 시작은 지금보다 빨라지고, 겨울 시작은 지금보다 늦어집니다.</p>'
       + '<div class="picker">'
       + '<div class="picker-block"><span class="picker-label">지역 <small>(광역시·도 평균 — 관측소 한 곳이 아닙니다)</small></span>'
       + '<div class="chips" id="futRegions" role="tablist" aria-label="지역">' + FUT.regions.map(function (r) {
