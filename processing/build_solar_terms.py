@@ -93,6 +93,13 @@ def md_to_doy(m, d):
     return date(2023, m, d).timetuple().tm_yday
 
 
+def doy_str(doy):
+    """빌드 로그용 — 평년 doy(1~365)를 '10/23' 형태로."""
+    dt = date(2023, 1, 1).toordinal() + int(doy) - 1
+    dt = date.fromordinal(dt)
+    return f"{dt.month}/{dt.day}"
+
+
 def csmooth(a, half=7):
     """원형 15일 이동평균 — 보기용 평년 곡선을 매끄럽게 한다."""
     n = len(a); out = np.empty(n)
@@ -305,12 +312,33 @@ def lag_stability(df, years):
 DAILY_SRC = BASE / "data_collectors" / "output"
 EXTREME_PAST = (1969, 1973)
 EXTREME_NOW = (2022, 2025)
+# 라벨 주의(2026-08 정정): 33℃·35℃는 **특보 기준온도가 아니다**.
+# 폭염특보는 2023-05-15부터 '일 최고 체감온도' 기준이고(2020-05 시범운영 → 2023 정식),
+# 2026-06-01 개편으로 폭염중대경보·열대야주의보까지 신설됐다.
+# 여기서 세는 33℃·35℃·25℃는 기상청 **기후통계(극한기후지수)** 정의다 — 둘은 다른 약속이다.
+#   · 폭염일수  = 일 최고기온 33℃ 이상          (기상자료개방포털 기후통계분석)
+#   · 여름일수  = 일 최고기온 25℃ 이상          (기상청 극한기후지수 / ETCCDI SU)
+#   · 열대야일수 = 일 최저기온 25℃ 이상          (기상청 극한기후지수)
+#     ※ 기상자료개방포털의 열대야일수는 '밤최저기온(당일 18:01~익일 09:00)' 기준이라
+#        일 최저기온으로 센 이 값과 미세하게 다를 수 있다. 화면이 그 사실을 함께 밝힌다.
 EXTREME_DEFS = [
-    ("heatwave", "폭염일", "maxTa", 33.0, "ge", "일 최고기온 33℃ 이상", "기상청 폭염주의보 기준온도"),
-    ("hot35", "35℃ 이상 폭염일", "maxTa", 35.0, "ge", "일 최고기온 35℃ 이상", "기상청 폭염경보 기준온도"),
-    ("tropicalNight", "열대야", "minTa", 25.0, "ge", "일 최저기온 25℃ 이상", "기상청 열대야 정의(밤 최저 25℃↑)"),
+    ("summerDay", "여름일", "maxTa", 25.0, "ge", "일 최고기온 25℃ 이상", "기상청 극한기후지수 ‘여름일수’ / ETCCDI SU"),
+    ("heatwave", "폭염일", "maxTa", 33.0, "ge", "일 최고기온 33℃ 이상", "기상청 기후통계 ‘폭염일수’ 정의"),
+    ("hot35", "35℃ 이상 폭염일", "maxTa", 35.0, "ge", "일 최고기온 35℃ 이상", "기상청 기후통계 지표"),
+    ("tropicalNight", "열대야", "minTa", 25.0, "ge", "일 최저기온 25℃ 이상", "기상청 극한기후지수 ‘열대야일수’ 정의"),
     ("iceDay", "결빙일", "maxTa", 0.0, "lt", "일 최고기온 0℃ 미만", "하루 종일 영하"),
 ]
+
+# ── 서리 조건일 (상강 10/23의 실측 대응) ──────────────────────────────
+# minTg = 최저초상온도. 지면 위 약 5cm 잔디 끝의 최저기온으로, 백엽상 1.5m 기온과
+# 다른 물리를 담는다(맑고 바람 없는 밤의 복사냉각). 그래서 기상청 기온이 영상 3℃여도
+# 초상온도는 영하일 수 있고, 실제로 서리는 그때 내린다.
+#
+# 반드시 지킬 것: 기상청 공식 '첫서리일'은 관측자가 눈으로 확인하는 계절관측 종목이다.
+# minTg ≤ 0℃ 를 '첫서리일'이라고 부르면 공식 정의를 잘못 옮기는 것이다.
+# 이 앱은 **'서리가 내릴 조건이 갖춰진 날'** 로만 부르고 화면에도 그렇게 적는다.
+FROST_AUTUMN_FROM = md_to_doy(8, 1)     # 가을 첫 조건일을 찾기 시작하는 날
+FROST_SPRING_TO = md_to_doy(6, 30)      # 봄 마지막 조건일을 찾는 마지막 날
 
 
 def extreme_index(name):
@@ -355,6 +383,65 @@ def extreme_index(name):
             row["diff"] = round(row["present"] - row["past"], 1)
         out["idx"][key] = row
     return out
+
+
+def frost_window(name):
+    """서리 조건일 — 가을 첫 조건일 · 봄 마지막 조건일 · 그 사이 무상기간.
+
+    minTg(최저초상온도) ≤ 0℃ 인 날을 연도별로 찾아 평균한다. 곡선에서 세지 않고
+    실제 관측일에서 세는 것은 exceed_stats와 같은 원칙이다.
+    자료가 없거나 표본이 3년 미만이면 None을 돌려 화면이 조용히 퇴화한다.
+    """
+    frames = []
+    for span in (f"{EXTREME_PAST[0]}_{EXTREME_PAST[1]}", "2022_2026"):
+        f = DAILY_SRC / f"kma_asos_daily_{name}_{span}.csv"
+        if not f.exists():
+            return None
+        frames.append(pd.read_csv(f, usecols=lambda c: c in ("date", "minTg")))
+    df = pd.concat(frames, ignore_index=True)
+    if "minTg" not in df.columns:
+        return None
+    df["date"] = pd.to_datetime(df["date"])
+    df["year"] = df["date"].dt.year
+    df["doy"] = df["date"].dt.dayofyear
+    df["tg"] = pd.to_numeric(df["minTg"], errors="coerce")
+
+    def stats(y0, y1):
+        firsts, lasts, spans = [], [], []
+        for y in range(y0, y1 + 1):
+            s = df[(df["year"] == y) & df["tg"].notna()]
+            if len(s) < MIN_DAYS:
+                continue                      # 결측이 많은 해는 '조건일 없음'과 구분되지 않는다
+            fall = s[(s["doy"] >= FROST_AUTUMN_FROM) & (s["tg"] <= 0)]
+            spring = s[(s["doy"] <= FROST_SPRING_TO) & (s["tg"] <= 0)]
+            f = int(fall["doy"].min()) if len(fall) else None
+            l = int(spring["doy"].max()) if len(spring) else None
+            if f is not None:
+                firsts.append(f)
+            if l is not None:
+                lasts.append(l)
+            if f is not None and l is not None:
+                spans.append(f - l)           # 무상기간 = 봄 마지막 조건일 다음날부터 가을 첫 조건일까지
+        if not firsts or not lasts:
+            return None
+        return {"first": int(round(float(np.mean(firsts)))),
+                "last": int(round(float(np.mean(lasts)))),
+                "free": int(round(float(np.mean(spans)))) if spans else None,
+                "n": len(firsts)}
+
+    p, c = stats(*EXTREME_PAST), stats(*EXTREME_NOW)
+    if not p or not c:
+        return None
+    return {
+        "periods": {"past": f"{EXTREME_PAST[0]}–{EXTREME_PAST[1]}", "present": f"{EXTREME_NOW[0]}–{EXTREME_NOW[1]}"},
+        "past": p, "present": c,
+        "shift": c["first"] - p["first"],
+        "freeShift": (c["free"] - p["free"]) if (p["free"] is not None and c["free"] is not None) else None,
+        "col": "minTg",
+        "def": "최저초상온도(지면 위 약 5cm) 0℃ 이하",
+        "note": "기상청 공식 ‘첫서리일’은 관측자가 눈으로 확인하는 계절관측 종목입니다. "
+                "이 값은 그것이 아니라 <b>서리가 내릴 조건이 갖춰진 날</b>이에요 — 이름이 다르면 숫자도 다릅니다.",
+    }
 
 
 def sliding_windows(df, thresholds, span=5, start=1996):
@@ -453,6 +540,9 @@ def main():
         ex = extreme_index(name)                            # R4-P1-1 폭염·열대야
         if ex:
             e["extremes"] = ex
+        fr = frost_window(name)                             # 상강(10/23)의 실측 대응
+        if fr:
+            e["frost"] = fr
         e["windows"] = sliding_windows(df, range(20, 35))
         cities[name] = e
         d25 = e["temp"]["exceedDays"]
@@ -539,6 +629,17 @@ def main():
                   f"robust={g['robust']}")
     nex = sum(1 for c in cities.values() if c.get("extremes"))
     print(f"  폭염·열대야 지수: {nex}지점 ({EXTREME_PAST[0]}–{EXTREME_PAST[1]} vs {EXTREME_NOW[0]}–{EXTREME_NOW[1]})")
+    nfr = sum(1 for c in cities.values() if c.get("frost"))
+    sang = md_to_doy(10, 23)
+    for n, c in cities.items():
+        fr = c.get("frost")
+        if not fr:
+            continue
+        side = lambda d: "상강 앞" if d < sang else ("상강" if d == sang else "상강 뒤")
+        print(f"    서리 조건일 {n}: {doy_str(fr['past']['first'])}({side(fr['past']['first'])}) → "
+              f"{doy_str(fr['present']['first'])}({side(fr['present']['first'])}) · "
+              f"무상기간 {fr['past']['free']}일 → {fr['present']['free']}일")
+    print(f"  서리 조건일: {nfr}지점 (최저초상온도 minTg ≤ 0℃)")
     print(f"\n  ✓ {OUT_JSON.name} ({OUT_JSON.stat().st_size // 1024} KB) · "
           f"{OUT_JS.name} ({OUT_JS.stat().st_size // 1024} KB) · nationwide {nat['years'][0]}~{nat['years'][-1]}")
 

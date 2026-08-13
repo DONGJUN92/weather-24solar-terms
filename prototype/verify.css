@@ -1146,3 +1146,206 @@ small { font-size: max(11.5px, .86em); }
   font-size: 13px; line-height: 1.5; color: var(--muted); font-variant-numeric: tabular-nums; }
 .cerl-opt { margin-left: 6px; padding: 1px 7px; border-radius: 999px;
   background: rgba(var(--shade-rgb), .55); font-size: 12.5px; font-style: normal; font-weight: 700; color: var(--muted); }
+
+/* ══════════════════════════════════════════════════════════════
+   R7 — 멘토링 반영 (2026-08-13)
+   ④ 랜딩에서 모드 고르기 · 체험 모드   ⑥ 조작 가이드 팝업
+   ③ 미래 기후 시나리오   ② 서리 조건일   ① 용어 표 계열 구분   ⑤ 표 한 줄 요약
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── ④ 모드 선택 ─────────────────────────────────────────────
+   두 카드는 '단계'가 아니라 대등한 형제다. 크기·무게를 같게 두고,
+   고르는 근거(시간·대상)를 카드 안에서 읽게 한다. */
+.mode-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-3); margin: var(--sp-4) 0 var(--sp-3); text-align: left; }
+.mode-card { display: flex; flex-direction: column; gap: 6px; padding: 18px 18px 16px;
+  border: 1px solid var(--line); border-radius: 18px; background: var(--panel2); color: var(--ink);
+  transition: transform .14s ease, border-color .14s ease, box-shadow .14s ease; }
+.mode-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+.mode-quick:hover { border-color: var(--sun); }
+.mode-study:hover { border-color: var(--sea); }
+.mode-card:focus-visible { outline: 3px solid var(--sun); outline-offset: 3px; }
+.mode-icon { font-size: 26px; line-height: 1; }
+.mode-t { font-size: 19px; font-weight: 800; color: var(--ink-max); letter-spacing: -.01em; }
+.mode-time { font-size: 12.5px; font-weight: 700; }
+.mode-quick .mode-time { color: var(--on-sun); }
+.mode-study .mode-time { color: var(--on-sea); }
+.mode-d { font-size: 13.5px; line-height: 1.7; color: var(--ink2); }
+.mode-d b { font-weight: 700; color: var(--ink-max); }
+.mode-who { margin-top: auto; padding-top: 8px; font-size: 12px; line-height: 1.6; color: var(--muted2); }
+.intro-actions-sub { margin-top: var(--sp-3); }
+.intro-actions-sub .ghost-btn { font-size: 13px; }
+@media (max-width: 620px) { .mode-grid { grid-template-columns: 1fr; } }
+
+/* ── ④ 체험 모드 ─────────────────────────────────────────────
+   화면마다 큰 글자 하나 + 누를 것들. 방법론·각주는 여기에 두지 않는다. */
+.quick-card { text-align: left; }
+.quick-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: var(--sp-3); flex-wrap: wrap; }
+.quick-badge { padding: 5px 12px; border-radius: 999px; background: rgba(var(--sun-rgb),.14);
+  border: 1px solid rgba(var(--sun-rgb),.34); color: var(--on-sun); font-size: 12px; font-weight: 700; }
+.quick-dots { display: flex; gap: 6px; }
+.quick-dots i { width: 22px; height: 5px; border-radius: 999px; background: rgba(var(--line-rgb),.20); }
+.quick-dots i.on { background: var(--sun); }
+.quick-h { margin: 0 0 var(--sp-2); font-size: clamp(22px, 3.6vw, 30px); line-height: 1.34; letter-spacing: -.015em;
+  color: var(--ink-max); font-weight: 800; text-wrap: balance; }
+.quick-sub { margin: 0 0 var(--sp-4); font-size: 14.5px; line-height: 1.75; color: var(--muted); }
+.quick-sub b { color: var(--ink2); font-weight: 700; }
+.quick-q { margin: var(--sp-2) 0 var(--sp-4); font-size: 16px; line-height: 1.8; color: var(--ink); }
+.quick-q b { color: var(--ink-max); font-weight: 800; }
+.quick-note, .quick-cond { margin: var(--sp-3) 0 0; font-size: 13px; line-height: 1.7; color: var(--muted); }
+.quick-cond { margin: 0 0 var(--sp-3); }
+.quick-cond b { color: var(--ink2); }
+
+.quick-cities { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px; }
+.quick-chip { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 13px 8px; min-height: 62px;
+  border: 1px solid var(--line); border-radius: 14px; background: var(--panel2); color: var(--ink); }
+.quick-chip b { font-size: 15.5px; font-weight: 700; }
+.quick-chip small { font-size: 11px; color: var(--muted3); }
+.quick-chip:hover { border-color: var(--sun); background: rgba(var(--sun-rgb),.10); }
+
+.quick-choices { display: grid; gap: 10px; }
+.quick-choice { display: flex; align-items: baseline; gap: 10px; padding: 16px 18px; min-height: 58px;
+  border: 1px solid var(--line); border-radius: 15px; background: var(--panel2); color: var(--ink); text-align: left; }
+.quick-choice b { font-size: 16px; font-weight: 700; }
+.quick-choice small { font-size: 12.5px; color: var(--muted2); }
+.quick-choice:hover { border-color: var(--sun); background: rgba(var(--sun-rgb),.10); }
+
+.quick-thrs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.quick-thr { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 20px 10px; min-height: 92px;
+  border: 1px solid var(--line); border-radius: 16px; background: var(--panel2); color: var(--ink); }
+.quick-thr b { font-size: 26px; font-weight: 800; color: var(--on-thr); letter-spacing: -.02em; }
+.quick-thr small { font-size: 12px; line-height: 1.5; color: var(--muted2); text-align: center; }
+.quick-thr:hover { border-color: var(--thr); background: rgba(var(--thr-rgb),.14); }
+@media (max-width: 480px) {
+  .quick-thrs { grid-template-columns: 1fr; }
+  .quick-thr { flex-direction: row; justify-content: center; gap: 12px; min-height: 62px; }
+}
+
+/* 값이 두 개뿐일 때는 막대·덤벨이 아니라 큰 숫자가 강하다 */
+.quick-label { margin: 0 0 6px; font-size: 12.5px; letter-spacing: .04em; color: var(--muted); }
+.bignum { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 10px 16px; padding: 18px 18px 16px;
+  border: 1px solid var(--line); border-radius: 18px; background: linear-gradient(180deg, var(--panel), var(--panel2)); }
+.bn-side { display: flex; flex-direction: column; gap: 3px; }
+.bn-side small { font-size: 11.5px; color: var(--muted2); }
+.bn-side b { font-size: clamp(24px, 5vw, 34px); font-weight: 800; letter-spacing: -.02em; line-height: 1.1; }
+.bn-past { color: var(--muted); }
+.bn-now { color: var(--coral); }
+.bn-arrow { padding-bottom: 6px; font-size: 22px; color: var(--muted3); }
+.bn-delta { margin-left: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+.bn-delta small { font-size: 11.5px; color: var(--muted2); }
+.bn-delta b { padding: 4px 12px; border-radius: 999px; background: rgba(var(--sun-rgb),.16);
+  border: 1px solid rgba(var(--sun-rgb),.36); color: var(--on-sun); font-size: 19px; font-weight: 800; }
+.quick-mini { width: 100%; height: auto; margin-top: var(--sp-3); }
+.quick-nodata { margin: 0 0 var(--sp-3); padding: 14px 16px; border-radius: 14px;
+  background: rgba(var(--sun-rgb),.10); border: 1px solid rgba(var(--sun-rgb),.32);
+  font-size: 14px; line-height: 1.75; color: var(--on-sun); }
+
+.quick-verdict { margin: var(--sp-3) 0 0; padding: 14px 16px; border-radius: 15px;
+  background: rgba(var(--line-rgb),.05); border: 1px solid var(--line); }
+.quick-verdict.is-ok { background: rgba(var(--green-rgb),.10); border-color: rgba(var(--green-rgb),.34); }
+.quick-verdict dl { display: grid; grid-template-columns: auto 1fr; gap: 4px var(--sp-3); margin: 6px 0 0; }
+.quick-verdict dt { font-size: 12px; font-weight: 700; color: var(--muted2); white-space: nowrap; }
+.quick-verdict dd { margin: 0; font-size: 14px; line-height: 1.7; color: var(--ink2); }
+@media (max-width: 560px) { .quick-verdict dl { grid-template-columns: 1fr; gap: 2px var(--sp-2); } }
+
+.quick-why { display: grid; gap: 12px; margin-bottom: var(--sp-4); }
+.qw-line { display: flex; gap: 12px; margin: 0; font-size: 14.5px; line-height: 1.8; color: var(--ink2); }
+.qw-line b { color: var(--ink-max); font-weight: 700; }
+.qw-line b.hot { color: var(--coral); }
+.qw-n { flex: 0 0 auto; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center;
+  background: rgba(var(--sea-rgb),.16); color: var(--on-sea); font-size: 13px; font-weight: 800; }
+.quick-limit { margin: 0 0 var(--sp-4); padding: var(--sp-3); border-left: 3px solid rgba(var(--sea-rgb),.45);
+  border-radius: 0 10px 10px 0; background: rgba(var(--sea-rgb),.06);
+  font-size: 13px; line-height: 1.75; color: var(--muted); }
+.quick-limit span { color: var(--sea); margin-right: 4px; }
+.quick-limit b { color: var(--ink2); font-weight: 700; }
+
+.bonus-box { margin-bottom: 12px; }
+.bonus-btn { display: flex; flex-direction: column; gap: 3px; width: 100%; padding: 14px 16px; min-height: 58px;
+  border: 1px solid var(--line); border-radius: 15px; background: var(--panel2); color: var(--ink); text-align: left; }
+.bonus-btn b { font-size: 15px; font-weight: 700; }
+.bonus-btn small { font-size: 12px; color: var(--muted2); }
+.bonus-btn:hover { border-color: var(--sun); }
+.bonus-btn.is-on { border-color: var(--sun); background: rgba(var(--sun-rgb),.10); }
+.bonus-list { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height: 1.85; color: var(--ink2); }
+.bonus-list b.hot { color: var(--coral); }
+.bonus-why { margin: 8px 0 0; padding: 10px 12px; border-radius: 11px; background: rgba(var(--line-rgb),.05);
+  font-size: 13px; line-height: 1.75; color: var(--muted); }
+.bonus-why b { color: var(--ink2); }
+.quick-bridge { margin-top: var(--sp-4); padding: 18px; border-radius: 18px;
+  background: rgba(var(--sea-rgb),.08); border: 1px solid rgba(var(--sea-rgb),.28); }
+.qb-h { margin: 0 0 6px; font-size: 16px; font-weight: 800; color: var(--ink-max); }
+.qb-p { margin: 0 0 var(--sp-3); font-size: 13.5px; line-height: 1.8; color: var(--ink2); }
+.qb-p b { font-weight: 700; color: var(--ink-max); }
+.quick-foot { margin: var(--sp-4) 0 0; font-size: 13px; color: var(--muted); text-align: center; }
+.quick-sep { margin: 0 8px; color: var(--muted3); }
+.linkish { border: 0; background: none; padding: 4px 2px; color: var(--muted); font-size: 13px;
+  text-decoration: underline; text-underline-offset: 3px; }
+.linkish:hover { color: var(--ink); }
+.linkish:focus-visible { outline: 3px solid var(--sun); outline-offset: 2px; border-radius: 6px; }
+
+/* ── ⑥ 조작 가이드 팝업 ───────────────────────────────────── */
+.howto-h2 { margin: var(--sp-2) 0 var(--sp-3); font-size: 21px; line-height: 1.35; }
+.howto-aim { margin: 0 0 4px; font-size: 15px; line-height: 1.75; color: var(--ink); }
+.howto-aim b { color: var(--ink-max); font-weight: 800; }
+.howto-aim-s { margin: 0 0 var(--sp-4); font-size: 13px; line-height: 1.75; color: var(--muted); }
+.howto-aim-s b { color: var(--ink2); }
+.howto-h { margin: 0 0 var(--sp-2); font-size: 13.5px; color: var(--muted); }
+.howto-h b { color: var(--ink2); }
+.howto-list { margin: 0 0 var(--sp-3); padding: 0; list-style: none; display: grid; gap: 10px; }
+.howto-list li { display: flex; gap: 12px; align-items: flex-start; padding: 11px 13px;
+  border: 1px solid var(--line); border-radius: 13px; background: var(--panel2); }
+.howto-ico { flex: 0 0 auto; width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center;
+  background: rgba(var(--thr-rgb),.16); color: var(--on-thr); font-size: 15px; font-weight: 800; }
+.howto-list b { display: block; font-size: 14px; font-weight: 700; color: var(--ink-max); }
+.howto-list p { margin: 3px 0 0; font-size: 12.5px; line-height: 1.7; color: var(--muted); }
+.howto-note { margin: 0 0 var(--sp-3); padding: 11px 13px; border-radius: 12px;
+  background: rgba(var(--sea-rgb),.07); font-size: 12.5px; line-height: 1.75; color: var(--muted); }
+.howto-note b { color: var(--on-sea); }
+
+/* ── ③ 미래 기후 시나리오 ────────────────────────────────── */
+.fut-card { text-align: left; }
+.fut-cap { margin: 0 0 var(--sp-2); font-size: 13px; color: var(--muted); }
+.fut-cap b { color: var(--ink-max); font-weight: 800; }
+.fut-band { width: 100%; height: auto; }
+.chip-wide { min-width: 96px; }
+.fut-readings { display: grid; grid-template-columns: 1fr; gap: 12px; margin-top: var(--sp-3); }
+.fut-readings .ro-v { font-size: 16px; font-variant-numeric: tabular-nums; }
+.fut-idxs { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+.fut-idx { border: 1px solid var(--line); border-radius: 14px; background: var(--panel2); padding: 12px 14px; }
+.fut-idx .ro-v { font-size: 17px; font-weight: 700; margin-top: 4px; color: var(--ink); }
+.fut-idx .ro-v i { color: var(--muted); font-style: normal; margin: 0 4px; }
+/* 띠 SVG 안의 글자 크기는 CSS로 만지지 않는다 — viewBox 축척과 함께 다시 줄어들기 때문에
+   좁은 화면에서 5px가 된다. 크기·눈금 수는 futBandSVG()가 뷰포트 폭을 보고 유저 단위로 정한다. */
+@media (max-width: 560px) { .fut-idxs { grid-template-columns: 1fr; } }
+
+/* ── ② 서리 조건일 ───────────────────────────────────────── */
+.frost-box { margin-top: 14px; padding: 13px 15px; border-radius: 14px;
+  background: rgba(var(--sky-rgb),.08); border: 1px solid rgba(var(--sky-rgb),.26); }
+.frost-h { margin: 0 0 6px; font-size: 13.5px; font-weight: 800; color: var(--on-sky); }
+.frost-p { margin: 0 0 8px; font-size: 13.5px; line-height: 1.8; color: var(--ink2); }
+.frost-p b { color: var(--ink-max); font-weight: 700; }
+.frost-p b.hot { color: var(--coral); }
+.frost-note { margin: 0 0 6px; font-size: 12.5px; line-height: 1.75; color: var(--muted); }
+.frost-note b { color: var(--ink2); }
+.frost-warn { margin-bottom: 0; color: var(--on-coral); }
+.frost-warn b { color: var(--on-coral); }
+
+/* ── ① 기준표 계열 구분 · ⑤ 표 한 줄 요약 ─────────────────── */
+.kma-grouphead th { padding-top: 14px; font-size: 12px; font-weight: 800; color: var(--on-sky);
+  letter-spacing: .02em; background: rgba(var(--sky-rgb),.07); border-bottom: 1px solid var(--line); }
+.kma-grouphead th small { font-weight: 500; color: var(--muted2); letter-spacing: 0; }
+.kma-group:first-of-type .kma-grouphead th { padding-top: 8px; }
+.kma-word { margin-top: 14px; padding: 11px 13px; border-radius: 12px;
+  background: rgba(var(--sun-rgb),.08); border: 1px solid rgba(var(--sun-rgb),.26); }
+.table-lead { margin: 10px 0 4px; padding: 11px 13px; border-radius: 12px;
+  background: rgba(var(--line-rgb),.05); border: 1px solid var(--line);
+  font-size: 13.5px; line-height: 1.8; color: var(--ink2); }
+.table-lead b { color: var(--ink-max); font-weight: 700; }
+.table-lead b.hot { color: var(--coral); }
+.table-lead-s { display: block; margin-top: 4px; font-size: 12.5px; color: var(--muted); }
+.table-lead-s b { color: var(--ink2); font-weight: 700; }
+
+/* 인쇄에서는 체험 모드 장식과 미래 화면 조작칩을 뺀다 */
+@media print {
+  .quick-dots, .quick-foot, .bonus-btn, .fut-card .picker { display: none !important; }
+}

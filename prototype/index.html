@@ -20,7 +20,7 @@
   <meta property="og:image:height" content="630" />
   <script src="./theme-init.js?v=1"></script>
   <link rel="stylesheet" href="./base.css?v=8" />
-  <link rel="stylesheet" href="./verify.css?v=57" />
+  <link rel="stylesheet" href="./verify.css?v=58" />
 </head>
 <body class="verify-mode">
   <a class="skip-link" href="#stage">본문으로 건너뛰기</a>
@@ -64,6 +64,15 @@
     <button class="primary-btn" data-close="guideDialog">확인</button>
   </dialog>
 
+  <!-- 조작 가이드 — 기준선을 처음 만나는 자리에서 한 번만 뜬다.
+       내용은 미션마다 달라지므로 verify.js의 maybeShowHowto()가 #howtoBody를 채운다. -->
+  <dialog class="modal" id="howtoDialog">
+    <div class="modal-head"><p class="eyebrow">잠깐 — 이 화면 쓰는 법</p><button class="close-btn" data-close="howtoDialog" aria-label="닫기">×</button></div>
+    <h2 class="howto-h2">30초면 됩니다.</h2>
+    <div id="howtoBody"></div>
+    <button class="primary-btn" data-close="howtoDialog">직접 해 볼게요</button>
+  </dialog>
+
   <!-- 기록 삭제 확인 — OS 기본 confirm() 대신 앱 안에서 묻는다(라이브 데모 완성도) -->
   <dialog class="modal modal-sm" id="resetDialog">
     <div class="modal-head"><p class="eyebrow">처음부터</p><button class="close-btn" data-close="resetDialog" aria-label="닫기">×</button></div>
@@ -76,7 +85,9 @@
   </dialog>
 
   <script src="./korea_geo.js?v=1"></script>
-  <script src="./solar_terms_data.js?v=11"></script>
-  <script src="./verify.js?v=76"></script>
+  <script src="./solar_terms_data.js?v=12"></script>
+  <!-- 미래 기후 시나리오(기상청 「지역 기후변화 전망보고서 개정판」 2024). 없어도 앱은 그대로 돌아간다. -->
+  <script src="./future_scenarios.js?v=1"></script>
+  <script src="./verify.js?v=77"></script>
 </body>
 </html>
