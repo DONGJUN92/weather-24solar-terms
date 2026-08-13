@@ -3067,28 +3067,114 @@
          이미 적으므로 정보가 사라지지 않고, 그만큼을 이름 글자 크기로 돌린다. */
       ? { row: 24, seg: 24, tick: 25, date: 0, edge: 24, gone: 24, minSeg: 46, segDays: false }
       : { row: 12, seg: 12, tick: 11, date: 10, edge: 11.5, gone: 11.5, minSeg: 44, segDays: true };
-    var W = 700, L = 12, R = 12, rowH = narrow ? 46 : 34, gap = narrow ? 44 : 30;
-    /* 위쪽에 글자 줄이 둘 있다 — ①양 끝 날짜(1월 1일·12월 31일) ②줄 이름(+‘사라짐’ 주석).
-       둘 다 x가 양 끝이라 y가 가까우면 반드시 겹친다(실측: '12월 31일'↔'겨울 0일 — 사라짐').
-       두 줄의 baseline을 글자 높이로 계산해 떨어뜨린다. */
-    var edgeBase = Math.round(FS.edge) + 2;
-    var T = edgeBase + Math.round(FS.edge * 0.3) + 9 + Math.round(FS.row * 0.9) + 7;
-    var H = T + rowH * 2 + gap + (narrow ? 62 : 46);
+    var W = 700, L = 12, R = 12, rowH = narrow ? 46 : 34;
     var SC = { spring: 'var(--green)', summer: 'var(--coral)', autumn: 'var(--sun)', winter: 'var(--sky)' };
     function x(doy) { return L + (doy - 1) / 364 * (W - L - R); }
-    function row(period, y, label) {
-      /* 사라진 계절은 빈칸이 아니라 사실이다 — 화면이 말하지 않으면 '자료 없음'으로 읽힌다.
-         예전에는 이 문구를 띠 <b>아래</b>에 뒀는데, 아래 줄 절기 눈금 라벨과 y가 2.5유닛밖에
-         차이나지 않아 겹쳤다("입퉁울 0일 — 사롱짐"). SVG에는 줄바꿈도 회피도 없으므로
-         빈 자리를 찾아 옮긴다 — 줄 이름과 같은 줄의 <b>오른쪽 끝</b>은 항상 비어 있다. */
-      var gone = FUT.seasonKeys.filter(function (s) { var c = futCell(s.key, period); return c && c.days === 0; });
-      var g = '<text x="' + L + '" y="' + (y - 7) + '" font-size="' + FS.row + '" font-weight="700" fill="var(--ink2)">' + label + '</text>'
-        + (gone.length
-            ? '<text x="' + (W - R) + '" y="' + (y - 7) + '" text-anchor="end" font-size="' + FS.gone + '" font-weight="700" fill="var(--on-coral)">'
-              + gone.map(function (s) { return s.label; }).join('·') + ' 0일 — 사라짐</text>'
+
+    /* SVG에는 줄바꿈도, 겹칠 때 알아서 비키는 규칙도 없다. 한 줄의 양 끝에 글자 둘을 놓으려면
+       폭을 알아야 하는데 그리기 전에는 잴 수 없다(getComputedTextLength는 DOM에 붙은 뒤에나 된다).
+       그래서 보수적으로 어림한다 — 한글·한자·전각·긴줄표는 1.0em, 나머지는 0.62em.
+       마지막 1.08은 안전 계수다: 어림을 실측(getComputedTextLength)과 맞대 보니
+       '겨울 0일 — 사라짐'에서 5%까지 작게 나왔다. 작게 잡으면 겹치는 쪽으로 틀리므로
+       실측 최악값보다 넉넉히 키워, 틀리더라도 <b>떼어 놓는 쪽</b>으로만 틀리게 한다. */
+    function textW(s, fs) {
+      var w = 0;
+      for (var i = 0; i < s.length; i++) {
+        var c = s.charCodeAt(i);
+        if (c === 32) w += 0.32;
+        else if ((c >= 0x1100 && c <= 0x11ff) || (c >= 0x3000 && c <= 0x30ff)
+              || (c >= 0xac00 && c <= 0xd7a3) || (c >= 0x4e00 && c <= 0x9fff)
+              || (c >= 0xff01 && c <= 0xff60) || c === 0x2013 || c === 0x2014) w += 1.0;
+        else w += 0.62;
+      }
+      return w * fs * 1.08;
+    }
+    /* baseline 하나로 세로를 다루면 글자 크기가 바뀔 때 조용히 겹친다.
+       글자 줄이 실제로 차지하는 위아래를 함수로 두고, 그 아래에서 다음 줄을 시작한다.
+       비율은 눈대중이 아니라 실측이다 — getBBox로 재 보니 한글 글자는 baseline 위로
+       1.083em, 아래로 0.25em을 차지했다(0.8em로 잡았더니 좁은 화면에서 '1월 1일'이
+       viewBox 위로 4유닛 잘려 나갔다). 실측보다 조금 크게 잡아 안전 쪽으로 둔다. */
+    function botOf(base, fs) { return base + Math.ceil(fs * 0.28); }
+    function nextBase(bottom, fs, pad) { return bottom + Math.ceil(fs * 1.10) + pad; }
+
+    var p = futPeriodLabel(state.futPeriod);
+    var rows = [
+      { period: 'now', label: '현재 (2000–2019)' },
+      { period: state.futPeriod, label: state.futScen + ' · ' + p.label + ' (' + p.span + ')' }
+    ];
+    rows.forEach(function (r) {
+      /* 사라진 계절은 빈칸이 아니라 사실이다 — 화면이 말하지 않으면 '자료 없음'으로 읽힌다. */
+      var gone = FUT.seasonKeys.filter(function (s) { var c = futCell(s.key, r.period); return c && c.days === 0; });
+      r.gone = gone.length ? gone.map(function (s) { return s.label; }).join('·') + ' 0일 — 사라짐' : '';
+      /* 이 문구는 두 번 자리를 옮겼다: 처음엔 띠 아래에 뒀다가 절기 눈금 라벨과 겹쳤고("입퉁울 0일 — 사롱짐"),
+         다음엔 줄 이름 오른쪽 끝으로 옮겼는데 좁은 화면에서는 줄 이름이 길어 여전히 부딪혔다.
+         '빈 자리를 찾는다'가 아니라 <b>자리가 모자라면 줄을 늘린다</b>로 바꾼다 —
+         이러면 지역·시나리오·기간·화면폭 어떤 조합에서도 겹칠 수 <b>없다</b>. */
+      r.solo = !!r.gone && (textW(r.label, FS.row) + textW(r.gone, FS.gone) + 26 > W - L - R);
+    });
+
+    /* 절기 눈금 — 이 화면에서 유일하게 움직이지 않는 것 */
+    /* 좁은 화면에서는 눈금을 4개로 줄인다. 뺀 절기(하지·입추·동지)의 날짜는 아래 판독 문장이
+       "입하(5/5, ‘여름의 시작’)"처럼 그대로 적으므로 정보가 사라지지 않는다.
+       남기는 넷은 계절의 시작을 말하는 절기 셋 + 이 앱의 주인공 처서다. */
+    var marks = narrow ? ['입춘', '입하', '처서', '입동'] : ['입춘', '입하', '하지', '입추', '처서', '입동', '동지'];
+    var picked = D.terms[state.ti] && D.terms[state.ti].name;
+    /* 체험 모드에서 절기를 고르고 넘어왔다면 그 절기가 눈금에 없으면 화면이 질문에 답하지 않는다.
+       그런데 끼워 넣으면 이웃과 15일(이 띠에서 28유닛)밖에 안 떨어진 경우가 있다
+       — 상강↔입동, 소설↔입동, 대설↔동지. 부딪히는 쪽을 빼 봤더니 아래 판독 문장이
+       "겨울의 시작 vs 입동"이라며 화면에 없는 눈금을 부르게 됐다.
+       그래서 <b>고른 절기에는 전용 줄</b>을 준다 — 그 줄에는 그것 하나뿐이라 겹칠 상대가 아예 없고,
+       내가 고른 절기가 기본 눈금과 구별되어 먼저 눈에 들어오는 이점도 따라온다. */
+    var pickMark = null;
+    if (picked && marks.indexOf(picked) === -1) {
+      var pdoy = termDoyByName(picked);
+      if (pdoy) {
+        var pdt = ''; D.terms.forEach(function (t) { if (t.name === picked) pdt = t.date || ''; });
+        pickMark = { nm: picked + (pdt ? ' ' + pdt : ''), px: x(pdoy) };
+        pickMark.w = textW(pickMark.nm, FS.tick);
+      }
+    }
+    var mk = [];
+    marks.forEach(function (nm) {
+      var d = termDoyByName(nm); if (!d) return;
+      var dt = ''; D.terms.forEach(function (t) { if (t.name === nm) dt = t.date || ''; });
+      /* 이름과 날짜 중 넓은 쪽이 이웃과의 간격을 정한다 */
+      mk.push({ nm: nm, doy: d, px: x(d), dt: dt, keep: nm === '처서',
+                w: Math.max(textW(nm, FS.tick), FS.date ? textW(dt, FS.date) : 0) });
+    });
+    mk.sort(function (a, b) { return a.doy - b.doy; });
+    /* 기본 눈금끼리는 지금 설정에서 부딪히지 않지만(가장 좁은 곳이 입추 8/7 ↔ 처서 8/23),
+       글자 크기를 손대면 조용히 겹칠 자리다. 그물은 남겨 둔다 — 처서는 이 앱의 주인공이라 남긴다. */
+    for (var mi = 1; mi < mk.length; mi++) {
+      if (mk[mi].px - mk[mi - 1].px >= (mk[mi - 1].w + mk[mi].w) / 2 + 2) continue;
+      mk.splice(mk[mi - 1].keep ? mi : mi - 1, 1); mi--;
+    }
+
+    /* 세로 배치는 위에서부터 쌓아 내려간다 */
+    var edgeBase = Math.ceil(FS.edge * 1.10) + 1;
+    var cur = botOf(edgeBase, FS.edge);
+    rows.forEach(function (r, i) {
+      if (i) cur += narrow ? 14 : 10;
+      if (r.solo) { r.goneY = nextBase(cur, FS.gone, narrow ? 10 : 7); cur = botOf(r.goneY, FS.gone); }
+      r.labelY = nextBase(cur, FS.row, narrow ? 10 : 7);
+      r.barY = botOf(r.labelY, FS.row) + (narrow ? 6 : 4);
+      cur = r.barY + rowH;
+    });
+    var barsBottom = cur;
+    var pickY = pickMark ? nextBase(barsBottom, FS.tick, narrow ? 8 : 6) : 0;
+    var tickY = nextBase(pickMark ? botOf(pickY, FS.tick) : barsBottom, FS.tick, narrow ? 8 : 6);
+    var dateY = FS.date ? nextBase(botOf(tickY, FS.tick), FS.date, 3) : 0;
+    var H = Math.ceil(botOf(FS.date ? dateY : tickY, FS.date || FS.tick)) + (narrow ? 8 : 6);
+
+    function row(r) {
+      var y = r.barY;
+      var g = '<text x="' + L + '" y="' + r.labelY + '" font-size="' + FS.row + '" font-weight="700" fill="var(--ink2)">' + r.label + '</text>'
+        + (r.gone
+            ? '<text x="' + (W - R) + '" y="' + (r.solo ? r.goneY : r.labelY) + '" text-anchor="end" font-size="' + FS.gone
+              + '" font-weight="700" fill="var(--on-coral)">' + r.gone + '</text>'
             : '');
       FUT.seasonKeys.forEach(function (s) {
-        var c = futCell(s.key, period);
+        var c = futCell(s.key, r.period);
         if (!c || !c.days || !c.doy) return;
         /* 겨울은 연말·연초를 가로지른다 — 두 토막으로 나눠 그린다.
            라벨은 <b>넓은 토막 한 곳에만</b> 붙인다. 양쪽에 붙이면 "겨울 102일"이 한 줄에 두 번
@@ -3111,32 +3197,39 @@
       });
       return g;
     }
-    /* 절기 눈금 — 이 화면에서 유일하게 움직이지 않는 것 */
-    /* 좁은 화면에서는 눈금을 4개로 줄인다. 뺀 절기(하지·입추·동지)의 날짜는 아래 판독 문장이
-       "입하(5/5, ‘여름의 시작’)"처럼 그대로 적으므로 정보가 사라지지 않는다.
-       남기는 넷은 계절의 시작을 말하는 절기 셋 + 이 앱의 주인공 처서다. */
-    var marks = narrow ? ['입춘', '입하', '처서', '입동'] : ['입춘', '입하', '하지', '입추', '처서', '입동', '동지'];
-    /* 체험 모드에서 절기를 고르고 넘어온 경우 그 절기가 눈금에 없으면 화면이 질문에 답하지 않는다 */
-    var picked = D.terms[state.ti] && D.terms[state.ti].name;
-    if (picked && marks.indexOf(picked) === -1) marks = marks.concat([picked]);
+    /* SVG 루트는 overflow:hidden이라 viewBox를 넘는 글자는 DOM에 남고 화면에서만 사라진다.
+       양 끝에서는 가운데 정렬을 포기하고 안쪽으로 붙인다 — 조금 어긋나는 편이 사라지는 것보다 낫다. */
+    function anchorAt(px, w) {
+      if (px - w / 2 < L) return { an: 'start', x: L };
+      if (px + w / 2 > W - R) return { an: 'end', x: W - R };
+      return { an: 'middle', x: px };
+    }
+    /* 점선을 두 줄에 걸쳐 하나로 그으면 그 사이의 줄 이름 글자를 가로지른다.
+       띠마다 한 토막씩 끊어 그어도 x가 같으므로 '같은 자리'라는 뜻은 그대로 남는다. */
+    function guide(px, op) {
+      return rows.map(function (r) {
+        return '<line x1="' + px.toFixed(1) + '" y1="' + (r.barY - 4) + '" x2="' + px.toFixed(1) + '" y2="' + (r.barY + rowH)
+          + '" stroke="var(--ink-max)" stroke-width="1" stroke-dasharray="3 3" opacity="' + op + '"/>';
+      }).join('');
+    }
     var ticks = '';
-    marks.forEach(function (nm) {
-      var d = termDoyByName(nm); if (!d) return;
-      var px = x(d);
-      var dt = null;
-      D.terms.forEach(function (t) { if (t.name === nm) dt = t.date; });
-      ticks += '<line x1="' + px.toFixed(1) + '" y1="' + (T - 4) + '" x2="' + px.toFixed(1) + '" y2="' + (T + rowH * 2 + gap) + '" stroke="var(--ink-max)" stroke-width="1" stroke-dasharray="3 3" opacity=".55"/>'
-        + '<text x="' + px.toFixed(1) + '" y="' + (T + rowH * 2 + gap + FS.tick + 5) + '" text-anchor="middle" font-size="' + FS.tick + '" font-weight="700" fill="var(--ink2)">' + nm + '</text>'
-        + (FS.date ? '<text x="' + px.toFixed(1) + '" y="' + (T + rowH * 2 + gap + FS.tick + FS.date + 8) + '" text-anchor="middle" font-size="' + FS.date + '" fill="var(--muted2)">' + (dt || '') + '</text>' : '');
+    mk.forEach(function (m) {
+      var a = anchorAt(m.px, m.w);
+      ticks += guide(m.px, '.55')
+        + '<text x="' + a.x.toFixed(1) + '" y="' + tickY + '" text-anchor="' + a.an + '" font-size="' + FS.tick + '" font-weight="700" fill="var(--ink2)">' + m.nm + '</text>'
+        + (FS.date ? '<text x="' + a.x.toFixed(1) + '" y="' + dateY + '" text-anchor="' + a.an + '" font-size="' + FS.date + '" fill="var(--muted2)">' + m.dt + '</text>' : '');
     });
-    var p = futPeriodLabel(state.futPeriod);
+    if (pickMark) {
+      var pa = anchorAt(pickMark.px, pickMark.w);
+      ticks += guide(pickMark.px, '.85')
+        + '<text x="' + pa.x.toFixed(1) + '" y="' + pickY + '" text-anchor="' + pa.an + '" font-size="' + FS.tick
+        + '" font-weight="800" fill="var(--on-sun)">' + pickMark.nm + '</text>';
+    }
     return '<svg viewBox="0 0 ' + W + ' ' + H + '" class="fut-band" role="img" aria-label="'
       + futRegion() + '의 계절 구간을 현재와 ' + p.label + euRo(p.label) + ' 나란히 놓은 띠. 절기 눈금은 두 줄 모두에서 같은 자리에 있습니다.">'
       + '<text x="' + L + '" y="' + edgeBase + '" font-size="' + FS.edge + '" fill="var(--muted2)">1월 1일</text>'
       + '<text x="' + (W - R) + '" y="' + edgeBase + '" text-anchor="end" font-size="' + FS.edge + '" fill="var(--muted2)">12월 31일</text>'
-      + ticks
-      + row('now', T, '현재 (2000–2019)')
-      + row(state.futPeriod, T + rowH + gap, state.futScen + ' · ' + p.label + ' (' + p.span + ')')
+      + ticks + row(rows[0]) + row(rows[1])
       + '</svg>';
   }
 
